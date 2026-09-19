@@ -2,7 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome');
+//a rota padrão deve ser a dashboard ou /login se não estiver logado
+Route::get('/', function () {
+    return redirect()->route('dashboard');
+});
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
