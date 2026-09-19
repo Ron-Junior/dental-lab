@@ -34,7 +34,7 @@ RUN npm install && npm run build
 # Ajusta permissões
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
-EXPOSE 10000
+EXPOSE 10000 5173
 
 # Roda as migrações e inicia o servidor
 CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=10000

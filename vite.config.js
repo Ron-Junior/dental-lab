@@ -1,24 +1,19 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
-import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
-            fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
-                }),
-            ],
         }),
-        tailwindcss(),
     ],
     server: {
-        watch: {
-            ignored: ['**/storage/framework/views/**'],
+        host: '0.0.0.0', // Permite que o container Docker responda às requisições do Vite
+        port: 5173,      // Porta interna fixada para o servidor do Vite
+        strictPort: true,
+        hmr: {
+            host: 'localhost', // Endereço de atualização em tempo real no seu navegador
         },
-    },
+    }
 });
