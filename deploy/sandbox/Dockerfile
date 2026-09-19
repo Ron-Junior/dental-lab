@@ -1,38 +1,56 @@
-FROM richarvey/nginx-php-fpm:3.1.6
+# Stage 1: Build de assets do Frontend com Node 22
+FROM node:22-alpine AS frontend-builder
+WORKDIR /app
+COPY package*.json vite.config.js tailwind.config.js postcss.config.js ./
+COPY resources ./resources
+COPY public ./public
+RUN npm ci && npm run build
 
-# Instalar Node.js e npm (Alpine Linux)
-RUN apk add --no-cache nodejs npm
+# Stage 2: Produção com PHP 8.4-FPM + Nginx (Alpine)
+FROM php:8.4-fpm-alpine
+
+# Instalar dependências do sistema, Nginx e extensões PHP necessárias para o Laravel
+RUN apk add --no-cache \
+    nginx \
+    bash \
+    curl \
+    git \
+    unzip \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    oniguruma-dev \
+    libxml2-dev \
+    postgresql-dev \
+    sqlite-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_sqlite pdo_pgsql pgsql mbstring exif pcntl bcmath gd opcache
+
+# Copiar executável do Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copiar arquivos do projeto
+# Copiar arquivos da aplicação
 COPY . .
 
-# Configurações da Imagem Richarvey
-ENV SKIP_COMPOSER 1
-ENV WEBROOT /var/www/html/public
-ENV PHP_ERRORS_STDERR 1
-ENV RUN_SCRIPTS 1
-ENV REAL_IP_HEADER 1
+# Copiar assets compilados no Stage 1
+COPY --from=frontend-builder /app/public/build ./public/build
 
-# Configurações do Laravel
-ENV APP_ENV production
-ENV APP_DEBUG false
-ENV LOG_CHANNEL stderr
-ENV COMPOSER_ALLOW_SUPERUSER 1
+# Instalar dependências do PHP com Composer
+RUN composer install --no-dev --optimize-autoloader
 
-# Sobrescrever a configuração default do Nginx com a do projeto
-COPY deploy/sandbox/conf/nginx/nginx-site.conf /etc/nginx/sites-available/default.conf
+# Ajustar permissões para storage, cache e banco SQLite
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Instalar dependências PHP e compilar frontend
-RUN composer install --no-dev --optimize-autoloader \
-    && npm install \
-    && npm run build \
-    && php artisan storage:link || true
+# Configuração do Nginx
+COPY deploy/sandbox/conf/nginx/nginx-site.conf /etc/nginx/http.d/default.conf
 
-# Configurar permissões nos diretórios storage, cache e database
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
+# Copiar o script de inicialização
+COPY deploy/sandbox/scripts/laravel-deploy.sh /usr/local/bin/laravel-deploy.sh
+RUN chmod +x /usr/local/bin/laravel-deploy.sh
 
-# Copiar o script de inicialização para o local esperado pela imagem
-COPY deploy/sandbox/scripts/laravel-deploy.sh /var/www/html/scripts/laravel-deploy.sh
-RUN chmod +x /var/www/html/scripts/laravel-deploy.sh
+EXPOSE 80
+
+CMD ["/usr/local/bin/laravel-deploy.sh"]
