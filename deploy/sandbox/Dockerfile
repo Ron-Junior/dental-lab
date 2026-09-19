@@ -1,9 +1,7 @@
 FROM richarvey/nginx-php-fpm:3.1.6
 
-# Instalar Node.js 22 para compilar os assets do Vite
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Instalar Node.js e npm (Alpine Linux)
+RUN apk add --no-cache nodejs npm
 
 WORKDIR /var/www/html
 
