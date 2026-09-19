@@ -30,8 +30,8 @@ RUN composer install --no-dev --optimize-autoloader \
     && npm run build \
     && php artisan storage:link || true
 
-# Configurar permissões nos diretórios storage e cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Configurar permissões nos diretórios storage, cache e database
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 
 # Copiar o script de inicialização para o local esperado pela imagem
 COPY deploy/sandbox/scripts/laravel-deploy.sh /var/www/html/scripts/laravel-deploy.sh
