@@ -28,10 +28,20 @@
                 <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
             </flux:sidebar.header>
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="home" href="#" current>Dashboard</flux:sidebar.item>
-                <flux:sidebar.item icon="inbox" badge="12" href="#">Serviços</flux:sidebar.item>
-                <flux:sidebar.item icon="document-text" href="#">Coroas</flux:sidebar.item>
-                <flux:sidebar.item icon="calendar" href="#">Calendar</flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="home"
+                    href="{{ route('dashboard') }}"
+                    wire:navigate
+                >
+                    Dashboard
+                </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="inbox"
+                    href="{{ route('services.index') }}"
+                    wire:navigate
+                >
+                    Serviços
+                </flux:sidebar.item>
             </flux:sidebar.nav>
             <flux:sidebar.spacer />
             <flux:sidebar.nav>
