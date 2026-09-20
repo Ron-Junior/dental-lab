@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\Service;
+use App\Models\ServiceStep;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
@@ -19,6 +21,19 @@ new class extends Component
     #[Validate('required|numeric|min:0|max:20000')]
     public ?float $price = null;
 
+    #[Validate('required|array|min:1', 'Etapas')]
+    public ?array $steps = [
+        [
+            'name' => '',
+            'description' => '',
+        ]
+    ];
+
+    protected $validationAttributes = [
+        'steps.*.name' => 'Nome da etapa',
+        'steps.*.description' => 'Descrição da etapa',
+    ];
+
     protected function rules()
     {
         return [
@@ -28,6 +43,18 @@ new class extends Component
                 'min:3',
                 'max:255',
                 Rule::unique('services', 'name')->ignore($this->serviceId),
+            ],
+            'steps.*.name' => [
+                'required',
+                'string',
+                'min:3',
+                'max:255',
+            ],
+            'steps.*.description' => [
+                'required',
+                'string',
+                'min:3',
+                'max:255',
             ],
         ];
     }
@@ -41,21 +68,35 @@ new class extends Component
         $this->name = $service->name;
         $this->description = $service->description;
         $this->price = $service->price;
+        $this->steps = $service->steps->toArray();
 
         Flux::modal('store-service-modal')->show();
     }
 
     public function store(): void
     {
+        $this->authorize('create', Service::class);
         $this->validate();
 
-        Service::updateOrCreate([
-            'id' => $this->serviceId,
-        ],[
-            'name' => $this->name,
-            'description' => $this->description,
-            'price' => $this->price,
-        ]);
+        DB::transaction(function () {
+            $service = Service::updateOrCreate([
+                'id' => $this->serviceId,
+            ],[
+                'name' => $this->name,
+                'description' => $this->description,
+                'price' => $this->price,
+            ]);
+
+            ServiceStep::where('service_id', $service->id)->delete();
+
+            foreach ($this->steps as $step) {
+                ServiceStep::create([
+                    'service_id' => $service->id,
+                    'name' => $step['name'],
+                    'description' => $step['description'],
+                ]);
+            }
+        });
         
         $this->reset();
         $this->dispatch('service::refresh');
@@ -68,6 +109,19 @@ new class extends Component
     {
         $this->reset();
         $this->resetValidation();
+    }
+
+    public function addStep(): void
+    {
+        $this->steps[] = [
+            'name' => '',
+            'description' => '',
+        ];
+    }
+
+    public function removeStep(int $index): void
+    {
+        unset($this->steps[$index]);
     }
 }
 ?>
@@ -90,6 +144,30 @@ new class extends Component
                 </flux:input.group>
                 <flux:error name="price" />
             </flux:field>
+
+            <flux:separator />
+
+            <flux:heading size="md">Etapas do Serviço</flux:heading>
+            @foreach ($steps as $index => $step)
+                <flux:card wire:key="step-{{ $index }}" class="space-y-5">
+                    <div class="flex justify-between">
+                        <flux:heading size="sm">Etapa {{ $index + 1 }}</flux:heading>
+                        <flux:button icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
+                    </div>
+                    <div class="space-y-4">
+                        <flux:input wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
+                        <flux:textarea wire:model="steps.{{ $index }}.description" label="Descrição" placeholder="Descrição do serviço" />
+                    </div>
+                </flux:card>
+            @endforeach
+
+            @error('steps')
+                <flux:error name="steps" />
+            @enderror
+                
+
+            <flux:button class="w-full" variant="outline" wire:click="addStep">Adicionar Etapa</flux:button>
+
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>
                     <flux:button variant="ghost" wire:click="clearModal">Cancelar</flux:button>
