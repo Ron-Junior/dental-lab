@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\Rules;
 use App\Models\Service;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
 

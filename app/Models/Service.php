@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Policies\ServicePolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
+#[UsePolicy(ServicePolicy::class)]
 #[Fillable(['name', 'description', 'price'])]
 class Service extends Model
 {

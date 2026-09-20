@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\Rules;
+use App\Models\Rule;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -15,11 +17,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        User::factory()
+            ->for(Rule::factory([
+                'name' => Rules::Owner,
+            ]))->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
     }
 }
