@@ -6,6 +6,7 @@ use App\Models\RequestService;
 use App\Models\Service;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -50,6 +51,15 @@ new class extends Component
             'services.*.quantity.min' => 'A quantidade deve ser maior ou igual a 1.',
             'services.*.quantity.max' => 'A quantidade deve ser menor ou igual a 1000000.',
         ];
+    }
+
+    public function mount()
+    {
+        if (Auth::user()->can('view', \App\Models\Dentist::class)) {
+            return ;
+        }
+
+        $this->dentistId = Auth::user()->dentist->id;
     }
 
     #[Computed(true)]
@@ -133,12 +143,14 @@ new class extends Component
             <flux:heading size="lg">Nova Solicitação</flux:heading>
             <flux:subheading>Adicione uma nova solicitação de serviço.</flux:subheading>
 
-            <flux:select label="Dentista" wire:model="dentistId">
-                <flux:select.option>Selecione um Dentista</flux:select.option>
-                @foreach ($this->dentists as $dentist)
-                    <flux:select.option value="{{ $dentist->id }}">{{ $dentist->user->name }}</flux:select.option>
-                @endforeach
-            </flux:select>
+            @can('view', \App\Models\Dentist::class)
+                <flux:select label="Dentista" wire:model="dentistId">
+                    <flux:select.option>Selecione um Dentista</flux:select.option>
+                    @foreach ($this->dentists as $dentist)
+                        <flux:select.option value="{{ $dentist->id }}">{{ $dentist->user->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            @endcan
 
             <flux:heading size="lg">Serviços</flux:heading>
 
@@ -153,7 +165,7 @@ new class extends Component
                             @endforeach
                         </flux:select>
 
-                        <flux:input mask:dynamic="$money($input)" label="Preço Unitário" wire:model="services.{{ $index }}.unit_price" readonly />            
+                        <flux:input mask:dynamic="$money($input, ',', '.')" label="Preço Unitário" wire:model="services.{{ $index }}.unit_price" readonly />            
                         <flux:input label="Quantidade" type="number" wire:model="services.{{ $index }}.quantity" />
 
                         @if (count($services) > 1)

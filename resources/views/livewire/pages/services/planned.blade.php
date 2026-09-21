@@ -83,7 +83,7 @@ new class extends Component
                     </div>
                     <div x-show="open" x-collapse.duration.500ms style="display: none;">
                         @foreach ($dentistRequest->requestServices as $requestService)
-                            <div class="grid grid-cols-6 justify-between w-full mt-4">
+                            <div class="grid grid-cols-6 justify-between w-full mt-4" wire:key="request-service-{{ $requestService->id }}">
                                 <flux:text></flux:text>
                                 <flux:text>{{ $requestService->service->name }}</flux:text>
                                 <flux:text>R$ {{ $requestService->unit_price }}</flux:text>
@@ -102,23 +102,45 @@ new class extends Component
                                     @endif
                                 </div>
                                 <div class="justify-self-end">
-                                    <flux:tooltip content="Atualizar status">
-                                        <flux:button
-                                            size="sm"
-                                            icon="bolt"
-                                            variant="ghost"
-                                            wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
-                                        >
-                                        </flux:button>
-                                    </flux:tooltip>
-                                    <flux:tooltip content="Concluir">
+                                    @can('update-status', $requestService)
+                                        <flux:tooltip content="Atualizar status">
+                                            <flux:button
+                                                size="sm"
+                                                icon="bolt"
+                                                variant="ghost"
+                                                wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
+                                            >
+                                            </flux:button>
+                                        </flux:tooltip>
+                                        <flux:tooltip content="Concluir">
+                                            <flux:button 
+                                                size="sm"
+                                                icon="check"
+                                                variant="ghost"
+                                                wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
+                                            >
+                                            </flux:button>
+                                        </flux:tooltip>
+                                        <flux:tooltip content="Cancelar">
+                                            <flux:button 
+                                                size="sm"
+                                                icon="no-symbol"
+                                                variant="ghost"
+                                                wire:click="dispatch('service::canceled', '{{ $requestService->id }}')"
+                                            >
+                                            </flux:button>
+                                        </flux:tooltip>
+                                    @endcan
+
+                                    <flux:tooltip content="Editar">
                                         <flux:button 
+                                            wire:key="edit-service-{{ $requestService->id }}"
+                                            :disabled="$requestService->completed_at || $requestService->step_id"
                                             size="sm"
-                                            icon="check"
+                                            icon="pencil"
                                             variant="ghost"
-                                            wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
-                                        >
-                                        </flux:button>
+                                            wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                        />
                                     </flux:tooltip>
                                 </div>
                             </div>
@@ -129,6 +151,7 @@ new class extends Component
         </div>
     </div>
 
+    <livewire:service.update />
     <livewire:service.requesting />
     <livewire:service.update-step />
     <livewire:service.complete />

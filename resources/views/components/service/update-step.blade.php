@@ -51,7 +51,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal flyout variant="floating" name="step-update-modal">
+    <flux:modal flyout variant="floating" name="step-update-modal" class="md:w-lg">
         <div class="space-y-5">
             <flux:heading size="lg">Atualizar Etapa</flux:heading>
             <flux:subheading>Atualize a etapa do serviço</flux:subheading>

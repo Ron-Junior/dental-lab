@@ -34,20 +34,24 @@ new class extends Component
             >
                 Dashboard
             </flux:sidebar.item>
-            <flux:sidebar.item
-                icon="inbox"
-                href="{{ route('services.index') }}"
-                wire:navigate
-            >
-                Serviços
-            </flux:sidebar.item>
-            <flux:sidebar.item
-                icon="user-circle"
-                href="{{ route('dentists.index') }}"
-                wire:navigate
-            >
-                Dentistas
-            </flux:sidebar.item>
+            @can('viewAny', \App\Models\Service::class)
+                <flux:sidebar.item
+                    icon="inbox"
+                    href="{{ route('services.index') }}"
+                    wire:navigate
+                >
+                    Serviços
+                </flux:sidebar.item>
+            @endcan
+            @can('viewAny', \App\Models\Service::class)
+                <flux:sidebar.item
+                    icon="user-circle"
+                    href="{{ route('dentists.index') }}"
+                    wire:navigate
+                >
+                    Dentistas
+                </flux:sidebar.item>
+            @endcan
             <flux:sidebar.item
                 icon="calendar"
                 href="{{ route('services.planned.index') }}"

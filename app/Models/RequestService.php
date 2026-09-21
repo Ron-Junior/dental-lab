@@ -42,7 +42,7 @@ class RequestService extends Model
     {
         return new Attribute(
             get: fn ($value) => $value / 100,
-            set: fn ($value) => $value * 100
+            set: fn (float $value) => $value * 100
         );
     }
 
