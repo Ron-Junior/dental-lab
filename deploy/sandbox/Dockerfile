@@ -1,12 +1,34 @@
-# Stage 1: Build de assets do Frontend com Node 22
+# ==========================================
+# Stage 1: Dependências do PHP (Composer)
+# ==========================================
+FROM composer:latest AS composer-builder
+WORKDIR /app
+
+# Copia os arquivos essenciais do projeto para rodar o composer
+COPY composer.json composer.lock ./
+COPY . .
+
+# Instala as dependências do PHP. O flag --ignore-platform-reqs é usado 
+# pois esta imagem base não tem as extensões do PHP que a imagem final terá.
+RUN composer install --no-dev --ignore-platform-reqs --optimize-autoloader
+
+# ==========================================
+# Stage 2: Build de assets do Frontend (Node 22)
+# ==========================================
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
+
 COPY package*.json vite.config.js ./
 COPY resources ./resources
 COPY public ./public
+
+COPY --from=composer-builder /app/vendor ./vendor
+
 RUN npm ci && npm run build
 
-# Stage 2: Produção com PHP 8.4-FPM + Nginx (Alpine)
+# ==========================================
+# Stage 3: Produção com PHP 8.4-FPM + Nginx
+# ==========================================
 FROM php:8.4-fpm-alpine
 
 # Instalar dependências do sistema, Nginx e extensões PHP necessárias para o Laravel
@@ -26,19 +48,16 @@ RUN apk add --no-cache \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_sqlite pdo_pgsql pgsql mbstring exif pcntl bcmath gd opcache
 
-# Copiar executável do Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
 WORKDIR /var/www/html
 
-# Copiar arquivos da aplicação
+# Copiar arquivos da aplicação original
 COPY . .
 
-# Copiar assets compilados no Stage 1
-COPY --from=frontend-builder /app/public/build ./public/build
+# Copiar a pasta vendor (dependências PHP) gerada no Stage 1
+COPY --from=composer-builder /app/vendor ./vendor
 
-# Instalar dependências do PHP com Composer
-RUN composer install --no-dev --optimize-autoloader
+# Copiar assets compilados (Frontend) gerados no Stage 2
+COPY --from=frontend-builder /app/public/build ./public/build
 
 # Ajustar permissões para storage, cache e banco SQLite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
