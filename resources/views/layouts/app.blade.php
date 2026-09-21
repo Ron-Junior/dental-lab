@@ -42,6 +42,13 @@
                 >
                     Serviços
                 </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="user-circle"
+                    href="{{ route('dentists.index') }}"
+                    wire:navigate
+                >
+                    Dentistas
+                </flux:sidebar.item>
             </flux:sidebar.nav>
             <flux:sidebar.spacer />
             <flux:sidebar.nav>

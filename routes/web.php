@@ -8,12 +8,12 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-
 Route::group(['middleware' => 'auth'], function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::view('profile', 'profile')->name('profile');
 
-    Volt::route('services', 'services.index')->name('services.index');
+    Volt::route('serviços', 'services.index')->name('services.index');
+    Volt::route('dentistas', 'dentists.index')->name('dentists.index');
 });
 
 

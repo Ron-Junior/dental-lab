@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'rule_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -31,8 +32,18 @@ class User extends Authenticatable
         ];
     }
 
+    public function dentist(): HasOne
+    {
+        return $this->hasOne(Dentist::class);
+    }
+
     public function rule(): BelongsTo
     {
         return $this->belongsTo(Rule::class);
+    }
+
+    public function invitationToken(): HasOne
+    {
+        return $this->hasOne(InvitationToken::class);
     }
 }

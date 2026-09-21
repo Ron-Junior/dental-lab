@@ -24,5 +24,9 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Test User',
                 'email' => 'test@example.com',
             ]);
+        
+        Rule::factory(['name' => Rules::Lab->value])->create();
+        Rule::factory(['name' => Rules::LabManager->value])->create();
+        Rule::factory(['name' => Rules::Dentist->value])->create();
     }
 }

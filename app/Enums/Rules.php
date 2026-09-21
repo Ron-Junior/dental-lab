@@ -3,14 +3,15 @@
     
     enum Rules: string {
         case Owner = 'owner';
-        case Client = 'client';
-        case ClientManager = 'client_manager';
+        case Lab = 'lab';
+        case LabManager = 'lab_manager';
+        case Dentist = 'dentist';
 
         public function getName(): string {
             return match($this) {
                 self::Owner => 'Proprietário',
-                self::Client => 'Cliente',
-                self::ClientManager => 'Gerente de Cliente',
+                self::Lab => 'Laboratório',
+                self::LabManager => 'Gerente de Laboratório',
             };
         }
     }
