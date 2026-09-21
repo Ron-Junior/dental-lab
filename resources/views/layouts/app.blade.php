@@ -49,6 +49,13 @@
                 >
                     Dentistas
                 </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="calendar"
+                    href="{{ route('services.planned.index') }}"
+                    wire:navigate
+                >
+                    Serviços Solicitados
+                </flux:sidebar.item>
             </flux:sidebar.nav>
             <flux:sidebar.spacer />
             <flux:sidebar.nav>

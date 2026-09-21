@@ -12,8 +12,9 @@ Route::group(['middleware' => 'auth'], function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
     Route::view('profile', 'profile')->name('profile');
 
-    Volt::route('serviços', 'services.index')->name('services.index');
     Volt::route('dentistas', 'dentists.index')->name('dentists.index');
+    Volt::route('serviços', 'pages.services.index')->name('services.index');
+    Volt::route('serviços-solicitados', 'pages.services.planned')->name('services.planned.index');
 });
 
 
