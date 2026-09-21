@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['dentist_request_id', 'service_id', 'step_id', 'unit_price', 'quantity'])]
+#[Fillable(['dentist_request_id', 'service_id', 'step_id', 'unit_price', 'quantity', 'completed_at'])]
 class RequestService extends Model
 {
     protected $casts = [
@@ -50,7 +50,7 @@ class RequestService extends Model
     {
         $this->loadMissing('service.steps');
 
-        $index = $this->service->steps->search(fn ($step) => $step->id === $this->step_id);
+        $index = $this->completed_at ? $this->service->steps->count() - 1: $this->service->steps->search(fn ($step) => $step->id === $this->step_id);
         return new Attribute(
             get: fn () => $this->step_id ? $index + 1 : 0
         );

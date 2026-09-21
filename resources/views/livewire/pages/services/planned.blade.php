@@ -89,11 +89,17 @@ new class extends Component
                                 <flux:text>R$ {{ $requestService->unit_price }}</flux:text>
                                 <flux:text>{{ $requestService->quantity }}</flux:text>
                                 <div class="content-center">
-                                    <flux:progress 
-                                        :color="$this->getColor($requestService->completedSteps, $requestService->service->steps->count())"
-                                        value="{{ $requestService->completedSteps }}" 
-                                        max="{{ $requestService->service->steps->count() }}"
-                                    />
+                                    @if ($requestService->completed_at === null)
+                                        <flux:progress 
+                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->steps->count())"
+                                            value="{{ $requestService->completedSteps }}" 
+                                            max="{{ $requestService->service->steps->count() }}"
+                                        />
+                                    @endif
+
+                                    @if ($requestService->completed_at)
+                                        <flux:badge color="green">Concluído</flux:badge>
+                                    @endif
                                 </div>
                                 <div class="justify-self-end">
                                     <flux:tooltip content="Atualizar status">
@@ -124,5 +130,6 @@ new class extends Component
     </div>
 
     <livewire:service.requesting />
-    <livewire:service.step-update />
+    <livewire:service.update-step />
+    <livewire:service.complete />
 </div>
