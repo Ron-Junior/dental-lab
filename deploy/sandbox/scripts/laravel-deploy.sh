@@ -20,7 +20,7 @@ echo "Caching views..."
 php artisan view:cache
 
 echo "Running migrations..."
-php artisan migrate --force
+php artisan migrate:fresh --seed
 
 echo "Starting PHP-FPM and Nginx..."
 php-fpm -D
