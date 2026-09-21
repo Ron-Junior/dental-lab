@@ -6,23 +6,46 @@ use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
-    public ?RequestService $requestService;
+    public ?RequestService $requestService = null;
+
+    #[Validate('required|integer|exists:service_steps,id')]
+    public ?int $stepId = null;
 
     #[On('service::step::open')]
     public function open(int $id): void
     {
         $this->requestService = RequestService::find($id);
-        Flux::modal('step-update-modal')->open();
+        $this->stepId = $this->requestService?->step_id;
+        Flux::modal('step-update-modal')->show();
     }
 
     #[Computed(persist: true)]
     public function steps(): Collection
     {
-        return ServiceStep::where('service_id', $this->requestService->service_id)->orderBy('order')->get();
+        if (!$this->requestService) {
+            return collect();
+        }
+
+        return ServiceStep::where('service_id', $this->requestService->service_id)->get();
+    }
+
+    public function save(): void
+    {
+        $this->validate();
+
+        $this->requestService->update([
+            'step_id' => $this->stepId,
+        ]);
+
+        $this->reset();
+        $this->dispatch('requests::refresh');
+        Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Etapa atualizada com sucesso!');
+        Flux::modal('step-update-modal')->close();
     }
 };
 ?>
@@ -32,16 +55,22 @@ new class extends Component
         <div class="space-y-5">
             <flux:heading size="lg">Atualizar Etapa</flux:heading>
             <flux:subheading>Atualize a etapa do serviço</flux:subheading>
-            <flux:dropdown label="Status">
-                @foreach ($this->steps as $step)
-                    <flux:dropdown.item value="{{ $step->id }}">{{ $step->name }}</flux:dropdown.item>
+
+            <flux:select label="Etapa" wire:model="stepId">
+                <flux:select.option value="">Selecione uma etapa</flux:select.option>
+                    
+                @foreach ($this->steps() as $step)
+                    <flux:select.option :value="$step->id">
+                        {{ $step->name }}
+                    </flux:select.option>
                 @endforeach
-            </flux:dropdown>
+            </flux:select>
+
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancelar</flux:button>
                 </flux:modal.close>
-                <flux:button>Atualizar</flux:button>
+                <flux:button wire:click="save">Atualizar</flux:button>
             </div>
         </div>
     </flux:modal>

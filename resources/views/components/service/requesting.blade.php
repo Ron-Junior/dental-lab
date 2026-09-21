@@ -122,6 +122,7 @@ new class extends Component
         Flux::toast(variant: "success", heading: 'Sucesso!', text: "Pedido criado com sucesso!");
         $this->reset();
         $this->resetValidation();
+        $this->dispatch('requests::refresh');
     }
 };
 

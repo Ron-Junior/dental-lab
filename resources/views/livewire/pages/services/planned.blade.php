@@ -4,6 +4,7 @@ use App\Models\DentistRequest;
 use App\Models\RequestService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
@@ -11,10 +12,19 @@ new class extends Component
 {
     use WithPagination;
 
-    #[Computed]
+    #[Computed, On('requests::refresh')]
     public function dentistRequests(): LengthAwarePaginator
     {
         return DentistRequest::with('dentist.user', 'requestServices.service.steps')->paginate(10);
+    }
+
+    public function getColor(int $completed, int $total): string
+    {
+        if ($completed === 0) {
+            return 'blue';
+        }
+
+        return $completed === $total ? 'green' : 'blue';
     }
 };
 
@@ -58,7 +68,7 @@ new class extends Component
                         <flux:text>R$ {{ $dentistRequest->requestServices->sum('unit_price') }}</flux:text>
                         <flux:text>{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
                         <flux:progress 
-                            color="green"
+                            color="{{ $this->getColor($dentistRequest->requestServices->sum(fn($r) => $r->completed_steps), $dentistRequest->requestServices->sum(fn($r) => $r->service->steps->count())) }}"
                             value="{{ $dentistRequest->requestServices->sum(fn($r) => $r->completed_steps) }}" 
                             max="{{ $dentistRequest->requestServices->sum(fn($r) => $r->service->steps->count()) }}"
                         />
@@ -80,25 +90,39 @@ new class extends Component
                                 <flux:text>{{ $requestService->quantity }}</flux:text>
                                 <div class="content-center">
                                     <flux:progress 
-                                        value="{{ $requestService->completed_steps }}" 
+                                        :color="$this->getColor($requestService->completedSteps, $requestService->service->steps->count())"
+                                        value="{{ $requestService->completedSteps }}" 
                                         max="{{ $requestService->service->steps->count() }}"
                                     />
                                 </div>
                                 <div class="justify-self-end">
                                     <flux:tooltip content="Atualizar status">
-                                        <flux:button size="sm" icon="bolt" variant="ghost"></flux:button>
+                                        <flux:button
+                                            size="sm"
+                                            icon="bolt"
+                                            variant="ghost"
+                                            wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
+                                        >
+                                        </flux:button>
                                     </flux:tooltip>
                                     <flux:tooltip content="Concluir">
-                                        <flux:button size="sm" icon="check" variant="ghost"></flux:button>
+                                        <flux:button 
+                                            size="sm"
+                                            icon="check"
+                                            variant="ghost"
+                                            wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
+                                        >
+                                        </flux:button>
                                     </flux:tooltip>
                                 </div>
                             </div>
-                        
                         @endforeach
                     </div>
                 </flux:card>
             @endforeach
         </div>
     </div>
-    <livewire:service.requesting/>
+
+    <livewire:service.requesting />
+    <livewire:service.step-update />
 </div>

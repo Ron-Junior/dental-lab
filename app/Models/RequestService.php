@@ -52,7 +52,7 @@ class RequestService extends Model
 
         $index = $this->service->steps->search(fn ($step) => $step->id === $this->step_id);
         return new Attribute(
-            get: fn () => $index ? $index + 1 : 0
+            get: fn () => $this->step_id ? $index + 1 : 0
         );
     }
 }
