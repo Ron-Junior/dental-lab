@@ -59,6 +59,8 @@ COPY --from=composer-builder /app/vendor ./vendor
 # Copiar assets compilados (Frontend) gerados no Stage 2
 COPY --from=frontend-builder /app/public/build ./public/build
 
+RUN php artisan livewire:publish --assets
+
 # Ajustar permissões para storage, cache e banco SQLite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
