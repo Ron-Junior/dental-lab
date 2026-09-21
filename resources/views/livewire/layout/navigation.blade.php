@@ -16,26 +16,45 @@ new class extends Component
     }
 }; ?>
 
-<div>
+<div class="w-full">
     <flux:sidebar sticky collapsible class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700">
         <flux:sidebar.header>
-            <flux:brand href="#" name="Acme Inc.">
+                <flux:sidebar.brand href="#" name="PROTHO">
                 <x-slot name="logo">
-                    <x-icons.logo />
+                    <x-icons.logo class="size-6"/>
                 </x-slot>
-            </flux:brand>
+            </flux:sidebar.brand>
             <flux:sidebar.collapse class="in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />
         </flux:sidebar.header>
         <flux:sidebar.nav>
-            <flux:sidebar.item icon="home" href="{{ route('dashboard') }}" current>Dashboard</flux:sidebar.item>
-            <flux:sidebar.item icon="inbox" badge="12" href="{{ route('services.index') }}">Inbox</flux:sidebar.item>
-            <flux:sidebar.item icon="document-text" href="#">Documents</flux:sidebar.item>
-            <flux:sidebar.item icon="calendar" href="#">Calendar</flux:sidebar.item>
-            <flux:sidebar.group expandable icon="star" heading="Favorites" class="grid">
-                <flux:sidebar.item href="#">Marketing site</flux:sidebar.item>
-                <flux:sidebar.item href="#">Android app</flux:sidebar.item>
-                <flux:sidebar.item href="#">Brand guidelines</flux:sidebar.item>
-            </flux:sidebar.group>
+            <flux:sidebar.item
+                icon="home"
+                href="{{ route('dashboard') }}"
+                wire:navigate
+            >
+                Dashboard
+            </flux:sidebar.item>
+            <flux:sidebar.item
+                icon="inbox"
+                href="{{ route('services.index') }}"
+                wire:navigate
+            >
+                Serviços
+            </flux:sidebar.item>
+            <flux:sidebar.item
+                icon="user-circle"
+                href="{{ route('dentists.index') }}"
+                wire:navigate
+            >
+                Dentistas
+            </flux:sidebar.item>
+            <flux:sidebar.item
+                icon="calendar"
+                href="{{ route('services.planned.index') }}"
+                wire:navigate
+            >
+                Serviços Solicitados
+            </flux:sidebar.item>
         </flux:sidebar.nav>
         <flux:sidebar.spacer />
         <flux:sidebar.nav>
@@ -70,8 +89,6 @@ new class extends Component
         </flux:dropdown>
     </flux:header>
     <flux:main>
-        <flux:heading size="xl" level="1">Good afternoon, Olivia</flux:heading>
-        <flux:text class="mt-2 mb-6 text-base">Here's what's new today</flux:text>
-        <flux:separator variant="subtle" />
+        {{ $slot }}
     </flux:main>
 </div>
