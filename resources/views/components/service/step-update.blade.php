@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\DentistService;
+use App\Models\RequestService;
 use App\Models\ServiceStep;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -10,19 +10,19 @@ use Livewire\Component;
 
 new class extends Component
 {
-    public ?DentistService $dentistService;
+    public ?RequestService $requestService;
 
     #[On('service::step::open')]
     public function open(int $id): void
     {
-        $this->dentistService = DentistService::find($id);
+        $this->requestService = RequestService::find($id);
         Flux::modal('step-update-modal')->open();
     }
 
     #[Computed(persist: true)]
     public function steps(): Collection
     {
-        return ServiceStep::where('service_id', $this->dentistService->service_id)->orderBy('order')->get();
+        return ServiceStep::where('service_id', $this->requestService->service_id)->orderBy('order')->get();
     }
 };
 ?>

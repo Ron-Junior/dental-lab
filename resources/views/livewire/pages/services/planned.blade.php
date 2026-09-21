@@ -1,6 +1,7 @@
 <?php
 
-use App\Models\DentistService;
+use App\Models\DentistRequest;
+use App\Models\RequestService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
@@ -11,9 +12,9 @@ new class extends Component
     use WithPagination;
 
     #[Computed]
-    public function plannedServices(): LengthAwarePaginator
+    public function dentistRequests(): LengthAwarePaginator
     {
-        return DentistService::with('dentist', 'service')->paginate(10);
+        return DentistRequest::with('dentist.user', 'requestServices.service.steps')->paginate(10);
     }
 };
 
@@ -29,57 +30,75 @@ new class extends Component
         </flux:modal.trigger>
     </div>
 
-    <flux:table :pagination="$this->plannedServices">
-        <flux:table.columns>
-            <flux:table.column>
+    <div>
+        <div class="px-6 py-2 grid grid-cols-6">
+            <flux:heading>
                 Dentista
-            </flux:table.column>
-            <flux:table.column>
+            </flux:heading>
+            <flux:heading>
                 Serviço
-            </flux:table.column>
-            <flux:table.column>
+            </flux:heading>
+            <flux:heading>
                 Preço
-            </flux:table.column>
-            <flux:table.column>
+            </flux:heading>
+            <flux:heading>
                 Quantidade
-            </flux:table.column>
-            <flux:table.column>
-                Data
-            </flux:table.column>
-            <flux:table.column>
-                Etapa Atual
-            </flux:table.column>
-            <flux:table.column></flux:table.column>
-        </flux:table.columns>
-        <flux:table.rows>
-            @foreach ($this->plannedServices as $plannedService)
-                <flux:table.row>
-                    <flux:table.cell>
-                        {{ $plannedService->dentist->user->name }}
-                    </flux:table.cell>
-                    <flux:table.cell>
-                        {{ $plannedService->service->name }}
-                    </flux:table.cell>
-                    <flux:table.cell>
-                        {{ $plannedService->unit_price }}
-                    </flux:table.cell>
-                    <flux:table.cell>
-                        {{ $plannedService->quantity }}
-                    </flux:table.cell>
-                    <flux:table.cell>
-                        {{ $plannedService->date }}
-                    </flux:table.cell>
-                    <flux:table.cell>
-                        {{ $plannedService->step->name }}
-                    </flux:table.cell>
-                    <flux:table.cell>
-                        <flux:button icon="bolt" wire:click="dispatch('service::step::open', {{ $plannedService->id }})"></flux:button>
-                        <flux:button icon="check" wire:click="completeStep({{ $plannedService->id }})"></flux:button>
-                    </flux:table.cell>
-                </flux:table.row>
-            @endforeach
-        </flux:table.rows>
-    </flux:table>
+            </flux:heading>
+            <flux:heading>
+                Progresso
+            </flux:heading>
+        </div>
 
+        <div>
+            @foreach ($this->dentistRequests as $dentistRequest)
+                <flux:card x-data="{open: false}" class="px-6 py-4">
+                    <div class="justify-between items-center w-full grid grid-cols-6">
+                        <flux:text>{{ $dentistRequest->dentist->user->name }}</flux:text>
+                        <flux:text>{{ $dentistRequest->requestServices->count() }}</flux:text>
+                        <flux:text>R$ {{ $dentistRequest->requestServices->sum('unit_price') }}</flux:text>
+                        <flux:text>{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
+                        <flux:progress 
+                            color="green"
+                            value="{{ $dentistRequest->requestServices->sum(fn($r) => $r->completed_steps) }}" 
+                            max="{{ $dentistRequest->requestServices->sum(fn($r) => $r->service->steps->count()) }}"
+                        />
+                        <div class="justify-self-end">
+                            <flux:button 
+                                size="xs"
+                                icon="chevron-down" 
+                                variant="ghost" 
+                                x-on:click="open = !open"
+                            ></flux:button>
+                        </div>
+                    </div>
+                    <div x-show="open" x-collapse.duration.500ms style="display: none;">
+                        @foreach ($dentistRequest->requestServices as $requestService)
+                            <div class="grid grid-cols-6 justify-between w-full mt-4">
+                                <flux:text></flux:text>
+                                <flux:text>{{ $requestService->service->name }}</flux:text>
+                                <flux:text>R$ {{ $requestService->unit_price }}</flux:text>
+                                <flux:text>{{ $requestService->quantity }}</flux:text>
+                                <div class="content-center">
+                                    <flux:progress 
+                                        value="{{ $requestService->completed_steps }}" 
+                                        max="{{ $requestService->service->steps->count() }}"
+                                    />
+                                </div>
+                                <div class="justify-self-end">
+                                    <flux:tooltip content="Atualizar status">
+                                        <flux:button size="sm" icon="bolt" variant="ghost"></flux:button>
+                                    </flux:tooltip>
+                                    <flux:tooltip content="Concluir">
+                                        <flux:button size="sm" icon="check" variant="ghost"></flux:button>
+                                    </flux:tooltip>
+                                </div>
+                            </div>
+                        
+                        @endforeach
+                    </div>
+                </flux:card>
+            @endforeach
+        </div>
+    </div>
     <livewire:service.requesting/>
 </div>

@@ -2,9 +2,11 @@
 
 use App\Models\Dentist;
 use App\Models\DentistRequest;
+use App\Models\RequestService;
 use App\Models\Service;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
@@ -32,7 +34,7 @@ new class extends Component
         return [
             'services' => 'array|min:1',
             'services.*.service_id' => 'required|exists:services,id',
-            'services.*.unit_price' => 'required|numeric|min:0|max:2000000',
+            'services.*.unit_price' => 'required',
             'services.*.quantity' => 'required|integer|min:1|max:1000000',
         ];
     }
@@ -43,9 +45,6 @@ new class extends Component
             'services.*.service_id.required' => 'O serviço é obrigatório.',
             'services.*.service_id.exists' => 'O serviço selecionado é inválido.',
             'services.*.unit_price.required' => 'O preço unitário é obrigatório.',
-            'services.*.unit_price.numeric' => 'O preço unitário deve ser um número.',
-            'services.*.unit_price.min' => 'O preço unitário deve ser maior ou igual a 0.',
-            'services.*.unit_price.max' => 'O preço unitário deve ser menor ou igual a 2000000.',
             'services.*.quantity.required' => 'A quantidade é obrigatória.',
             'services.*.quantity.integer' => 'A quantidade deve ser um número inteiro.',
             'services.*.quantity.min' => 'A quantidade deve ser maior ou igual a 1.',
@@ -102,22 +101,27 @@ new class extends Component
         $this->authorize('update', DentistRequest::class);
         $this->validate();
 
-        $request = DentistRequest::create([
-            'dentist_id' => $this->dentistId,
-            'user_id' => Auth::id(),
-            'status' => 'pending',
-        ]);
+        $prices = array_map(fn($service) => floatval(str_replace(',', '.', $service['unit_price'])), $this->services);
 
-        foreach ($this->services as $service) {
-            DentistRequestService::create([
-                'dentist_request_id' => $request->id,
-                'service_id' => $service['service_id'],
-                'unit_price' => $service['unit_price'],
-                'quantity' => $service['quantity'],
+        DB::transaction(function () use ($prices) {
+            $dentistRequest = DentistRequest::create([
+                'dentist_id' => $this->dentistId,
             ]);
-        }
 
-        $this->cancel();
+            foreach ($this->services as $index => $service) {
+                RequestService::create([
+                    'dentist_request_id' => $dentistRequest->id,
+                    'service_id' => $service['service_id'],
+                    'unit_price' => $prices[$index],
+                    'quantity' => $service['quantity'],
+                ]);
+            }
+        });
+
+        Flux::modal('store-service-modal')->close();
+        Flux::toast(variant: "success", heading: 'Sucesso!', text: "Pedido criado com sucesso!");
+        $this->reset();
+        $this->resetValidation();
     }
 };
 
