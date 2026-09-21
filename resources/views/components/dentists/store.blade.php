@@ -7,6 +7,7 @@ use App\Models\Rule;
 use App\Models\User;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
@@ -22,6 +23,19 @@ new class extends Component
 
     #[Validate('required|email|max:255|unique:users,email')]
     public ?string $email = null;
+
+    #[On('dentist::edit')]
+    public function edit($id): void
+    {
+        $this->dentistId = $id;
+        $dentist = Dentist::find($id);
+
+        $this->name = $dentist->user->name;
+        $this->email = $dentist->user->email;
+        $this->phone = $dentist->phone;
+
+        Flux::modal('store-dentist-modal')->show();
+    }
 
     public function save(): void
     {
@@ -73,13 +87,27 @@ new class extends Component
                     placeholder="Digite o telefone do dentista"
                     mask="(99) 99999-9999"
                 />
-                <flux:input
-                    wire:model="email"
-                    label="Email"
-                    name="email"
-                    placeholder="Digite o email do dentista"
-                />
-                <flux:button type="submit">Salvar</flux:button>
+
+                <flux:field>
+                    <flux:label>
+                        Email
+                        <flux:tooltip content="Um email de confirmação será enviado para este endereço." position="top">
+                            <flux:icon class="ml-2 size-4" name="information-circle" />
+                        </flux:tooltip>
+                    </flux:label>
+                    <flux:input
+                        wire:model="email"
+                        name="email"
+                        placeholder="Digite o email do dentista"
+                    />
+                </flux:field>
+                
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button variant="ghost">Cancelar</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit">Salvar</flux:button>
+                </div>
             </form>
         </div>
     </flux:modal>
