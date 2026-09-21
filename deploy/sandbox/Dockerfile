@@ -10,7 +10,7 @@ COPY . .
 
 # Instala as dependências do PHP. O flag --ignore-platform-reqs é usado 
 # pois esta imagem base não tem as extensões do PHP que a imagem final terá.
-RUN composer install --no-dev --ignore-platform-reqs --optimize-autoloader
+RUN composer install --ignore-platform-reqs --optimize-autoloader
 
 # ==========================================
 # Stage 2: Build de assets do Frontend (Node 22)
