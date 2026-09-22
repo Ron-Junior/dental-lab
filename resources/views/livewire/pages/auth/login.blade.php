@@ -35,9 +35,9 @@ new #[Layout('layouts.guest')] class extends Component
             autofocus
             :label="__('Email')"
             wire:model="form.email"
-            id="email"
+            id="form.email"
             type="email"
-            name="email"
+            name="form.email"
             autocomplete="username"
         />
 
