@@ -42,11 +42,11 @@ new class extends Component
 
     <div>
         <!-- CABEÇALHO DA TABELA -->
-        <div class="hidden md:grid grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_110px_90px_140px_130px] gap-4 font-semibold text-sm px-6 py-2">
+        <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] gap-4 font-semibold text-sm px-6 py-2">
             <flux:heading>Dentista</flux:heading>
             <flux:heading>Serviço</flux:heading>
             <flux:heading>Preço</flux:heading>
-            <flux:heading class="text-center">Quantidade</flux:heading>
+            <flux:heading class="hidden xl:block text-center">Quantidade</flux:heading>
             <flux:heading>Progresso</flux:heading>
             <div></div>
         </div>
@@ -59,7 +59,7 @@ new class extends Component
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
-                    <div class="hidden md:grid grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_110px_90px_140px_130px] items-center w-full gap-4 px-6 py-4">
+                    <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] items-center w-full gap-4 px-6 py-4">
                         <div>
                             <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
                             <flux:text class="text-xs">{{ $dentistRequest->code }}</flux:text>
@@ -69,7 +69,7 @@ new class extends Component
 
                         <flux:text class="truncate">R$ {{ number_format($dentistRequest->requestServices->sum(fn ($requestService) => $requestService->unit_price * $requestService->quantity), 2, ',', '.') }}</flux:text>
                         
-                        <flux:text class="text-center">{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
+                        <flux:text class="hidden xl:block text-center">{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
                         
                         <div class="pr-2">
                             <flux:progress 
@@ -131,14 +131,14 @@ new class extends Component
 
                     <div x-show="open" x-collapse.duration.300ms style="display: none;" class="border-t border-zinc-100 dark:border-zinc-800">
                         @foreach ($dentistRequest->requestServices as $requestService)
-                            <div class="hidden md:grid grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_110px_90px_140px_130px] items-center w-full gap-4 px-6 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800/50" wire:key="request-service-desktop-{{ $requestService->id }}">
+                            <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] items-center w-full gap-4 px-6 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800/50" wire:key="request-service-desktop-{{ $requestService->id }}">
                                 <div></div>
 
                                 <flux:text class="truncate">{{ $requestService->service->name }}</flux:text>
 
                                 <flux:text class="truncate">R$ {{ number_format($requestService->unit_price * $requestService->quantity, 2, ',', '.') }}</flux:text>
 
-                                <flux:text class="text-center">{{ $requestService->quantity }}</flux:text>
+                                <flux:text class="hidden xl:block text-center">{{ $requestService->quantity }}</flux:text>
 
                                 <div class="content-center pr-2">
                                     @if ($requestService->completed_at === null)
@@ -154,46 +154,52 @@ new class extends Component
                                     @endif
                                 </div>
 
-                                <div class="flex items-center justify-end gap-1 w-[130px]">
-                                    @can('updateStatus', $requestService)
-                                        <flux:tooltip content="Atualizar status">
-                                            <flux:button
-                                                :disabled="$requestService->completed_at"
-                                                size="xs"
-                                                icon="bolt"
-                                                variant="ghost"
-                                                wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
-                                            ></flux:button>
-                                        </flux:tooltip>
-                                        <flux:tooltip content="Concluir">
-                                            <flux:button
-                                                :disabled="$requestService->completed_at"
-                                                size="xs"
-                                                icon="check"
-                                                variant="ghost"
-                                                wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
-                                            ></flux:button>
-                                        </flux:tooltip>
-                                        <flux:tooltip content="Cancelar">
-                                            <flux:button 
-                                                size="xs"
-                                                icon="no-symbol"
-                                                variant="ghost"
-                                                wire:click="dispatch('service::canceled', '{{ $requestService->id }}')"
-                                            ></flux:button>
-                                        </flux:tooltip>
-                                    @endcan
-
-                                    <flux:tooltip content="Editar">
+                                <div class="justify-self-end">
+                                    <flux:dropdown position="bottom" align="end">
                                         <flux:button 
-                                            wire:key="edit-service-desktop-{{ $requestService->id }}"
-                                            :disabled="$requestService->completed_at || $requestService->step_id"
                                             size="xs"
-                                            icon="pencil"
+                                            icon="ellipsis-vertical" 
                                             variant="ghost"
-                                            wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                            aria-label="Ações"
                                         />
-                                    </flux:tooltip>
+
+                                        <flux:menu>
+                                            @can('updateStatus', $requestService)
+                                                <flux:menu.item
+                                                    :disabled="(bool)$requestService->completed_at"
+                                                    icon="bolt"
+                                                    wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
+                                                >
+                                                    Atualizar status
+                                                </flux:menu.item>
+                                                <flux:menu.item
+                                                    :disabled="(bool)$requestService->completed_at"
+                                                    icon="check"
+                                                    wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
+                                                >
+                                                    Concluir
+                                                </flux:menu.item>
+                                                <flux:menu.item
+                                                    :disabled="(bool)$requestService->completed_at"
+                                                    icon="no-symbol"
+                                                    variant="danger"
+                                                    wire:click="dispatch('service::canceled', '{{ $requestService->id }}')"
+                                                >
+                                                    Cancelar
+                                                </flux:menu.item>
+                                                <flux:menu.separator />
+                                            @endcan
+
+                                            <flux:menu.item
+                                                wire:key="edit-service-menu-{{ $requestService->id }}"
+                                                :disabled="(bool)($requestService->completed_at || $requestService->step_id)"
+                                                icon="pencil"
+                                                wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                            >
+                                                Editar
+                                            </flux:menu.item>
+                                        </flux:menu>
+                                    </flux:dropdown>
                                 </div>
                             </div>
 
