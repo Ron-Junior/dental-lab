@@ -51,11 +51,13 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal flyout variant="floating" name="step-update-modal" class="md:w-lg">
-        <div class="space-y-5">
+    <flux:modal class="w-80 space-y-4" flyout variant="floating" name="step-update-modal">
+        <div>
             <flux:heading size="lg">Atualizar Etapa</flux:heading>
             <flux:subheading>Atualize a etapa do serviço</flux:subheading>
+        </div>
 
+        <div class="space-y-4">
             <flux:select label="Etapa" wire:model="stepId">
                 <flux:select.option value="">Selecione uma etapa</flux:select.option>
                     
@@ -65,7 +67,7 @@ new class extends Component
                     </flux:select.option>
                 @endforeach
             </flux:select>
-
+    
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancelar</flux:button>

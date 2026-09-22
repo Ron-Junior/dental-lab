@@ -136,7 +136,7 @@ new class extends Component
 
 ?>
 <div>
-    <flux:modal flyout name="store-service-modal" class="md:w-lg" @cancel="cancel">
+    <flux:modal flyout variant="floating" name="store-service-modal" class="md:w-lg" @cancel="cancel">
         <form wire:submit.prevent="save" class="space-y-6" wire:key="store-service-modal">
             <flux:heading size="lg">Nova Solicitação</flux:heading>
             <flux:subheading>Adicione uma nova solicitação de serviço.</flux:subheading>
