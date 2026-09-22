@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\Rules;
+use App\Models\Dentist;
 use App\Models\Rule;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -14,13 +15,17 @@ class DentistSeeder extends Seeder
 
     public function run(): void
     {
-        $owner = Rule::firstWhere('name', Rules::Dentist->value);
+        $dentistRule = Rule::firstWhere('name', Rules::Dentist->value);
 
-        User::factory()
-            ->for($owner)
+        $user = User::factory()
+            ->for($dentistRule)
             ->create([
                 'name' => 'Dentista Junior',
                 'email' => 'dentista@email.com',
             ]);
+
+        Dentist::factory()
+            ->for($user)
+            ->create();
     }
 }
