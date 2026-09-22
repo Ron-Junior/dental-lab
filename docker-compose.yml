@@ -15,6 +15,7 @@ services:
       php85-pdo_pgsql php85-pgsql php85-curl php85-dom php85-fileinfo php85-gd composer && 
       ln -sf /usr/bin/php85 /usr/bin/php && 
       composer dump-autoload && 
+      composer install &&
       php artisan serve --host=0.0.0.0 --port=8000
       "
     networks:
