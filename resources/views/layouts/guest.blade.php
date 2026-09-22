@@ -17,14 +17,14 @@
         @fluxAppearance
     </head>
     <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
+        <div class="min-h-screen flex flex-col items-center px-4 justify-center">
             <div>
                 <a href="/" wire:navigate>
                     <x-icons.logo-name class="w-64" />
                 </a>
             </div>
 
-            <flux:card class="w-full sm:max-w-md mt-6 px-6 py-4 shadow-md overflow-hidden sm:rounded-lg">
+            <flux:card class="w-full sm:max-w-md mt-6 px-6 shadow-md overflow-hidden sm:rounded-lg">
                 {{ $slot }}
             </flux:card>
         </div>
