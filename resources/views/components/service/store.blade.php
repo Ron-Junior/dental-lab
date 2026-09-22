@@ -15,11 +15,11 @@ new class extends Component
 
     public ?string $name = null;
 
-    #[Validate('required|string|min:3|max:255')]
+    #[Validate('required|string|min:3|max:255', 'descrição')]
     public ?string $description = null;
     
-    #[Validate('required|numeric|min:0|max:20000')]
-    public ?float $price = null;
+    #[Validate('required', 'preço', onUpdate: false)]
+    public ?string $price = null;
 
     #[Validate('required|array|min:1', 'Etapas')]
     public ?array $steps = [
@@ -67,7 +67,7 @@ new class extends Component
 
         $this->name = $service->name;
         $this->description = $service->description;
-        $this->price = $service->price;
+        $this->price = number_format($service->price, 2, ',', '.');
         $this->steps = $service->steps->toArray();
 
         Flux::modal('store-service-modal')->show();
@@ -79,13 +79,14 @@ new class extends Component
         $this->validate();
 
         DB::transaction(function () {
-            $service = Service::updateOrCreate([
-                'id' => $this->serviceId,
-            ],[
-                'name' => $this->name,
-                'description' => $this->description,
-                'price' => $this->price,
-            ]);
+           $service = Service::updateOrCreate(
+                ['id' => $this->serviceId],
+                [
+                    'name' => $this->name,
+                    'description' => $this->description,
+                    'price' => str($this->price)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
+                ]
+           );
 
             ServiceStep::where('service_id', $service->id)->delete();
 
@@ -102,13 +103,14 @@ new class extends Component
         $this->dispatch('service::refresh');
 
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: str(__('Serviço :action com sucesso!'))->replace(':action', $this->serviceId ? 'atualizado' : 'criado'));
-        Flux::modals()->close();
+        $this->closeModal();
     }
 
-    public function clearModal(): void
+    public function closeModal(): void
     {
         $this->reset();
-        $this->resetValidation();
+        $this->resetErrorBag();
+        Flux::modals()->close();
     }
 
     public function addStep(): void
@@ -138,8 +140,8 @@ new class extends Component
                 <flux:input.group>
                     <flux:input.group.prefix>R$</flux:input.group.prefix>
                     <flux:input
-                        type="number" 
-                        wire:model.number="price"  
+                        mask:dynamic="$money($input, ',', '.')"
+                        wire:model="price"  
                     />
                 </flux:input.group>
                 <flux:error name="price" />
@@ -150,14 +152,11 @@ new class extends Component
             <flux:heading size="md">Etapas do Serviço</flux:heading>
             @foreach ($steps as $index => $step)
                 <flux:card wire:key="step-{{ $index }}" class="space-y-5">
-                    <div class="flex justify-between">
-                        <flux:heading size="sm">Etapa {{ $index + 1 }}</flux:heading>
-                        <flux:button icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
-                    </div>
                     <div class="space-y-4">
                         <flux:input wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
                         <flux:textarea wire:model="steps.{{ $index }}.description" label="Descrição" placeholder="Descrição do serviço" />
                     </div>
+                    <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
                 </flux:card>
             @endforeach
 
@@ -170,7 +169,7 @@ new class extends Component
 
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost" wire:click="clearModal">Cancelar</flux:button>
+                    <flux:button variant="ghost" wire:click="closeModal">Cancelar</flux:button>
                 </flux:modal.close>
                 <flux:button wire:click="store">Salvar</flux:button>
             </div>

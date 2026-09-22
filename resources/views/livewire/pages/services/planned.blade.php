@@ -59,7 +59,7 @@ new class extends Component
             </flux:heading>
         </div>
 
-        <div>
+        <div class="space-y-4">
             @foreach ($this->dentistRequests as $dentistRequest)
                 <flux:card x-data="{open: false}" class="px-6 py-4">
                     <div class="justify-between items-center w-full grid grid-cols-6">

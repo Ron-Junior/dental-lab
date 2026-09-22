@@ -40,7 +40,7 @@ class RequestService extends Model
 
     public function unitPrice(): Attribute
     {
-        return new Attribute(
+        return Attribute::make(
             get: fn ($value) => $value / 100,
             set: fn (float $value) => $value * 100
         );

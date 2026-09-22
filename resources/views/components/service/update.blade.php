@@ -19,7 +19,7 @@ new class extends Component
     #[Validate('required|integer|exists:services,id')]
     public ?int $serviceId = null;
 
-    #[Validate('required', 'Preço da Unidade')]
+    #[Validate('required', 'Preço da Unidade', onUpdate: false)]
     public ?string $unitPrice = null;
 
     #[Validate('required|integer|min:1|max:1000000')]
@@ -61,7 +61,7 @@ new class extends Component
     {
         $this->validate();
 
-        $this->requestService->unit_price = (float) str_replace(',', '.', str_replace(' ', '', $this->unitPrice));
+        $this->requestService->unit_price = str($this->unitPrice)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat();
         $this->requestService->quantity = $this->quantity;
         $this->requestService->service_id = $this->serviceId;
 
@@ -81,7 +81,6 @@ new class extends Component
         <div>
             <flux:heading size="lg">Novo Serviço</flux:heading>
             <flux:text>Adicione um novo serviço ao laboratório.</flux:text>
-            {{ $this->unitPrice }}
         </div>
 
         <div class="space-y-4">
@@ -92,7 +91,7 @@ new class extends Component
                 @endforeach
             </flux:select>
 
-            <flux:input mask:dynamic="$money($input, ',', ' ')" label="Preço Unitário" wire:model="unitPrice" readonly />            
+            <flux:input mask:dynamic="$money($input, ',', '.')" label="Preço Unitário" wire:model="unitPrice" readonly />            
             <flux:input label="Quantidade" type="number" wire:model="quantity" />
 
             <div class="flex justify-end gap-2">

@@ -83,7 +83,7 @@ new class extends Component
         }
         
         $selectedService = $this->offerServices->firstWhere('id', $value);
-        $this->services[$index]['unit_price'] = $selectedService?->price ?? 0;
+        $this->services[$index]['unit_price'] = number_format($selectedService?->price, 2, ',', '.') ?? 0;
     }
 
     public function addService(): void
@@ -111,18 +111,16 @@ new class extends Component
         $this->authorize('update', DentistRequest::class);
         $this->validate();
 
-        $prices = array_map(fn($service) => floatval(str_replace(',', '.', $service['unit_price'])), $this->services);
-
-        DB::transaction(function () use ($prices) {
+        DB::transaction(function () {
             $dentistRequest = DentistRequest::create([
                 'dentist_id' => $this->dentistId,
             ]);
 
-            foreach ($this->services as $index => $service) {
+            foreach ($this->services as $service) {
                 RequestService::create([
                     'dentist_request_id' => $dentistRequest->id,
                     'service_id' => $service['service_id'],
-                    'unit_price' => $prices[$index],
+                    'unit_price' => str($service['unit_price'])->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
                     'quantity' => $service['quantity'],
                 ]);
             }
