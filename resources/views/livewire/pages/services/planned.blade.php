@@ -68,7 +68,7 @@ new class extends Component
                         
                         <div></div>
 
-                        <flux:text class="truncate">R$ {{ number_format($dentistRequest->requestServices->sum('unit_price'), 2, ',', '.') }}</flux:text>
+                        <flux:text class="truncate">R$ {{ number_format($dentistRequest->requestServices->sum(fn ($requestService) => $requestService->unit_price * $requestService->quantity), 2, ',', '.') }}</flux:text>
                         
                         <flux:text class="text-center">{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
                         
@@ -110,7 +110,7 @@ new class extends Component
                         <div class="grid grid-cols-2 gap-2 text-sm">
                             <div class="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-2.5">
                                 <flux:text size="xs" class="text-zinc-500 uppercase tracking-wider">Total</flux:text>
-                                <flux:heading size="sm" class="mt-0.5">R$ {{ number_format($dentistRequest->requestServices->sum('unit_price'), 2, ',', '.') }}</flux:heading>
+                                <flux:heading size="sm" class="mt-0.5">R$ {{ number_format($dentistRequest->requestServices->sum(fn($requestService) => $requestService->unit_price * $requestService->quantity), 2, ',', '.') }}</flux:heading>
                             </div>
                             <div class="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-2.5">
                                 <flux:text size="xs" class="text-zinc-500 uppercase tracking-wider">Quantidade</flux:text>
@@ -140,7 +140,7 @@ new class extends Component
 
                                 <flux:text class="truncate">{{ $requestService->service->name }}</flux:text>
 
-                                <flux:text class="truncate">R$ {{ number_format($requestService->unit_price, 2, ',', '.') }}</flux:text>
+                                <flux:text class="truncate">R$ {{ number_format($requestService->unit_price * $requestService->quantity, 2, ',', '.') }}</flux:text>
 
                                 <flux:text class="text-center">{{ $requestService->quantity }}</flux:text>
 
@@ -207,7 +207,7 @@ new class extends Component
                                     <div>
                                         <flux:heading size="sm">{{ $requestService->service->name }}</flux:heading>
                                         <div class="flex items-center gap-2 mt-1">
-                                            <flux:text size="sm" class="font-medium">R$ {{ number_format($requestService->unit_price, 2, ',', '.') }}</flux:text>
+                                            <flux:text size="sm" class="font-medium">R$ {{ number_format($requestService->unit_price * $requestService->quantity, 2, ',', '.') }}</flux:text>
                                             <flux:text size="sm" class="text-zinc-400">•</flux:text>
                                             <flux:text size="sm" class="text-zinc-500">Qtd: {{ $requestService->quantity }}</flux:text>
                                         </div>
