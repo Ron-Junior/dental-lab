@@ -43,7 +43,7 @@ new class extends Component
                     Serviços
                 </flux:sidebar.item>
             @endcan
-            @can('viewAny', \App\Models\Service::class)
+            @can('viewAny', \App\Models\Dentist::class)
                 <flux:sidebar.item
                     icon="user-circle"
                     href="{{ route('dentists.index') }}"

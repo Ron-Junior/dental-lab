@@ -55,7 +55,7 @@ new class extends Component
 
     public function mount()
     {
-        if (Auth::user()->can('view', \App\Models\Dentist::class)) {
+        if (Auth::user()->can('viewAny', \App\Models\Dentist::class)) {
             return ;
         }
 
@@ -143,7 +143,7 @@ new class extends Component
             <flux:heading size="lg">Nova Solicitação</flux:heading>
             <flux:subheading>Adicione uma nova solicitação de serviço.</flux:subheading>
 
-            @can('view', \App\Models\Dentist::class)
+            @can('viewAny', \App\Models\Dentist::class)
                 <flux:select label="Dentista" wire:model="dentistId">
                     <flux:select.option>Selecione um Dentista</flux:select.option>
                     @foreach ($this->dentists as $dentist)
