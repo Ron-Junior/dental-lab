@@ -51,7 +51,7 @@ new class extends Component
             <flux:heading>
                 Preço
             </flux:heading>
-            <flux:heading>
+            <flux:heading class="w-12">
                 Quantidade
             </flux:heading>
             <flux:heading>
@@ -69,7 +69,10 @@ new class extends Component
                 <flux:card x-data="{open: false}" class="p-4 sm:px-6 sm:py-4">
                     <!-- Desktop Layout -->
                     <div class="hidden md:grid md:grid-cols-6 items-center w-full gap-4">
-                        <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
+                        <div>
+                            <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
+                            <flux:text class="text-xs">{{ $dentistRequest->code }}</flux:subheading>
+                        </div>
                         <flux:text>{{ $dentistRequest->requestServices->count() }}</flux:text>
                         <flux:text>R$ {{ number_format($dentistRequest->requestServices->sum('unit_price'), 2, ',', '.') }}</flux:text>
                         <flux:text>{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
