@@ -81,7 +81,7 @@ new class extends Component
         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
         <flux:spacer />
         <flux:dropdown position="top" align="start">
-            <flux:profile avatar="/img/demo/user.png" />
+            <flux:profile avatar="https://fluxui.dev/img/demo/user.png" />
             <flux:menu>
                 <flux:menu.radio.group>
                     <flux:menu.radio checked>Olivia Martin</flux:menu.radio>

@@ -16,7 +16,6 @@
         
         @fluxAppearance
         @vite(['resources/css/app.css', 'resources/js/app.js'])
-        @fluxStyles
     </head>
     <body class="flex min-h-screen font-sans antialiased">        
         <livewire:layout.navigation>
