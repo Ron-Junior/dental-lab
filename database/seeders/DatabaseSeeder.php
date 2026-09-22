@@ -2,9 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\Rules;
-use App\Models\Rule;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -17,16 +14,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory()
-            ->for(Rule::factory([
-                'name' => Rules::Owner,
-            ]))->create([
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-            ]);
-        
-        Rule::factory(['name' => Rules::Lab->value])->create();
-        Rule::factory(['name' => Rules::LabManager->value])->create();
-        Rule::factory(['name' => Rules::Dentist->value])->create();
+        $this->call([
+            RuleSeeder::class,
+            UserSeeder::class,
+            DentistSeeder::class
+        ]);
     }
 }
