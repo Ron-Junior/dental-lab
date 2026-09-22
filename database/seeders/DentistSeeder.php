@@ -14,7 +14,7 @@ class DentistSeeder extends Seeder
 
     public function run(): void
     {
-        $owner = Rule::firstWhere('name', Rules::Owner->value);
+        $owner = Rule::firstWhere('name', Rules::Dentist->value);
 
         User::factory()
             ->for($owner)

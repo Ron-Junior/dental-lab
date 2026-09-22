@@ -14,13 +14,13 @@ class ServiceSeeder extends Seeder
     public function run(): void
     {
         Service::factory()
-            ->has(ServiceStep::factory()->count(3))
+            ->has(ServiceStep::factory()->count(3), 'steps')
             ->create([
                 'name' => 'Faceta',
             ]);
 
         Service::factory()
-            ->has(ServiceStep::factory()->count(3))
+            ->has(ServiceStep::factory()->count(3), 'steps')
             ->create([
                 'name' => 'Coroa',
             ]);
