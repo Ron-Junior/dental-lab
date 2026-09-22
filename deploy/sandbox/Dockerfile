@@ -62,8 +62,9 @@ COPY --from=frontend-builder /app/public/build ./public/build
 RUN php artisan livewire:publish --assets
 
 RUN mkdir -p public/flux \
-    && cp -r vendor/livewire/flux/dist/* public/flux/ 2>/dev/null || true \
-    && (test -f public/flux/flux.js && cp public/flux/flux.js public/flux/flux.min.js || true)
+    && find vendor/livewire/flux -type f -name "flux*.js" -exec cp {} public/flux/ \; \
+    && find vendor/livewire/flux -type f -name "flux*.css" -exec cp {} public/flux/ \; \
+    && if [ -f public/flux/flux.js ]; then
 
 # Ajustar permissões para storage, cache e banco SQLite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
