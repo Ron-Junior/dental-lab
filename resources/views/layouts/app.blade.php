@@ -15,8 +15,8 @@
         <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
         
         @fluxAppearance
-
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @fluxStyles
     </head>
     <body class="flex min-h-screen font-sans antialiased">        
         <livewire:layout.navigation>
@@ -27,7 +27,5 @@
         @persist('toast')
             <flux:toast />
         @endpersist
-        
-        @fluxScripts
     </body>
 </html>
