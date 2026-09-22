@@ -1,4 +1,4 @@
-<svg {{ $attributes }} id="mainLogoSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 180">
+<svg {{ $attributes }} id="mainLogoSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 150">
     <defs>
         <!-- Gradientes Dinâmicos -->
         <linearGradient id="gradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -33,7 +33,7 @@
     </defs>
 
     <!-- GRUPO DO SÍMBOLO (ÍCONE DENTE + TECNOLOGIA) -->
-    <g id="symbolGroup" transform="translate(20, 10)" filter="url(#dropShadow)">
+    <g id="symbolGroup" transform="translate(-21.5, -11.5)" filter="url(#dropShadow)">
         <!-- Camada Traseira / Estrutura Protética (Hexágono Tecnológico de Suporte) -->
         <path d="M 80 15 L 135 45 L 135 115 L 80 145 L 25 115 L 25 45 Z" fill="none" stroke="url(#gradSecondary)" stroke-width="3" stroke-dasharray="6,4" opacity="0.4"></path>
 
@@ -63,7 +63,7 @@
     </g>
 
     <!-- GRUPO DE TEXTO DO LOGOTIPO -->
-    <g id="textGroup" transform="translate(185, 0)">
+    <g id="textGroup" transform="translate(133, -19)">
         <!-- Nome Principal da Marca -->
         <text id="svgBrandText" x="0" y="98" font-family="'Plus Jakarta Sans', 'Inter', sans-serif" font-weight="800" font-size="54" fill="#ffffff" letter-spacing="1">PROTHO</text>
 
