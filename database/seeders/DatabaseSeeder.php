@@ -17,7 +17,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RuleSeeder::class,
             UserSeeder::class,
-            DentistSeeder::class
+            DentistSeeder::class,
+            ServiceSeeder::class
         ]);
     }
 }
