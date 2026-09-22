@@ -59,7 +59,6 @@ new class extends Component
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
-                    <!-- LINHA PAI (DESKTOP) -->
                     <div class="hidden md:grid grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_110px_90px_140px_130px] items-center w-full gap-4 px-6 py-4">
                         <div>
                             <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
@@ -91,7 +90,6 @@ new class extends Component
                         </div>
                     </div>
 
-                    <!-- LINHA PAI (MOBILE) -->
                     <div class="md:hidden p-4 space-y-3">
                         <div class="flex items-center justify-between gap-2 cursor-pointer" x-on:click="open = !open">
                             <div>
@@ -131,10 +129,8 @@ new class extends Component
                         </div>
                     </div>
 
-                    <!-- SUB-SERVIÇOS EXPANDÍVEIS -->
                     <div x-show="open" x-collapse.duration.300ms style="display: none;" class="border-t border-zinc-100 dark:border-zinc-800">
                         @foreach ($dentistRequest->requestServices as $requestService)
-                            <!-- LINHA FILHO (DESKTOP) -->
                             <div class="hidden md:grid grid-cols-[minmax(200px,2fr)_minmax(160px,1.5fr)_110px_90px_140px_130px] items-center w-full gap-4 px-6 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800/50" wire:key="request-service-desktop-{{ $requestService->id }}">
                                 <div></div>
 
@@ -201,7 +197,6 @@ new class extends Component
                                 </div>
                             </div>
 
-                            <!-- LINHA FILHO (MOBILE) -->
                             <div class="md:hidden p-3 border-b last:border-b-0 border-zinc-200 dark:border-zinc-800 space-y-2.5" wire:key="request-service-mobile-{{ $requestService->id }}">
                                 <div class="flex items-start justify-between gap-2">
                                     <div>

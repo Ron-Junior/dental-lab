@@ -23,6 +23,7 @@ new class extends Component
         CompleteService::handle($this->serviceId);
         Flux::modal('step-complete-modal')->close();
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Serviço concluído com sucesso!');
+        $this->dispatch('requests::refresh');
     }
 };
 ?>

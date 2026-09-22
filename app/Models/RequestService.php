@@ -33,7 +33,7 @@ class RequestService extends Model
     public function stepName(): Attribute
     {
         $this->loadMissing('step');
-        return new Attribute(
+        return Attribute::make(
             get: fn () => $this->step?->name ?? 'Aguardando Início'
         );
     }
@@ -51,8 +51,8 @@ class RequestService extends Model
         $this->loadMissing('service.steps');
 
         $index = $this->completed_at ? $this->service->steps->count() - 1: $this->service->steps->search(fn ($step) => $step->id === $this->step_id);
-        return new Attribute(
-            get: fn () => $this->step_id ? $index + 1 : 0
+        return Attribute::make(
+            get: fn () => $this->step_id ? $index + 1 : ($this->completed_at ? $this->service->steps->count() : 0)
         );
     }
 }
