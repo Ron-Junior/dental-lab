@@ -13,9 +13,10 @@
 
         <!-- Scripts -->
         <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        
         @fluxAppearance
 
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="flex min-h-screen font-sans antialiased">        
         <livewire:layout.navigation>

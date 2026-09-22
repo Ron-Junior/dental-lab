@@ -61,10 +61,11 @@ COPY --from=frontend-builder /app/public/build ./public/build
 
 RUN php artisan livewire:publish --assets
 
+# 2. Extrair os arquivos estáticos do Flux (Busca inteligente)
 RUN mkdir -p public/flux \
     && find vendor/livewire/flux -type f -name "flux*.js" -exec cp {} public/flux/ \; \
     && find vendor/livewire/flux -type f -name "flux*.css" -exec cp {} public/flux/ \; \
-    && if [ -f public/flux/flux.js ]; then
+    && if [ -f public/flux/flux.js ]; then cp public/flux/flux.js public/flux/flux.min.js; fi
 
 # Ajustar permissões para storage, cache e banco SQLite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
