@@ -55,6 +55,6 @@ new  class extends Component
         </flux:table.rows>
     </flux:table>
 
-    <livewire:service.store/>
-    <livewire:service.delete/>
+    <livewire:step.store/>
+    <livewire:step.delete/>
 </div>
