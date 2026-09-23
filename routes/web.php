@@ -14,6 +14,7 @@ Route::group(['middleware' => 'auth'], function () {
 
     Volt::route('etapas', 'pages.steps.index')->name('steps.index');
 
+    Volt::route('parceiros', 'pages.partners.index')->name('partners.index');
     Volt::route('dentistas', 'dentists.index')->name('dentists.index');
     Volt::route('serviços', 'pages.services.index')->name('services.index');
     Volt::route('serviços-solicitados', 'pages.services.planned')->name('services.planned.index');

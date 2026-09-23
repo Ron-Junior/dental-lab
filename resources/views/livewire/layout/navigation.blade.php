@@ -58,6 +58,13 @@ new class extends Component
                 >
                     Dentistas
                 </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="user-group"
+                    href="{{ route('partners.index') }}"
+                    wire:navigate
+                >
+                    Parceiros
+                </flux:sidebar.item>
             @endcan
             <flux:sidebar.item
                 icon="calendar"
