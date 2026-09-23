@@ -30,7 +30,7 @@ new  class extends Component
             <flux:heading size="xl">Parceiros</flux:heading>
             <flux:text class="mt-2">Os Parceiros cadastrados no sistema.</flux:text>
         </div>
-        <flux:modal.trigger name="store-dentist-modal">
+        <flux:modal.trigger name="store-partner-modal">
             <flux:button icon="plus">Novo Parceiro</flux:button>
         </flux:modal.trigger>
     </div>
@@ -60,6 +60,6 @@ new  class extends Component
         </flux:table.rows>
     </flux:table>
 
-    <livewire:dentists.store/>
-    <livewire:dentists.delete/>
+    <livewire:partners.store/>
+    <livewire:partners.delete/>
 </div>

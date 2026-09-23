@@ -2,7 +2,7 @@
 
 use App\Actions\SendInvitation;
 use App\Enums\Rules;
-use App\Models\Dentist;
+use App\Models\Partner;
 use App\Models\Rule;
 use App\Models\User;
 use Flux\Flux;
@@ -13,7 +13,7 @@ use Livewire\Component;
 
 new class extends Component
 {
-    public ?int $dentistId = null;
+    public ?Partner $partner = null;
 
     #[Validate('required|string|min:3|max:255')]
     public ?string $name = null;
@@ -24,17 +24,15 @@ new class extends Component
     #[Validate('required|email|max:255|unique:users,email')]
     public ?string $email = null;
 
-    #[On('dentist::edit')]
+    #[On('partner::edit')]
     public function edit($id): void
     {
-        $this->dentistId = $id;
-        $dentist = Dentist::find($id);
+        $this->partner = Partner::find($id);
+        $this->name = $this->partner->user->name;
+        $this->email = $this->partner->user->email;
+        $this->phone = $this->partner->phone;
 
-        $this->name = $dentist->user->name;
-        $this->email = $dentist->user->email;
-        $this->phone = $dentist->phone;
-
-        Flux::modal('store-dentist-modal')->show();
+        Flux::modal('store-partner-modal')->show();
     }
 
     public function save(): void
@@ -42,7 +40,7 @@ new class extends Component
         $this->validate();
 
         DB::transaction(function () {
-            $rule = Rule::where('name', Rules::Dentist->value)->first();
+            $rule = Rule::where('name', Rules::LabPartner->value)->first();
             $user = User::updateOrCreate(
                 ['email' => $this->email],
                 [
@@ -50,9 +48,9 @@ new class extends Component
                 'rule_id' => $rule->id,
             ]);
 
-            Dentist::updateOrCreate(
-                ['id' => $this->dentistId],
-                [
+            Partner::updateOrCreate([
+                'id' => $this->partner?->id,
+            ], [
                 'user_id' => $user->id,
                 'phone' => $this->phone,
             ]);
@@ -63,47 +61,47 @@ new class extends Component
         });
 
         Flux::modals()->close();
-        Flux::toast(variant: 'success', heading: 'Sucesso!', text: str('Dentista :action com sucesso!')->replace(':action', $this->dentistId ? 'atualizado' : 'criado'));
+        Flux::toast(variant: 'success', heading: 'Sucesso!', text: str('Parceiro :action com sucesso!')->replace(':action', $this->partner ? 'atualizado' : 'criado'));
 
         $this->reset();
-        $this->dispatch('dentist::refresh');
+        $this->dispatch('partners::refresh');
     }
 };
 ?>
 
 <div>
-    <flux:modal name="store-dentist-modal" flyout variant="floating" class="md:w-lg" >
+    <flux:modal name="store-partner-modal" flyout variant="floating" class="md:w-lg" >
         <div class="space-y-6">
             <div>
-                <flux:heading size="lg">Novo Dentista</flux:heading>
-                <flux:subheading>Adicione um novo dentista em sua rede.</flux:subheading>
+                <flux:heading size="lg">Novo Parceiro</flux:heading>
+                <flux:subheading>Adicione um novo parceiro em sua rede.</flux:subheading>
             </div>
             <form class="space-y-4" wire:submit="save">
                 <flux:input
                     wire:model="name"
                     label="Nome"
                     name="name"
-                    placeholder="Digite o nome do dentista"
+                    placeholder="Digite o nome"
                 />
                 <flux:input
                     wire:model="phone"
                     label="Telefone"
                     name="phone"
-                    placeholder="Digite o telefone do dentista"
+                    placeholder="Digite o telefone"
                     mask="(99) 99999-9999"
                 />
 
                 <flux:field>
                     <flux:label>
                         Email
-                        <flux:tooltip content="Um email de confirmação será enviado para este endereço." position="top">
+                        <flux:tooltip content="Um email de confirmação será enviado para este email." position="top">
                             <flux:icon class="ml-2 size-4" name="information-circle" />
                         </flux:tooltip>
                     </flux:label>
                     <flux:input
                         wire:model="email"
                         name="email"
-                        placeholder="Digite o email do dentista"
+                        placeholder="Digite o email"
                     />
                 </flux:field>
                 
