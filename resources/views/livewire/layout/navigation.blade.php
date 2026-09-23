@@ -42,6 +42,13 @@ new class extends Component
                 >
                     Serviços
                 </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="numbered-list"
+                    href="{{ route('steps.index') }}"
+                    wire:navigate
+                >
+                    Etapas de Serviços
+                </flux:sidebar.item>
             @endcan
             @can('viewAny', \App\Models\Dentist::class)
                 <flux:sidebar.item
