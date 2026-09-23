@@ -2,6 +2,7 @@
 
 use App\Models\ServiceStep;
 use Flux\Flux;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
@@ -15,12 +16,16 @@ new class extends Component
     #[Validate('required|string|min:3|max:255')]
     public ?string $description = null;
 
+    #[On('step::edit')]
     public function edit(int $id): void
     {
         $this->editingStep = ServiceStep::find($id);
 
         $this->name = $this->editingStep->name;
         $this->description = $this->editingStep->description;
+
+        $this->dispatch('step::refresh');
+        Flux::modal('store-step-modal')->show();
     }
 
     public function store(): void

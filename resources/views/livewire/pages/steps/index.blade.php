@@ -13,10 +13,10 @@ new  class extends Component
 
     public ?int $editingServiceId = null;
 
-    #[Computed, On('service::refresh')]
+    #[Computed, On('step::refresh')]
     public function steps(): LengthAwarePaginator 
     {
-        return ServiceStep::paginate(10);
+        return ServiceStep::orderBy('name')->paginate(10);
     }
 };
 ?>
