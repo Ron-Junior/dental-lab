@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('service_steps', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('service_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
             $table->timestamps();

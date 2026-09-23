@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[UsePolicy(ServicePolicy::class)]
@@ -16,9 +17,9 @@ class Service extends Model
 {
     use HasFactory;
     
-    public function steps(): HasMany 
+    public function serviceSteps(): BelongsToMany
     {
-        return $this->hasMany(ServiceStep::class);
+        return $this->belongsToMany(ServiceStep::class, 'service_service_steps')->withPivot('order');
     }
 
     public function price(): Attribute

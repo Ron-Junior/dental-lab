@@ -41,15 +41,16 @@ new class extends Component
     </div>
 
     <div>
-        <!-- CABEÇALHO DA TABELA -->
-        <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] gap-4 font-semibold text-sm px-6 py-2">
-            <flux:heading>Dentista</flux:heading>
-            <flux:heading>Serviço</flux:heading>
-            <flux:heading>Preço</flux:heading>
-            <flux:heading class="hidden xl:block text-center">Quantidade</flux:heading>
-            <flux:heading>Progresso</flux:heading>
-            <div></div>
-        </div>
+        @if ($this->dentistRequests->count() > 0)
+            <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] gap-4 font-semibold text-sm px-6 py-2">
+                <flux:heading>Dentista</flux:heading>
+                <flux:heading>Serviço</flux:heading>
+                <flux:heading>Preço</flux:heading>
+                <flux:heading class="hidden xl:block text-center">Quantidade</flux:heading>
+                <flux:heading>Progresso</flux:heading>
+                <div></div>
+            </div>
+        @endif
 
         <div class="space-y-4">
             @forelse ($this->dentistRequests as $dentistRequest)
