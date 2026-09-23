@@ -47,6 +47,7 @@ new  class extends Component
                     </flux:table.cell>
                     <flux:table.cell class="whitespace-nowrap">{{ $step->description }}</flux:table.cell>
                     <flux:table.cell class="py-0">
+                        <flux:button wire:click="dispatch('step::manage-partners', '{{ $step->id }}')" icon="user-group" variant="ghost"></flux:button>
                         <flux:button wire:click="dispatch('step::edit', '{{ $step->id }}')" icon="pencil" variant="ghost"></flux:button>
                         <flux:button wire:click="dispatch('step::delete', '{{ $step->id }}')" icon="trash" variant="ghost"></flux:button>
                     </flux:table.cell>
@@ -57,4 +58,5 @@ new  class extends Component
 
     <livewire:step.store/>
     <livewire:step.delete/>
+    <livewire:step.manage-partners/>
 </div>

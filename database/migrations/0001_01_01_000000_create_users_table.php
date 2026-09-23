@@ -13,14 +13,15 @@ return new class extends Migration
     {
         Schema::create('rules',function(Blueprint $table){
             $table->id();
-            $table->string('name')->index();
+            $table->string('name')->unique()->index();
             $table->timestamps();
         });
 
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
+            $table->string('name')->index();
+            $table->string('email')->index()->unique();
+            $table->string('profile_photo_url')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
             $table->foreignId('rule_id')->constrained()->cascadeOnDelete();

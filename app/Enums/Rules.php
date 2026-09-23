@@ -5,6 +5,7 @@
         case Owner = 'owner';
         case Lab = 'lab';
         case LabManager = 'lab_manager';
+        case LabPartner = 'lab_partner';
         case Dentist = 'dentist';
 
         public function getName(): string {

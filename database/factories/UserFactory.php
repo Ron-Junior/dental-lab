@@ -24,12 +24,21 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $profilePhotos = [
+            "https://img.magnific.com/free-photo/close-up-portrait-curly-handsome-european-male_176532-8133.jpg",
+            "https://img.magnific.com/free-photo/close-up-portrait-attractive-man-with-afro-hairstyle-stubble-wears-orange-anorak_273609-8595.jpg",
+            "https://img.magnific.com/free-photo/a-smiling-young-man-with-a-clean-shaven-face-is-sitting-in-a-chair_273609-3443.jpg",
+            'https://img.magnific.com/free-photo/portrait-cheerful-caucasian-man_53876-13438.jpg',
+        ];
+
         return [
             'name' => $this->faker->name(),
             'email' => $this->faker->unique()->safeEmail(),
+            'profile_photo_url' => $this->faker->randomElement($profilePhotos),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'rule_id' => null
         ];
     }
 

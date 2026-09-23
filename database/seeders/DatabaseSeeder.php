@@ -18,7 +18,8 @@ class DatabaseSeeder extends Seeder
             RuleSeeder::class,
             UserSeeder::class,
             DentistSeeder::class,
-            ServiceSeeder::class
+            ServiceSeeder::class,
+            PartnerSeeder::class
         ]);
     }
 }

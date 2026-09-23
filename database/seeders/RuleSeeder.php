@@ -16,6 +16,7 @@ class RuleSeeder extends Seeder
         Rule::factory(['name' => Rules::Owner->value])->create();
         Rule::factory(['name' => Rules::Lab->value])->create();
         Rule::factory(['name' => Rules::LabManager->value])->create();
+        Rule::factory(['name' => Rules::LabPartner->value])->create();
         Rule::factory(['name' => Rules::Dentist->value])->create();
     }
 }
