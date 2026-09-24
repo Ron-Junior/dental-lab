@@ -68,7 +68,7 @@ new class extends Component
         $this->name = $service->name;
         $this->description = $service->description;
         $this->price = number_format($service->price, 2, ',', '.');
-        $this->steps = $service->steps->toArray();
+        $this->steps = $service->serviceSteps->toArray();
 
         Flux::modal('store-service-modal')->show();
     }
@@ -153,8 +153,8 @@ new class extends Component
             @foreach ($steps as $index => $step)
                 <flux:card wire:key="step-{{ $index }}" class="space-y-5">
                     <div class="space-y-4">
-                        <flux:input wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
-                        <flux:textarea wire:model="steps.{{ $index }}.description" label="Descrição" placeholder="Descrição do serviço" />
+                        <flux:select wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
+                        <flux:text>{{ $step['description'] }}</flux:text>
                     </div>
                     <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
                 </flux:card>
