@@ -26,6 +26,7 @@ new class extends Component
         [
             'name' => '',
             'description' => '',
+            'order' => 1,
         ]
     ];
 
@@ -118,12 +119,18 @@ new class extends Component
         $this->steps[] = [
             'name' => '',
             'description' => '',
+            'order' => count($this->steps) + 1,
         ];
     }
 
     public function removeStep(int $index): void
     {
         unset($this->steps[$index]);
+    }
+
+    public function reorderSteps(string $item, int $toIndex): void
+    {
+        
     }
 }
 ?>
@@ -150,15 +157,17 @@ new class extends Component
             <flux:separator />
 
             <flux:heading size="md">Etapas do Serviço</flux:heading>
-            @foreach ($steps as $index => $step)
-                <flux:card wire:key="step-{{ $index }}" class="space-y-5">
-                    <div class="space-y-4">
-                        <flux:select wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
-                        <flux:text>{{ $step['description'] }}</flux:text>
-                    </div>
-                    <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
-                </flux:card>
-            @endforeach
+            <div class="space-y-2" wire:sort.defer="reorderSteps">
+                @foreach ($steps as $index => $step)
+                    <flux:card wire:key="step-{{ $index }}" class="space-y-5" wire:sort:item="{{ $index }}">
+                        <div class="space-y-4">
+                            <flux:select wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
+                            <flux:text>{{ $step['description'] }}</flux:text>
+                        </div>
+                        <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
+                    </flux:card>
+                @endforeach
+            </div>
 
             @error('steps')
                 <flux:error name="steps" />
