@@ -157,15 +157,27 @@ new class extends Component
             <flux:separator />
 
             <flux:heading size="md">Etapas do Serviço</flux:heading>
-            <div class="space-y-2" wire:sort.defer="reorderSteps">
+            <div class="relative space-y-4" wire:sort.defer="reorderSteps">
                 @foreach ($steps as $index => $step)
-                    <flux:card wire:key="step-{{ $index }}" class="space-y-5" wire:sort:item="{{ $index }}">
-                        <div class="space-y-4">
-                            <flux:select wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
-                            <flux:text>{{ $step['description'] }}</flux:text>
+                    <div wire:key="step-wrapper-{{ $index }}" wire:sort:item="{{ $index }}" class="relative pl-9 group">
+                        {{-- Linha vertical conectando as etapas --}}
+                        @unless ($loop->last)
+                            <span class="absolute left-3.25 top-7 -bottom-4 w-0.5 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true"></span>
+                        @endunless
+
+                        {{-- Indicador numerado da timeline --}}
+                        <div class="absolute left-0 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-semibold ring-4 ring-white dark:ring-zinc-900 shadow-sm z-10 transition-transform group-hover:scale-110">
+                            {{ $index + 1 }}
                         </div>
-                        <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
-                    </flux:card>
+
+                        <flux:card class="space-y-5">
+                            <div class="space-y-4">
+                                <flux:select wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
+                                <flux:text>{{ $step['description'] }}</flux:text>
+                            </div>
+                            <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
+                        </flux:card>
+                    </div>
                 @endforeach
             </div>
 
