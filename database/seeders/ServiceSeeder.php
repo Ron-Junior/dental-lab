@@ -54,6 +54,7 @@ class ServiceSeeder extends Seeder
             ])
             ->create([
                 'name' => 'Faceta',
+                'description' => "Criação de uma faceta para um sorriso perfeito"
             ]);
     }
 }

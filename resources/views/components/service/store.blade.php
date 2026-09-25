@@ -3,8 +3,10 @@
 use App\Models\Service;
 use App\Models\ServiceStep;
 use Flux\Flux;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -22,17 +24,16 @@ new class extends Component
     public ?string $price = null;
 
     #[Validate('required|array|min:1', 'Etapas')]
-    public ?array $steps = [
+    public array $steps = [
         [
-            'name' => '',
-            'description' => '',
+            'service_step_id' => null,
             'order' => 1,
         ]
     ];
 
     protected $validationAttributes = [
-        'steps.*.name' => 'Nome da etapa',
-        'steps.*.description' => 'Descrição da etapa',
+        'steps.*.service_step_id' => 'Etapa',
+        'steps.*.order' => 'Ordem',
     ];
 
     protected function rules()
@@ -45,17 +46,14 @@ new class extends Component
                 'max:255',
                 Rule::unique('services', 'name')->ignore($this->serviceId),
             ],
-            'steps.*.name' => [
+            'steps.*.service_step_id' => [
                 'required',
-                'string',
-                'min:3',
-                'max:255',
+                'exists:service_steps,id',
             ],
-            'steps.*.description' => [
+            'steps.*.order' => [
                 'required',
-                'string',
-                'min:3',
-                'max:255',
+                'integer',
+                'min:1',
             ],
         ];
     }
@@ -64,14 +62,26 @@ new class extends Component
     public function edit($id): void
     {
         $this->serviceId = $id;
-        $service = Service::find($id);
+        $service = Service::with(['serviceSteps' => fn($q) => $q->orderBy('service_service_step.order')])->find($id);
 
         $this->name = $service->name;
         $this->description = $service->description;
         $this->price = number_format($service->price, 2, ',', '.');
-        $this->steps = $service->serviceSteps->toArray();
+
+        $this->steps = $service->serviceSteps->map(function ($step, $index) {
+            return [
+                'service_step_id' => $step->id,
+                'order' => $step->pivot->order ?? ($index + 1),
+            ];
+        })->toArray();
 
         Flux::modal('store-service-modal')->show();
+    }
+
+    #[Computed]
+    public function serviceSteps(): Collection
+    {
+        return ServiceStep::all();
     }
 
     public function store(): void
@@ -79,31 +89,38 @@ new class extends Component
         $this->authorize('create', Service::class);
         $this->validate();
 
+        $actionText = $this->serviceId ? 'atualizado' : 'criado';
+
         DB::transaction(function () {
-           $service = Service::updateOrCreate(
+            $service = Service::updateOrCreate(
                 ['id' => $this->serviceId],
                 [
                     'name' => $this->name,
                     'description' => $this->description,
                     'price' => str($this->price)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
                 ]
-           );
+            );
 
-            ServiceStep::where('service_id', $service->id)->delete();
+            $syncData = collect($this->steps)
+                ->pluck('service_step_id')
+                ->filter()
+                ->values()
+                ->mapWithKeys(fn($id, $index) => [
+                    $id => ['order' => $index + 1]
+                ])
+                ->toArray();
 
-            foreach ($this->steps as $step) {
-                ServiceStep::create([
-                    'service_id' => $service->id,
-                    'name' => $step['name'],
-                    'description' => $step['description'],
-                ]);
-            }
+            $service->serviceSteps()->sync($syncData);
         });
-        
-        $this->reset();
+
         $this->dispatch('service::refresh');
 
-        Flux::toast(variant: 'success', heading: 'Sucesso!', text: str(__('Serviço :action com sucesso!'))->replace(':action', $this->serviceId ? 'atualizado' : 'criado'));
+        Flux::toast(
+            variant: 'success', 
+            heading: 'Sucesso!', 
+            text: __("Serviço {$actionText} com sucesso!")
+        );
+
         $this->closeModal();
     }
 
@@ -117,8 +134,7 @@ new class extends Component
     public function addStep(): void
     {
         $this->steps[] = [
-            'name' => '',
-            'description' => '',
+            'service_step_id' => '',
             'order' => count($this->steps) + 1,
         ];
     }
@@ -126,11 +142,32 @@ new class extends Component
     public function removeStep(int $index): void
     {
         unset($this->steps[$index]);
+
+        $this->steps = collect($this->steps)
+            ->values()
+            ->map(function ($step, $idx) {
+                $step['order'] = $idx + 1;
+                return $step;
+            })
+            ->toArray();
     }
 
-    public function reorderSteps(string $item, int $toIndex): void
+    public function reorderSteps(int $fromIndex, int $toIndex): void
     {
-        
+        if (!isset($this->steps[$fromIndex])) {
+            return;
+        }
+
+        $movedItem = array_splice($this->steps, $fromIndex, 1)[0];
+
+        array_splice($this->steps, $toIndex, 0, [$movedItem]);
+
+        $this->steps = collect($this->steps)
+            ->map(function ($step, $index) {
+                $step['order'] = $index + 1;
+                return $step;
+            })
+            ->toArray();
     }
 }
 ?>
@@ -160,22 +197,23 @@ new class extends Component
             <div class="relative space-y-4" wire:sort.defer="reorderSteps">
                 @foreach ($steps as $index => $step)
                     <div wire:key="step-wrapper-{{ $index }}" wire:sort:item="{{ $index }}" class="relative pl-9 group">
-                        {{-- Linha vertical conectando as etapas --}}
                         @unless ($loop->last)
                             <span class="absolute left-3.25 top-7 -bottom-4 w-0.5 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true"></span>
                         @endunless
 
-                        {{-- Indicador numerado da timeline --}}
                         <div class="absolute left-0 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs font-semibold ring-4 ring-white dark:ring-zinc-900 shadow-sm z-10 transition-transform group-hover:scale-110">
                             {{ $index + 1 }}
                         </div>
 
-                        <flux:card class="space-y-5">
-                            <div class="space-y-4">
-                                <flux:select wire:model="steps.{{ $index }}.name" label="Nome" placeholder="Nome do serviço" />
-                                <flux:text>{{ $step['description'] }}</flux:text>
+                        <flux:card class="flex gap-4">
+                            <div class="flex-1">
+                                <flux:select wire:model.live="steps.{{ $index }}.service_step_id" label="Nome" placeholder="Selecione uma etapa">
+                                    @foreach ($this->serviceSteps as $serviceStep)
+                                        <flux:select.option :value="$serviceStep->id">{{ $serviceStep->name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
                             </div>
-                            <flux:button class="w-full" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})">Remover</flux:button>
+                            <flux:button class="mt-2" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})"></flux:button>
                         </flux:card>
                     </div>
                 @endforeach
