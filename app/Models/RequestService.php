@@ -48,11 +48,11 @@ class RequestService extends Model
 
     public function completedSteps(): Attribute
     {
-        $this->loadMissing('service.steps');
+        $this->loadMissing('service.serviceSteps');
 
-        $index = $this->completed_at ? $this->service->steps->count() - 1: $this->service->steps->search(fn ($step) => $step->id === $this->step_id);
+        $index = $this->completed_at ? $this->service->serviceSteps->count() - 1: $this->service->serviceSteps->search(fn ($step) => $step->id === $this->step_id);
         return Attribute::make(
-            get: fn () => $this->step_id ? $index + 1 : ($this->completed_at ? $this->service->steps->count() : 0)
+            get: fn () => $this->step_id ? $index + 1 : ($this->completed_at ? $this->service->serviceSteps->count() : 0)
         );
     }
 }

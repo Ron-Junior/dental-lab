@@ -31,7 +31,7 @@ new class extends Component
             return collect();
         }
 
-        return ServiceStep::where('service_id', $this->requestService->service_id)->get();
+        return ServiceStep::where('id', $this->requestService->service_id)->get();
     }
 
     public function save(): void

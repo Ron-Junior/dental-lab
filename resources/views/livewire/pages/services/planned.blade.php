@@ -15,7 +15,7 @@ new class extends Component
     #[Computed, On('requests::refresh')]
     public function dentistRequests(): LengthAwarePaginator
     {
-        return DentistRequest::with('dentist.user', 'requestServices.service.steps')->paginate(10);
+        return DentistRequest::with('dentist.user', 'requestServices.service.serviceSteps')->paginate(10);
     }
 
     public function getColor(int $completed, int $total): string
@@ -43,7 +43,7 @@ new class extends Component
     <div>
         @if ($this->dentistRequests->count() > 0)
             <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] gap-4 font-semibold text-sm px-6 py-2">
-                <flux:heading>Dentista</flux:heading>
+                <flux:heading>Dentista/#Requisição</flux:heading>
                 <flux:heading>Serviço</flux:heading>
                 <flux:heading>Preço</flux:heading>
                 <flux:heading class="hidden xl:block text-center">Quantidade</flux:heading>
@@ -56,7 +56,7 @@ new class extends Component
             @forelse ($this->dentistRequests as $dentistRequest)
                 @php
                     $completedSteps = $dentistRequest->requestServices->sum(fn($r) => $r->completed_steps);
-                    $totalSteps = $dentistRequest->requestServices->sum(fn($r) => $r->service->steps->count());
+                    $totalSteps = $dentistRequest->requestServices->sum(fn($r) => $r->service->serviceSteps->count());
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
@@ -144,9 +144,9 @@ new class extends Component
                                 <div class="content-center pr-2">
                                     @if ($requestService->completed_at === null)
                                         <flux:progress 
-                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->steps->count())"
+                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
                                             value="{{ $requestService->completedSteps }}" 
-                                            max="{{ $requestService->service->steps->count() }}"
+                                            max="{{ $requestService->service->serviceSteps->count() }}"
                                         />
                                     @endif
 
@@ -225,12 +225,12 @@ new class extends Component
                                     <div class="space-y-1">
                                         <div class="flex justify-between items-center text-xs">
                                             <flux:text size="xs" class="text-zinc-500">Etapas</flux:text>
-                                            <flux:text size="xs" class="font-medium">{{ $requestService->completedSteps }} / {{ $requestService->service->steps->count() }}</flux:text>
+                                            <flux:text size="xs" class="font-medium">{{ $requestService->completedSteps }} / {{ $requestService->service->serviceSteps->count() }}</flux:text>
                                         </div>
                                         <flux:progress 
-                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->steps->count())"
+                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
                                             value="{{ $requestService->completedSteps }}" 
-                                            max="{{ $requestService->service->steps->count() }}"
+                                            max="{{ $requestService->service->serviceSteps->count() }}"
                                         />
                                     </div>
                                 @endif
