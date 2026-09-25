@@ -15,8 +15,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('service_id')->constrained()->cascadeOnDelete();
             $table->foreignId('service_step_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('partner_id')->nullable()->constrained()->cascadeOnDelete();
             $table->unsignedInteger('order');
+            $table->integer('partner_commission')->nullable();
+            $table->string('partner_commission_type')->nullable();
+            $table->date('started_at')->nullable();
+            $table->date('ended_at')->nullable();
             $table->timestamps();
+
+            $table->unique(['service_id', 'service_step_id']);
         });
     }
 
