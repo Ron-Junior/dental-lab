@@ -15,7 +15,7 @@ new class extends Component
     #[Computed, On('requests::refresh')]
     public function dentistRequests(): LengthAwarePaginator
     {
-        return DentistRequest::with('dentist.user', 'requestServices.service.serviceSteps')->paginate(10);
+        return DentistRequest::with('dentist.user', 'requestServices.service.serviceSteps')->orderBy('created_at')->paginate(10);
     }
 
     public function getColor(int $completed, int $total): string
@@ -43,7 +43,7 @@ new class extends Component
     <div>
         @if ($this->dentistRequests->count() > 0)
             <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] gap-4 font-semibold text-sm px-6 py-2">
-                <flux:heading>Dentista/#Requisição</flux:heading>
+                <flux:heading>Dentista / Requisição</flux:heading>
                 <flux:heading>Serviço</flux:heading>
                 <flux:heading>Preço</flux:heading>
                 <flux:heading class="hidden xl:block text-center">Quantidade</flux:heading>
@@ -73,11 +73,13 @@ new class extends Component
                         <flux:text class="hidden xl:block text-center">{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
                         
                         <div class="pr-2">
-                            <flux:progress 
-                                color="{{ $this->getColor($completedSteps, $totalSteps) }}"
-                                value="{{ $completedSteps }}" 
-                                max="{{ $totalSteps }}"
-                            />
+                            <flux:tooltip content="{{ number_format($completedSteps/$totalSteps * 100, 0, ',', '.') }}%" class="w-full">
+                                <flux:progress 
+                                    color="{{ $this->getColor($completedSteps, $totalSteps) }}"
+                                    value="{{ $completedSteps }}" 
+                                    max="{{ $totalSteps }}"
+                                />
+                            </flux:tooltip>
                         </div>
                         
                         <div class="justify-self-end">
@@ -122,11 +124,13 @@ new class extends Component
                                 <flux:text size="xs" class="text-zinc-500">Progresso</flux:text>
                                 <flux:text size="xs" class="font-medium">{{ $completedSteps }} / {{ $totalSteps }}</flux:text>
                             </div>
-                            <flux:progress 
-                                color="{{ $this->getColor($completedSteps, $totalSteps) }}"
-                                value="{{ $completedSteps }}" 
-                                max="{{ $totalSteps }}"
-                            />
+                            <flux:tooltip content="{{ number_format($completedSteps/$totalSteps * 100, 0, ',', '.') }}%" class="w-full">
+                                <flux:progress 
+                                    color="{{ $this->getColor($completedSteps, $totalSteps) }}"
+                                    value="{{ $completedSteps }}" 
+                                    max="{{ $totalSteps }}"
+                                />
+                            </flux:tooltip>
                         </div>
                     </div>
 
@@ -143,11 +147,13 @@ new class extends Component
 
                                 <div class="content-center pr-2">
                                     @if ($requestService->completed_at === null)
-                                        <flux:progress 
-                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
-                                            value="{{ $requestService->completedSteps }}" 
-                                            max="{{ $requestService->service->serviceSteps->count() }}"
-                                        />
+                                        <flux:tooltip content="{{ number_format($requestService->completedSteps/$requestService->service->serviceSteps->count() * 100, 0, ',', '.') }}%" class="w-full">
+                                            <flux:progress 
+                                                :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
+                                                value="{{ $requestService->completedSteps }}" 
+                                                max="{{ $requestService->service->serviceSteps->count() }}"
+                                            />
+                                        </flux:tooltip>
                                     @endif
 
                                     @if ($requestService->completed_at)
@@ -168,10 +174,11 @@ new class extends Component
                                             @can('updateStatus', $requestService)
                                                 <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
-                                                    icon="bolt"
+                                                    icon="eye"
+                                                    icon:variant="outline"
                                                     wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
                                                 >
-                                                    Atualizar status
+                                                    Visualizar Progresso
                                                 </flux:menu.item>
                                                 <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
@@ -195,6 +202,7 @@ new class extends Component
                                                 wire:key="edit-service-menu-{{ $requestService->id }}"
                                                 :disabled="(bool)($requestService->completed_at || $requestService->step_id)"
                                                 icon="pencil"
+                                                icon:variant="outline"
                                                 wire:click="dispatch('service::update', '{{ $requestService->id }}')"
                                             >
                                                 Editar
@@ -227,11 +235,13 @@ new class extends Component
                                             <flux:text size="xs" class="text-zinc-500">Etapas</flux:text>
                                             <flux:text size="xs" class="font-medium">{{ $requestService->completedSteps }} / {{ $requestService->service->serviceSteps->count() }}</flux:text>
                                         </div>
-                                        <flux:progress 
-                                            :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
-                                            value="{{ $requestService->completedSteps }}" 
-                                            max="{{ $requestService->service->serviceSteps->count() }}"
-                                        />
+                                        <flux:tooltip content="test">
+                                            <flux:progress 
+                                                :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
+                                                value="{{ $requestService->completedSteps }}" 
+                                                max="{{ $requestService->service->serviceSteps->count() }}"
+                                            />
+                                        </flux:tooltip>
                                     </div>
                                 @endif
 
@@ -290,6 +300,5 @@ new class extends Component
 
     <livewire:service.update />
     <livewire:service.requesting />
-    <livewire:service.update-step />
     <livewire:service.complete />
 </div>
