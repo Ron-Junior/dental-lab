@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Partner;
 use App\Models\PartnerDemand;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
@@ -18,6 +19,8 @@ new class extends Component
 
     public ?int $editingServiceId = null;
 
+    public array $filterPartnersIds = [];
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -26,6 +29,20 @@ new class extends Component
     public function updatingStatus(): void
     {
         $this->resetPage();
+    }
+
+    public function updatingFilterPartnersIds(): void
+    {
+        $this->resetPage();
+    }
+
+    #[Computed]
+    public function partners()
+    {
+        return Partner::with('user')->get()->map(fn ($partner) => [
+            'id' => $partner->id,
+            'name' => $partner->user->name ?? "Parceiro #{$partner->id}",
+        ]);
     }
 
     #[Computed, On('demand::refresh')]
@@ -37,25 +54,8 @@ new class extends Component
             'serviceServiceStep.serviceStep',
             'partner.user',
         ])
-            ->when($this->search, function ($query) {
-                $query->where(function ($q) {
-                    $q->whereHas('requestService.service', fn ($s) => $s->where('name', 'like', "%{$this->search}%"))
-                        ->orWhereHas('serviceServiceStep.serviceStep', fn ($s) => $s->where('name', 'like', "%{$this->search}%"))
-                        ->orWhereHas('requestService.dentistRequest.dentist.user', fn ($u) => $u->where('name', 'like', "%{$this->search}%"))
-                        ->orWhereHas('partner.user', fn ($u) => $u->where('name', 'like', "%{$this->search}%"));
-                });
-            })
-            ->when($this->status, function ($query) {
-                if ($this->status === 'completed') {
-                    $query->whereNotNull('ended_at');
-                } elseif ($this->status === 'in_progress') {
-                    $query->whereNotNull('started_at')->whereNull('ended_at');
-                } elseif ($this->status === 'assigned') {
-                    $query->whereNotNull('partner_id')->whereNull('started_at')->whereNull('ended_at');
-                } elseif ($this->status === 'pending') {
-                    $query->whereNull('partner_id')->whereNull('started_at')->whereNull('ended_at');
-                }
-            })
+            ->search($this->search)
+            ->assignedToPartner($this->filterPartnersIds)
             ->orderBy('order')
             ->paginate(10);
     }
@@ -97,14 +97,12 @@ new class extends Component
                 icon="magnifying-glass"
             />
         </div>
-        <div class="w-full sm:w-56">
-            <flux:select wire:model.live="status" placeholder="Filtrar por status">
-                <flux:select.option value="">Todos os status</flux:select.option>
-                <flux:select.option value="pending">Pendente</flux:select.option>
-                <flux:select.option value="assigned">Atribuído</flux:select.option>
-                <flux:select.option value="in_progress">Em Andamento</flux:select.option>
-                <flux:select.option value="completed">Concluído</flux:select.option>
-            </flux:select>
+        <div class="w-full sm:w-64">
+            <x-form.multiselect 
+                wire:model.live="filterPartnersIds" 
+                :options="$this->partners" 
+                placeholder="Filtrar por parceiros..." 
+            />
         </div>
     </div>
 
@@ -112,7 +110,6 @@ new class extends Component
     <div class="hidden md:block">
         <flux:table :paginate="$this->demands">
             <flux:table.columns>
-                <flux:table.column>Ordem</flux:table.column>
                 <flux:table.column>Serviço / Etapa</flux:table.column>
                 <flux:table.column>Dentista / Solicitação</flux:table.column>
                 <flux:table.column>Parceiro Responsável</flux:table.column>
@@ -131,9 +128,6 @@ new class extends Component
                     @endphp
                     <flux:table.row :key="$demand->id">
                         <flux:table.cell>
-                            <flux:badge size="sm" variant="solid" color="zinc">#{{ $demand->order }}</flux:badge>
-                        </flux:table.cell>
-                        <flux:table.cell>
                             <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $serviceName }}</div>
                             <div class="text-xs text-zinc-500">{{ $stepName }}</div>
                         </flux:table.cell>
@@ -150,7 +144,15 @@ new class extends Component
                                     <span>{{ $partnerName }}</span>
                                 </div>
                             @else
-                                <span class="text-xs italic text-zinc-400">Não atribuído</span>
+                                <flux:button 
+                                    wire:click="dispatch('demand::assign', '{{ $demand->id }}')" 
+                                    icon="user" 
+                                    variant="filled" 
+                                    size="sm"
+                                    aria-label="Atribuir demanda"
+                                >
+                                    Atribuir
+                                </flux:button>
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
