@@ -16,6 +16,7 @@ Route::group(['middleware' => 'auth'], function () {
 
     Volt::route('parceiros', 'pages.partners.index')->name('partners.index');
     Volt::route('dentistas', 'dentists.index')->name('dentists.index');
+    Volt::route('demandas', 'pages.dentists.demands')->name('dentists.demands.index');
     Volt::route('serviços', 'pages.services.index')->name('services.index');
     Volt::route('serviços-solicitados', 'pages.services.planned')->name('services.planned.index');
     Volt::route('solicitações/{id}', 'pages.services.planned')->name('dentist-request.show');

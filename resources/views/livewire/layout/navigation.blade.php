@@ -66,8 +66,17 @@ new class extends Component
                     Parceiros
                 </flux:sidebar.item>
             @endcan
+            @can('viewAny', \App\Models\ServiceServiceStep::class)
+                <flux:sidebar.item
+                    icon="calendar-days"
+                    href="{{ route('dentists.demands.index') }}"
+                    wire:navigate
+                >
+                    Demandas
+                </flux:sidebar.item>
+            @endcan
             <flux:sidebar.item
-                icon="calendar"
+                icon="clipboard-document-list"
                 href="{{ route('services.planned.index') }}"
                 wire:navigate
             >

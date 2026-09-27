@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['dentist_request_id', 'service_id', 'step_id', 'unit_price', 'quantity', 'completed_at'])]
 class RequestService extends Model
@@ -14,6 +15,21 @@ class RequestService extends Model
         'created_at' => 'date',
         'updated_at' => 'date',
     ];
+
+    protected static function booted()
+    {
+        static::created(function ($model) {
+            $model->loadMissing('service.serviceSteps');
+            $steps = $model->service->serviceSteps;
+            $model->partnerDemands()->saveMany(
+                $steps->map(fn ($step) => new PartnerDemand([
+                    'request_service_id' => $model->id,
+                    'service_service_step_id' => $step->id,
+                    'order' => $step->pivot->order,
+                ]))
+            );
+        });
+    }
     
     public function dentistRequest(): BelongsTo
     {
@@ -28,6 +44,11 @@ class RequestService extends Model
     public function step(): BelongsTo
     {
         return $this->belongsTo(ServiceStep::class);
+    }
+
+    public function partnerDemands(): HasMany
+    {
+        return $this->hasMany(PartnerDemand::class);
     }
 
     public function stepName(): Attribute

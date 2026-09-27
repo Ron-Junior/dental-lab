@@ -14,7 +14,7 @@ class ServiceServiceStep extends Pivot
         return $this->belongsTo(Service::class);
     }
 
-    public function step(): BelongsTo
+    public function serviceStep(): BelongsTo
     {
         return $this->belongsTo(ServiceStep::class);
     }
