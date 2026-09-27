@@ -1,60 +1,276 @@
 <?php
 
-use App\Models\demand;
 use App\Models\PartnerDemand;
-use App\Models\Service;
-use App\Models\ServiceServiceStep;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
-use Livewire\Volt\Component;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
+use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new  class extends Component
+new class extends Component
 {
     use WithPagination;
 
+    public string $search = '';
+
+    public string $status = '';
+
     public ?int $editingServiceId = null;
 
-    // order by service_service_step.order 
-    #[Computed, On('demand::refresh')]
-    public function demands(): LengthAwarePaginator 
+    public function updatingSearch(): void
     {
-        return PartnerDemand::with(['requestService.service', 'serviceServiceStep.serviceStep'])
+        $this->resetPage();
+    }
+
+    public function updatingStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    #[Computed, On('demand::refresh')]
+    public function demands(): LengthAwarePaginator
+    {
+        return PartnerDemand::with([
+            'requestService.service',
+            'requestService.dentistRequest.dentist.user',
+            'serviceServiceStep.serviceStep',
+            'partner.user',
+        ])
+            ->when($this->search, function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('requestService.service', fn ($s) => $s->where('name', 'like', "%{$this->search}%"))
+                        ->orWhereHas('serviceServiceStep.serviceStep', fn ($s) => $s->where('name', 'like', "%{$this->search}%"))
+                        ->orWhereHas('requestService.dentistRequest.dentist.user', fn ($u) => $u->where('name', 'like', "%{$this->search}%"))
+                        ->orWhereHas('partner.user', fn ($u) => $u->where('name', 'like', "%{$this->search}%"));
+                });
+            })
+            ->when($this->status, function ($query) {
+                if ($this->status === 'completed') {
+                    $query->whereNotNull('ended_at');
+                } elseif ($this->status === 'in_progress') {
+                    $query->whereNotNull('started_at')->whereNull('ended_at');
+                } elseif ($this->status === 'assigned') {
+                    $query->whereNotNull('partner_id')->whereNull('started_at')->whereNull('ended_at');
+                } elseif ($this->status === 'pending') {
+                    $query->whereNull('partner_id')->whereNull('started_at')->whereNull('ended_at');
+                }
+            })
             ->orderBy('order')
             ->paginate(10);
+    }
+
+    public function getStatusInfo(PartnerDemand $demand): array
+    {
+        if ($demand->ended_at) {
+            return ['label' => 'Concluído', 'color' => 'green'];
+        }
+
+        if ($demand->started_at) {
+            return ['label' => 'Em Andamento', 'color' => 'blue'];
+        }
+
+        if ($demand->partner_id) {
+            return ['label' => 'Atribuído', 'color' => 'purple'];
+        }
+
+        return ['label' => 'Pendente', 'color' => 'zinc'];
     }
 };
 ?>
 
 <div>
-    <div class="flex justify-between mb-5">
+    {{-- Header --}}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div>
             <flux:heading size="xl">Demandas</flux:heading>
-            <flux:text class="mt-2">Os Demandas cadastrados no sistema.</flux:text>
+            <flux:text class="mt-1 sm:mt-2">As demandas dos serviços solicitados pelos dentistas.</flux:text>
         </div>
     </div>
 
-    <flux:table :paginate="$this->demands">
-        <flux:table.columns>
-            <flux:table.column>Demandas</flux:table.column>
-            <flux:table.column></flux:table.column>
-        </flux:table.columns>
-        <flux:table.rows>
-            @foreach ($this->demands as $demand)
-                <flux:table.row :key="$demand->id">
-                    <flux:table.cell class="flex items-center gap-3">
-                        {{ $demand->requestService->service->name }} - {{ $demand->serviceServiceStep->serviceStep->name }}
-                    </flux:table.cell>
-                    <flux:table.cell class="py-0">
-                        <flux:button wire:click="dispatch('demand::edit', '{{ $demand->id }}')" icon="pencil" variant="ghost"></flux:button>
-                        <flux:button wire:click="dispatch('demand::delete', '{{ $demand->id }}')" icon="trash" variant="ghost"></flux:button>
-                    </flux:table.cell>
-                </flux:table.row>
-            @endforeach
-        </flux:table.rows>
-    </flux:table>
+    {{-- Search and Filters --}}
+    <div class="flex flex-col sm:flex-row gap-3 mb-5">
+        <div class="flex-1">
+            <flux:input 
+                wire:model.live.debounce.300ms="search" 
+                placeholder="Buscar por serviço, etapa, dentista ou parceiro..." 
+                icon="magnifying-glass"
+            />
+        </div>
+        <div class="w-full sm:w-56">
+            <flux:select wire:model.live="status" placeholder="Filtrar por status">
+                <flux:select.option value="">Todos os status</flux:select.option>
+                <flux:select.option value="pending">Pendente</flux:select.option>
+                <flux:select.option value="assigned">Atribuído</flux:select.option>
+                <flux:select.option value="in_progress">Em Andamento</flux:select.option>
+                <flux:select.option value="completed">Concluído</flux:select.option>
+            </flux:select>
+        </div>
+    </div>
+
+    {{-- Desktop Table View --}}
+    <div class="hidden md:block">
+        <flux:table :paginate="$this->demands">
+            <flux:table.columns>
+                <flux:table.column>Ordem</flux:table.column>
+                <flux:table.column>Serviço / Etapa</flux:table.column>
+                <flux:table.column>Dentista / Solicitação</flux:table.column>
+                <flux:table.column>Parceiro Responsável</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
+                <flux:table.column align="end">Ações</flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows>
+                @forelse ($this->demands as $demand)
+                    @php
+                        $status = $this->getStatusInfo($demand);
+                        $serviceName = $demand->requestService->service->name ?? 'N/A';
+                        $stepName = $demand->serviceServiceStep->serviceStep->name ?? 'N/A';
+                        $dentistName = $demand->requestService->dentistRequest->dentist->user->name ?? 'N/A';
+                        $requestCode = $demand->requestService->dentistRequest->code ?? null;
+                        $partnerName = $demand->partner->user->name ?? null;
+                    @endphp
+                    <flux:table.row :key="$demand->id">
+                        <flux:table.cell>
+                            <flux:badge size="sm" variant="solid" color="zinc">#{{ $demand->order }}</flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $serviceName }}</div>
+                            <div class="text-xs text-zinc-500">{{ $stepName }}</div>
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <div class="text-sm font-medium">{{ $dentistName }}</div>
+                            @if ($requestCode)
+                                <div class="text-xs text-zinc-400">#{{ Str::limit($requestCode, 8, '') }}</div>
+                            @endif
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            @if ($partnerName)
+                                <div class="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
+                                    <flux:icon name="user" class="size-4 text-zinc-400" />
+                                    <span>{{ $partnerName }}</span>
+                                </div>
+                            @else
+                                <span class="text-xs italic text-zinc-400">Não atribuído</span>
+                            @endif
+                        </flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge :color="$status['color']" size="sm">
+                                {{ $status['label'] }}
+                            </flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell class="py-0 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <flux:button 
+                                    wire:click="dispatch('demand::edit', '{{ $demand->id }}')" 
+                                    icon="pencil" 
+                                    variant="ghost" 
+                                    size="sm"
+                                    aria-label="Editar demanda"
+                                />
+                                <flux:button 
+                                    wire:click="dispatch('demand::delete', '{{ $demand->id }}')" 
+                                    icon="trash" 
+                                    variant="ghost" 
+                                    size="sm"
+                                    aria-label="Excluir demanda"
+                                />
+                            </div>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="6" class="text-center py-8">
+                            <flux:text class="text-zinc-500">Nenhuma demanda encontrada.</flux:text>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
+            </flux:table.rows>
+        </flux:table>
+    </div>
+
+    {{-- Mobile Cards View --}}
+    <div class="md:hidden space-y-3">
+        @forelse ($this->demands as $demand)
+            @php
+                $status = $this->getStatusInfo($demand);
+                $serviceName = $demand->requestService->service->name ?? 'N/A';
+                $stepName = $demand->serviceServiceStep->serviceStep->name ?? 'N/A';
+                $dentistName = $demand->requestService->dentistRequest->dentist->user->name ?? 'N/A';
+                $requestCode = $demand->requestService->dentistRequest->code ?? null;
+                $partnerName = $demand->partner->user->name ?? null;
+            @endphp
+            <flux:card class="!p-4 border border-zinc-200 dark:border-zinc-800 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <flux:badge size="sm" variant="solid" color="zinc">Etapa #{{ $demand->order }}</flux:badge>
+                    <flux:badge :color="$status['color']" size="sm">
+                        {{ $status['label'] }}
+                    </flux:badge>
+                </div>
+
+                <div>
+                    <flux:heading size="base" class="font-semibold text-zinc-900 dark:text-zinc-100">
+                        {{ $serviceName }}
+                    </flux:heading>
+                    <flux:text size="sm" class="text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        {{ $stepName }}
+                    </flux:text>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg">
+                    <div>
+                        <span class="text-zinc-400 uppercase tracking-wider block font-medium">Dentista</span>
+                        <span class="font-medium text-zinc-700 dark:text-zinc-300 block truncate mt-0.5">
+                            {{ $dentistName }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-zinc-400 uppercase tracking-wider block font-medium">Parceiro</span>
+                        <span class="font-medium text-zinc-700 dark:text-zinc-300 block truncate mt-0.5">
+                            {{ $partnerName ?? 'Não atribuído' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    @if ($requestCode)
+                        <span class="text-xs text-zinc-400">Cod: #{{ Str::limit($requestCode, 8, '') }}</span>
+                    @else
+                        <span></span>
+                    @endif
+                    <div class="flex items-center gap-1">
+                        <flux:button 
+                            wire:click="dispatch('demand::edit', '{{ $demand->id }}')" 
+                            icon="pencil" 
+                            variant="ghost" 
+                            size="sm"
+                        >
+                            Editar
+                        </flux:button>
+                        <flux:button 
+                            wire:click="dispatch('demand::delete', '{{ $demand->id }}')" 
+                            icon="trash" 
+                            variant="ghost" 
+                            size="sm"
+                        >
+                            Excluir
+                        </flux:button>
+                    </div>
+                </div>
+            </flux:card>
+        @empty
+            <flux:card class="text-center py-10">
+                <flux:heading size="lg">Nenhuma demanda encontrada</flux:heading>
+                <flux:text class="mt-2 text-zinc-500">Não há demandas cadastradas ou que correspondam aos filtros.</flux:text>
+            </flux:card>
+        @endforelse
+
+        @if ($this->demands->hasPages())
+            <div class="mt-4">
+                {{ $this->demands->links() }}
+            </div>
+        @endif
+    </div>
+
 {{-- 
     <livewire:demands.store/>
     <livewire:demands.delete/> --}}
