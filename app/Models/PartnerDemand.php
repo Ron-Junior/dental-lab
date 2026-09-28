@@ -81,4 +81,18 @@ class PartnerDemand extends Model
             }
         );
     }
+
+    protected function canStartNow(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->status === 'assigned',
+        );
+    }
+
+    protected function canCompleteNow(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->status === 'in_progress',
+        );
+    }
 }

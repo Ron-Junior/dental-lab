@@ -196,7 +196,7 @@ new class extends Component
             <flux:heading size="md">Etapas do Serviço</flux:heading>
             <div class="relative space-y-4" wire:sort.defer="reorderSteps" >
                 @foreach ($steps as $index => $step)
-                    <div wire:key="step-wrapper-{{ $index }}" wire:sort:item="{{ $index }}" class="relative pl-9 group" style="touch-action: none;">
+                    <div wire:key="step-wrapper-{{ $index }}" wire:sort:item="{{ $index }}" class="relative pl-9 group">
                         @unless ($loop->last)
                             <span class="absolute left-3.25 top-7 -bottom-4 w-0.5 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true"></span>
                         @endunless

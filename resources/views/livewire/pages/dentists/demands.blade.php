@@ -145,7 +145,7 @@ new class extends Component
                                 </div>
                             @else
                                 <flux:button 
-                                    wire:click="dispatch('demand::assign', '{{ $demand->id }}')" 
+                                    wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')" 
                                     icon="user" 
                                     variant="filled" 
                                     size="sm"
@@ -241,22 +241,44 @@ new class extends Component
                         <span></span>
                     @endif
                     <div class="flex items-center gap-1">
-                        <flux:button 
-                            wire:click="dispatch('demand::edit', '{{ $demand->id }}')" 
-                            icon="pencil" 
-                            variant="ghost" 
-                            size="sm"
-                        >
-                            Editar
-                        </flux:button>
-                        <flux:button 
-                            wire:click="dispatch('demand::delete', '{{ $demand->id }}')" 
-                            icon="trash" 
-                            variant="ghost" 
-                            size="sm"
-                        >
-                            Excluir
-                        </flux:button>
+                        @if (!$demand->partner_id)
+                            <flux:button 
+                                wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')" 
+                                icon="user-plus" 
+                                variant="ghost" 
+                                size="sm"
+                                aria-label="Atribuir demanda"
+                                :disabled="!Auth::user()->can('assign', $demand)"
+                            >
+                                Atribuir
+                            </flux:button>
+                        @endif
+
+                        @if (Auth::user()->can('start', $demand))
+                            <flux:button 
+                                wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"
+                                icon="play-circle" 
+                                icon:variant="outline"
+                                variant="ghost"
+                                size="sm"
+                                :disabled="!Auth::user()->can('assign', $demand)"
+                            >
+                                Iniciar
+                            </flux:button>
+                        @endif
+                        
+                        @if (Auth::user()->can('complete', $demand))
+                            <flux:button 
+                                wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"  
+                                icon="stop-circle"
+                                icon:variant="outline"
+                                variant="ghost"
+                                size="sm"
+                                :disabled="!Auth::user()->can('assign', $demand)"
+                            >
+                                Complete
+                            </flux:button>
+                        @endif
                     </div>
                 </div>
             </flux:card>
@@ -274,6 +296,7 @@ new class extends Component
         @endif
     </div>
 
+    <livewire:partners.assign-demand/>
 {{-- 
     <livewire:demands.store/>
     <livewire:demands.delete/> --}}
