@@ -51,7 +51,7 @@ new class extends Component
         return PartnerDemand::with([
             'requestService.service',
             'requestService.dentistRequest.dentist.user',
-            'serviceServiceStep.serviceStep',
+            'serviceServiceStep.serviceStep.partners.user',
             'partner.user',
         ])
             ->search($this->search)
@@ -150,6 +150,7 @@ new class extends Component
                                     variant="filled" 
                                     size="sm"
                                     aria-label="Atribuir demanda"
+                                    :disabled="!Auth::user()->can('assign', $demand)"
                                 >
                                     Atribuir
                                 </flux:button>
