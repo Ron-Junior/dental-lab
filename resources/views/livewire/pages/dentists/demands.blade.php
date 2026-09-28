@@ -3,7 +3,6 @@
 use App\Models\Partner;
 use App\Models\PartnerDemand;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Volt\Component;
@@ -144,16 +143,7 @@ new class extends Component
                                     <span>{{ $partnerName }}</span>
                                 </div>
                             @else
-                                <flux:button 
-                                    wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')" 
-                                    icon="user" 
-                                    variant="filled" 
-                                    size="sm"
-                                    aria-label="Atribuir demanda"
-                                    :disabled="!Auth::user()->can('assign', $demand)"
-                                >
-                                    Atribuir
-                                </flux:button>
+                                <flux:text class="text-sm text-zinc-400">Não atribuído</flux:text>
                             @endif
                         </flux:table.cell>
                         <flux:table.cell>
@@ -163,20 +153,41 @@ new class extends Component
                         </flux:table.cell>
                         <flux:table.cell class="py-0 text-right">
                             <div class="flex items-center justify-end gap-1">
-                                <flux:button 
-                                    wire:click="dispatch('demand::edit', '{{ $demand->id }}')" 
-                                    icon="pencil" 
-                                    variant="ghost" 
-                                    size="sm"
-                                    aria-label="Editar demanda"
-                                />
-                                <flux:button 
-                                    wire:click="dispatch('demand::delete', '{{ $demand->id }}')" 
-                                    icon="trash" 
-                                    variant="ghost" 
-                                    size="sm"
-                                    aria-label="Excluir demanda"
-                                />
+                                @if (!$demand->partner_id)
+                                    <flux:tooltip content="Atribuir demanda">
+                                        <flux:button 
+                                            wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')" 
+                                            icon="user-plus" 
+                                            variant="ghost" 
+                                            aria-label="Atribuir demanda"
+                                            :disabled="!Auth::user()->can('assign', $demand)"
+                                        />
+                                    </flux:tooltip>
+                                @endif
+
+                                @if (Auth::user()->can('start', $demand))
+                                    <flux:tooltip content="Iniciar demanda">
+                                        <flux:button 
+                                            wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"
+                                            icon="play-circle" 
+                                            icon:variant="outline"
+                                            variant="ghost"
+                                            :disabled="!Auth::user()->can('assign', $demand)"
+                                        />
+                                    </flux:tooltip>
+                                @endif
+                                
+                                @if (Auth::user()->can('complete', $demand))
+                                    <flux:tooltip content="Completar demanda">
+                                        <flux:button 
+                                            wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"  
+                                            icon="stop-circle"
+                                            icon:variant="outline"
+                                            variant="ghost"
+                                            :disabled="!Auth::user()->can('assign', $demand)"
+                                        />
+                                    </flux:tooltip>
+                                @endif
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
