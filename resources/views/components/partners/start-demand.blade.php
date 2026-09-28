@@ -66,6 +66,7 @@ new class extends Component
         $this->closeModal();
         $this->dispatch('demand::refresh');
         Flux::toast(heading: 'Serviço iniciado com sucesso!', variant: 'success', text: "");
+        Flux::modals()->close();
     }
 };
 ?>

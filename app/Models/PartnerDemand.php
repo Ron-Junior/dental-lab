@@ -94,7 +94,7 @@ class PartnerDemand extends Model
         $previousDemands = $this->requestService->partnerDemands->where('order', '<', $this->order);
 
         return Attribute::make(
-            get: fn () => $this->status === 'assigned' && $previousDemands->every(fn ($demand) => $demand->status === 'done'),
+            get: fn () => $this->status === 'assigned' && $previousDemands->every(fn ($demand) => $demand->ended_at),
         );
     }
 
