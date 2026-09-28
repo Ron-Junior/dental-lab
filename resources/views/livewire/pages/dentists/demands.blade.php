@@ -48,6 +48,7 @@ new class extends Component
     public function demands(): LengthAwarePaginator
     {
         return PartnerDemand::with([
+            'requestService.partnerDemands',
             'requestService.service',
             'requestService.dentistRequest.dentist.user',
             'serviceServiceStep.serviceStep.partners.user',

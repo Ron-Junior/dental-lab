@@ -57,6 +57,7 @@ new class extends Component
 
         $this->closeModal();
         $this->dispatch('demand::refresh');
+        Flux::modals()->close();
         Flux::toast(heading: 'Demanda atribuída com sucesso!', variant: 'success', text: "O parceiro foi notificado sobre a demanda.");
     }
 };

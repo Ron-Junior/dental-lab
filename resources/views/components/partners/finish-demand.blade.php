@@ -46,6 +46,10 @@ new class extends Component
             <flux:text variant="strong">Data e Hora do início:</flux:text>
             <flux:text variant="subtle">{{ $partnerDemand?->started_at->format('d/m/Y H:i') }}</flux:text>
         </div>
+        <div>
+            <flux:text variant="strong">Data e Hora do término:</flux:text>
+            <flux:text variant="subtle">{{ now()->format('d/m/Y H:i') }}</flux:text>
+        </div>
 
         <flux:text variant="strong">Deseja finalizar com o serviço?</flux:text>
 
@@ -53,7 +57,7 @@ new class extends Component
             <flux:modal.close>
                 <flux:button variant="ghost">Cancelar</flux:button>
             </flux:modal.close>
-            <flux:button wire:click="startDemand">Continuar</flux:button>
+            <flux:button wire:click="finishDemand">Continuar</flux:button>
         </div>
     </flux:modal>
 </div>

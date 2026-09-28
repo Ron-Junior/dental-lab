@@ -89,8 +89,12 @@ class PartnerDemand extends Model
 
     protected function canStartNow(): Attribute
     {
+        $this->loadMissing('requestService.partnerDemands');
+        
+        $previousDemands = $this->requestService->partnerDemands->where('order', '<', $this->order);
+
         return Attribute::make(
-            get: fn () => $this->status === 'assigned',
+            get: fn () => $this->status === 'assigned' && $previousDemands->every(fn ($demand) => $demand->status === 'done'),
         );
     }
 

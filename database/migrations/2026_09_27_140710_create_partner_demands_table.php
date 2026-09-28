@@ -19,8 +19,8 @@ return new class extends Migration
             $table->tinyInteger('order');
             $table->integer('partner_commission')->nullable();
             $table->string('partner_commission_type')->nullable();
-            $table->timestamps('started_at')->nullable();
-            $table->timestamps('ended_at')->nullable();
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('ended_at')->nullable();
             $table->timestamps();
         });
     }
