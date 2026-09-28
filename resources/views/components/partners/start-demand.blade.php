@@ -2,6 +2,7 @@
 
 use App\Models\PartnerDemand;
 use Flux\Flux;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -38,6 +39,7 @@ new class extends Component
         Flux::modal('start-demand-modal')->show();
     }
 
+    #[Computed()]
     public function commission(): string
     {
         if ($this->partnerCommissionType === 'percentexte') {
@@ -80,7 +82,7 @@ new class extends Component
         </div>
         <div>
             <flux:text variant="strong">Comissão do assistente:</flux:text>
-            <flux:text variant="subtle">{{ $this->commission() }}</flux:text>
+            <flux:text variant="subtle">{{ $this->commission }}</flux:text>
         </div>
 
         <flux:text variant="strong">Deseja continuar com o serviço?</flux:text>

@@ -19,6 +19,11 @@ class PartnerDemand extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'started_at' => 'datetime',
+        'ended_at' => 'datetime',
+    ];
+
     public function partner(): BelongsTo
     {
         return $this->belongsTo(Partner::class);

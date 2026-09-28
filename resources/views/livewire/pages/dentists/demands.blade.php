@@ -124,6 +124,7 @@ new class extends Component
                         $dentistName = $demand->requestService->dentistRequest->dentist->user->name ?? 'N/A';
                         $requestCode = $demand->requestService->dentistRequest->code ?? null;
                         $partnerName = $demand->partner->user->name ?? null;
+                        $partnerPhoto = $demand->partner->user->profile_photo_url ?? null;
                     @endphp
                     <flux:table.row :key="$demand->id">
                         <flux:table.cell>
@@ -139,7 +140,7 @@ new class extends Component
                         <flux:table.cell>
                             @if ($partnerName)
                                 <div class="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300">
-                                    <flux:icon name="user" class="size-4 text-zinc-400" />
+                                    <flux:avatar src="{{ $partnerPhoto }}" size="sm" circle />
                                     <span>{{ $partnerName }}</span>
                                 </div>
                             @else
@@ -180,7 +181,7 @@ new class extends Component
                                 @if (Auth::user()->can('complete', $demand))
                                     <flux:tooltip content="Completar demanda">
                                         <flux:button 
-                                            wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"  
+                                            wire:click="dispatch('finish-demand::open', '{{ $demand->id }}')"  
                                             icon="stop-circle"
                                             icon:variant="outline"
                                             variant="ghost"
@@ -280,7 +281,7 @@ new class extends Component
                         
                         @if (Auth::user()->can('complete', $demand))
                             <flux:button 
-                                wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"  
+                                wire:click="dispatch('finish-demand::open', '{{ $demand->id }}')"  
                                 icon="stop-circle"
                                 icon:variant="outline"
                                 variant="ghost"
@@ -309,7 +310,5 @@ new class extends Component
 
     <livewire:partners.assign-demand/>
     <livewire:partners.start-demand/>
-{{-- 
-    <livewire:demands.store/>
-    <livewire:demands.delete/> --}}
+    <livewire:partners.finish-demand/>
 </div>
