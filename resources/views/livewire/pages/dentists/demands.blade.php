@@ -168,7 +168,7 @@ new class extends Component
                                 @if (Auth::user()->can('start', $demand))
                                     <flux:tooltip content="Iniciar demanda">
                                         <flux:button 
-                                            wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"
+                                            wire:click="dispatch('start-demand::open', '{{ $demand->id }}')"
                                             icon="play-circle" 
                                             icon:variant="outline"
                                             variant="ghost"
@@ -267,7 +267,7 @@ new class extends Component
 
                         @if (Auth::user()->can('start', $demand))
                             <flux:button 
-                                wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')"
+                                wire:click="dispatch('start-demand::open', '{{ $demand->id }}')"
                                 icon="play-circle" 
                                 icon:variant="outline"
                                 variant="ghost"
@@ -308,6 +308,7 @@ new class extends Component
     </div>
 
     <livewire:partners.assign-demand/>
+    <livewire:partners.start-demand/>
 {{-- 
     <livewire:demands.store/>
     <livewire:demands.delete/> --}}
