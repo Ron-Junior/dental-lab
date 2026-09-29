@@ -54,9 +54,12 @@ new class extends Component
             'serviceServiceStep.serviceStep.partners.user',
             'partner.user',
         ])
+            ->whereNull('ended_at')
             ->search($this->search)
             ->assignedToPartner($this->filterPartnersIds)
+            ->orderBy('request_service_id')
             ->orderBy('order')
+            ->orderBy('created_at')
             ->paginate(10);
     }
 
@@ -160,6 +163,7 @@ new class extends Component
                                         <flux:button 
                                             wire:click="dispatch('assign-demand::open', '{{ $demand->id }}')" 
                                             icon="user-plus" 
+                                            icon:variant="outline"
                                             variant="ghost" 
                                             aria-label="Atribuir demanda"
                                             :disabled="!Auth::user()->can('assign', $demand)"
@@ -171,7 +175,7 @@ new class extends Component
                                     <flux:tooltip content="Iniciar demanda">
                                         <flux:button 
                                             wire:click="dispatch('start-demand::open', '{{ $demand->id }}')"
-                                            icon="play-circle" 
+                                            icon="play" 
                                             icon:variant="outline"
                                             variant="ghost"
                                             :disabled="!Auth::user()->can('assign', $demand)"
@@ -183,7 +187,7 @@ new class extends Component
                                     <flux:tooltip content="Completar demanda">
                                         <flux:button 
                                             wire:click="dispatch('finish-demand::open', '{{ $demand->id }}')"  
-                                            icon="stop-circle"
+                                            icon="document-check"
                                             icon:variant="outline"
                                             variant="ghost"
                                             :disabled="!Auth::user()->can('assign', $demand)"
@@ -270,7 +274,7 @@ new class extends Component
                         @if (Auth::user()->can('start', $demand))
                             <flux:button 
                                 wire:click="dispatch('start-demand::open', '{{ $demand->id }}')"
-                                icon="play-circle" 
+                                icon="play" 
                                 icon:variant="outline"
                                 variant="ghost"
                                 size="sm"
@@ -283,7 +287,7 @@ new class extends Component
                         @if (Auth::user()->can('complete', $demand))
                             <flux:button 
                                 wire:click="dispatch('finish-demand::open', '{{ $demand->id }}')"  
-                                icon="stop-circle"
+                                icon="document-check"
                                 icon:variant="outline"
                                 variant="ghost"
                                 size="sm"

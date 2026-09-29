@@ -20,6 +20,7 @@ new class extends Component
     public function closeModal(): void
     {
         $this->partnerDemand = null;
+        Flux::modals()->close();
     }
 
     public function finishDemand()
