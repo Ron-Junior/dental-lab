@@ -23,8 +23,9 @@ class AppServiceProvider extends ServiceProvider
          if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);
+            $this->loadMigrationsFrom(database_path('migrations/dev'));
         }
-        
+
         if ($this->app->environment('production', 'sandbox')) {
             URL::forceScheme('https');
         }
