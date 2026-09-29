@@ -3,6 +3,7 @@
 use App\Models\PartnerDemand;
 use Flux\Flux;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 new class extends Component

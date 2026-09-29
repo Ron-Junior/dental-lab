@@ -5,6 +5,7 @@ use App\Models\PartnerDemand;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
@@ -12,13 +13,15 @@ new class extends Component
 {
     use WithPagination;
 
+    #[Url]
     public string $search = '';
+
+    #[Url]
+    public array $filterPartnersIds = [];
 
     public string $status = '';
 
     public ?int $editingServiceId = null;
-
-    public array $filterPartnersIds = [];
 
     public function updatingSearch(): void
     {
