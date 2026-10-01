@@ -4,10 +4,15 @@ use App\Models\PartnerDemand;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new class extends Component
 {
+    use WithFileUploads;
+
     public ?PartnerDemand $partnerDemand = null;
+
+    public $image;
 
     #[On('finish-demand::open')]
     public function openModal(int $partnerDemandId): void
@@ -26,8 +31,11 @@ new class extends Component
     public function finishDemand()
     {
         $this->authorize('complete', $this->partnerDemand);
+        
+        $path = $this->image->store('requests/'. $this->partnerDemand->request_service_id);
 
         $this->partnerDemand->ended_at = now();
+        $this->partnerDemand->result_photo_path = $path;
         $this->partnerDemand->save();
 
         $this->closeModal();
@@ -51,6 +59,8 @@ new class extends Component
             <flux:text variant="strong">Data e Hora do término:</flux:text>
             <flux:text variant="subtle">{{ now()->format('d/m/Y H:i') }}</flux:text>
         </div>
+
+        <x-form.image-upload wire:model="image" />
 
         <flux:text variant="strong">Deseja finalizar com o serviço?</flux:text>
 

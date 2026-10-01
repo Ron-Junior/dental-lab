@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class ServiceStep extends Model
 {
     use HasFactory;
-    
+
     public function services(): BelongsToMany
     {
         return $this->belongsToMany(Service::class, 'service_service_step')->withPivot('order');

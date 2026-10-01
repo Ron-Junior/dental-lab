@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Facades\Currency;
 use App\Services\CurrencyService;
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Support\Facades\URL;
@@ -15,11 +16,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton('currency.service', function () {
-            return new CurrencyService();
+            return new CurrencyService;
         });
 
         $loader = AliasLoader::getInstance();
-        $loader->alias('Currency', \App\Facades\Currency::class);
+        $loader->alias('Currency', Currency::class);
     }
 
     /**
@@ -27,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-         if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
+        if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);
             $this->loadMigrationsFrom(database_path('migrations/dev'));

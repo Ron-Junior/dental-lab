@@ -3,10 +3,8 @@
 namespace App\Policies;
 
 use App\Enums\Rules;
-use App\Models\User;
 use App\Models\PartnerDemand;
-
-use function Illuminate\Log\log;
+use App\Models\User;
 
 class PartnerDemandPolicy
 {
@@ -27,7 +25,7 @@ class PartnerDemandPolicy
 
     public function start(User $user, PartnerDemand $partnerDemand): bool
     {
-        if (!$partnerDemand->canStartNow) {
+        if (! $partnerDemand->canStartNow) {
             return false;
         }
 
@@ -46,7 +44,7 @@ class PartnerDemandPolicy
 
     public function complete(User $user, PartnerDemand $partnerDemand): bool
     {
-        if (!$partnerDemand->canCompleteNow) {
+        if (! $partnerDemand->canCompleteNow) {
             return false;
         }
 

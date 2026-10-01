@@ -10,9 +10,7 @@ class CompletedRequestNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public int $dentistRequest)
-    {
-    }
+    public function __construct(public int $dentistRequest) {}
 
     public function via(object $notifiable): array
     {

@@ -10,9 +10,7 @@ class InviteNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public string $email, public string $urlConvite)
-    {
-    }
+    public function __construct(public string $email, public string $urlConvite) {}
 
     public function via(object $notifiable): array
     {

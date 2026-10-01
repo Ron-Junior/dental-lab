@@ -20,10 +20,9 @@ class PartnerFactory extends Factory
      */
     public function definition(): array
     {
-        $labPartnerRule = Rule::where('name', Rules::LabPartner->value)->first();
         return [
             'user_id' => User::factory([
-                'rule_id' => $labPartnerRule->id,
+                'rule_id' => fn () => Rule::firstOrCreate(['name' => Rules::LabPartner->value])->id,
             ]),
             'phone' => $this->faker->phoneNumber(),
             'is_active' => $this->faker->boolean(),

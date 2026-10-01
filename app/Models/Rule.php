@@ -16,7 +16,7 @@ class Rule extends Model
     protected $casts = [
         'name' => Rules::class,
     ];
-    
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

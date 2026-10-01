@@ -14,33 +14,33 @@ class ServiceSeeder extends Seeder
     public function run(): void
     {
         $digitalMake = ServiceStep::factory([
-                'name' => 'Modelagem Digital',
-                'description' => 'Modelagem digital da peça.',
+            'name' => 'Modelagem Digital',
+            'description' => 'Modelagem digital da peça.',
         ])->create();
 
         $digitalDraw = ServiceStep::factory([
-                'name' => 'Desenho Digital',
-                'description' => 'Modelagem do formatos e contornos anatômicos da peça.',
+            'name' => 'Desenho Digital',
+            'description' => 'Modelagem do formatos e contornos anatômicos da peça.',
         ])->create();
 
-        $milling = ServiceStep::factory([ 
-                'name' => 'Fresagem',
-                'description' => 'Corte da peça em máquina de precisão.',
+        $milling = ServiceStep::factory([
+            'name' => 'Fresagem',
+            'description' => 'Corte da peça em máquina de precisão.',
         ])->create();
 
         $makeup = ServiceStep::factory([
-                'name' => 'Maquiagem e caracterização',
-                'description' => 'Pintura da peça para imitar o dente natural.',
+            'name' => 'Maquiagem e caracterização',
+            'description' => 'Pintura da peça para imitar o dente natural.',
         ])->create();
 
         $glaze = ServiceStep::factory([
-                'name' => 'Glaze',
-                'description' => 'Queima em forna para sela a superficie e conferir brilho do esmalte dentário',
+            'name' => 'Glaze',
+            'description' => 'Queima em forna para sela a superficie e conferir brilho do esmalte dentário',
         ])->create();
 
         $chemicalTreatment = ServiceStep::factory([
-                'name' => 'Tratamento Quimico',
-                'description' => 'A parte interna da faceta é jateada ou condicionada com ácido fluorídrico para que ela venha pronta para receber a colagem no consultório',
+            'name' => 'Tratamento Quimico',
+            'description' => 'A parte interna da faceta é jateada ou condicionada com ácido fluorídrico para que ela venha pronta para receber a colagem no consultório',
         ])->create();
 
         Service::factory()
@@ -54,7 +54,19 @@ class ServiceSeeder extends Seeder
             ])
             ->create([
                 'name' => 'Faceta',
-                'description' => "Criação de uma faceta para um sorriso perfeito"
+                'description' => 'Criação de uma faceta para um sorriso perfeito',
+            ]);
+        
+        Service::factory()
+            ->hasAttached([$digitalDraw, $milling, $makeup, $glaze], [
+                ['order' => 1],
+                ['order' => 2],
+                ['order' => 3],
+                ['order' => 4],
+            ])
+            ->create([
+                'name' => 'Coroa',
+                'description' => 'Criação de uma coroa dentária para substituir uma parte danificada de um dente.',
             ]);
     }
 }

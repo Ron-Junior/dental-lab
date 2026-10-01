@@ -9,7 +9,7 @@ class CurrencyService
         $floatValue = $value / 100;
 
         if ($formatted) {
-            return 'R$ ' . number_format($floatValue, 2, ',', '.');
+            return 'R$ '.number_format($floatValue, 2, ',', '.');
         }
 
         return $floatValue;

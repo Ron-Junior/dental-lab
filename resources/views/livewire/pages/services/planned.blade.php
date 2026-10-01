@@ -17,14 +17,16 @@ new class extends Component
     public function dentistRequests(): LengthAwarePaginator
     {
         return DentistRequest::with([
-                'dentist.user',
-                'requestServices.service.serviceSteps',
-                'requestServices' => fn($query) => $query->withCount(['partnerDemands as demands_completed' => fn($query) => $query->whereNotNull('ended_at')]),
-                'requestServices.service' => fn($query) => $query->withCount(['serviceSteps'])
-            ])
-            ->withSum(['requestServices' => fn($query) => $query->select(DB::raw('unit_price * quantity'))], 'total_price')
-            ->orderBy('created_at')
-            ->paginate(10);
+            'dentist.user',
+            'requestServices.service.serviceSteps',
+            'requestServices' => fn ($query) => $query->withCount([
+                'partnerDemands as demands_completed' => fn ($query) => $query->whereNotNull('ended_at'),
+            ]),
+            'requestServices.service' => fn ($query) => $query->withCount(['serviceSteps']),
+        ])
+        ->withSum('requestServices as total_price', DB::raw('unit_price * quantity'))
+        ->orderBy('created_at')
+        ->paginate(10);
     }
 
     public function getColor(int $completed, int $total): string
@@ -51,11 +53,10 @@ new class extends Component
 
     <div>
         @if ($this->dentistRequests->count() > 0)
-            <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] gap-4 font-semibold text-sm px-6 py-2">
+            <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px]  gap-4 font-semibold text-sm px-6 py-2">
                 <flux:heading>Dentista / Requisição</flux:heading>
                 <flux:heading>Serviço</flux:heading>
                 <flux:heading>Preço</flux:heading>
-                <flux:heading class="hidden xl:block text-center">Quantidade</flux:heading>
                 <flux:heading>Progresso</flux:heading>
                 <div></div>
             </div>
@@ -69,7 +70,7 @@ new class extends Component
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
-                    <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] items-center w-full gap-4 px-6 py-4">
+                    <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px]  items-center w-full gap-4 px-6 py-4">
                         <div>
                             <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
                             <flux:text class="text-xs">{{ $dentistRequest->code }}</flux:text>
@@ -77,10 +78,8 @@ new class extends Component
                         
                         <div></div>
 
-                        <flux:text class="truncate">{{ currency_from_int($dentistRequest->request_services_sum_total_price, true) }}</flux:text>
-                        
-                        <flux:text class="hidden xl:block text-center">{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
-                        
+                        <flux:text class="truncate">{{ currency_from_int($dentistRequest->total_price, true) }}</flux:text>
+                                                
                         <div class="pr-2">
                             <flux:tooltip content="{{ number_format($completedSteps/$totalSteps * 100, 0, ',', '.') }}%" class="w-full">
                                 <flux:progress 
@@ -122,10 +121,6 @@ new class extends Component
                                 <flux:text size="xs" class="text-zinc-500 uppercase tracking-wider">Total</flux:text>
                                 <flux:heading size="sm" class="mt-0.5">R$ {{ number_format($dentistRequest->requestServices->sum(fn($requestService) => $requestService->unit_price * $requestService->quantity), 2, ',', '.') }}</flux:heading>
                             </div>
-                            <div class="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-2.5">
-                                <flux:text size="xs" class="text-zinc-500 uppercase tracking-wider">Quantidade</flux:text>
-                                <flux:heading size="sm" class="mt-0.5">{{ $dentistRequest->requestServices->sum('quantity') }} un</flux:heading>
-                            </div>
                         </div>
 
                         <div class="space-y-1">
@@ -145,14 +140,12 @@ new class extends Component
 
                     <div x-show="open" x-collapse.duration.300ms style="display: none;" class="border-t border-zinc-100 dark:border-zinc-800">
                         @foreach ($dentistRequest->requestServices as $requestService)
-                            <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px] xl:grid-cols-[minmax(180px,2fr)_minmax(150px,1.5fr)_100px_80px_minmax(120px,1.2fr)_40px] items-center w-full gap-4 px-6 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800/50" wire:key="request-service-desktop-{{ $requestService->id }}">
+                            <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px]  items-center w-full gap-4 px-6 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800/50" wire:key="request-service-desktop-{{ $requestService->id }}">
                                 <div></div>
 
                                 <flux:text class="truncate">{{ $requestService->service->name }}</flux:text>
 
                                 <flux:text class="truncate">R$ {{ number_format($requestService->unit_price * $requestService->quantity, 2, ',', '.') }}</flux:text>
-
-                                <flux:text class="hidden xl:block text-center">{{ $requestService->quantity }}</flux:text>
 
                                 <div class="content-center pr-2">
                                     @if ($requestService->completed_at === null)
@@ -187,7 +180,7 @@ new class extends Component
                                                     icon:variant="outline"
                                                     wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
                                                 >
-                                                    Visualizar Progresso
+                                                    Ver Progresso
                                                 </flux:menu.item>
                                                 <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
@@ -227,8 +220,7 @@ new class extends Component
                                         <flux:heading size="sm">{{ $requestService->service->name }}</flux:heading>
                                         <div class="flex items-center gap-2 mt-1">
                                             <flux:text size="sm" class="font-medium">R$ {{ number_format($requestService->unit_price * $requestService->quantity, 2, ',', '.') }}</flux:text>
-                                            <flux:text size="sm" class="text-zinc-400">•</flux:text>
-                                            <flux:text size="sm" class="text-zinc-500">Qtd: {{ $requestService->quantity }}</flux:text>
+                                           
                                         </div>
                                     </div>
                                     <div>
@@ -259,10 +251,10 @@ new class extends Component
                                         <flux:button
                                             :disabled="$requestService->completed_at"
                                             size="xs"
-                                            icon="bolt"
+                                            icon="eye"
                                             variant="ghost"
                                             wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
-                                        >Status</flux:button>
+                                        >Ver Progresso</flux:button>
                                         <flux:button 
                                             :disabled="$requestService->completed_at"
                                             size="xs"

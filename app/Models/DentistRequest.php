@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Policies\DentistRequestPolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,8 @@ use Symfony\Component\Uid\Ulid;
 #[UsePolicy(DentistRequestPolicy::class)]
 class DentistRequest extends Model
 {
+    use HasFactory;
+
     protected static function booted(): void
     {
         static::creating(function (DentistRequest $dentistRequest) {

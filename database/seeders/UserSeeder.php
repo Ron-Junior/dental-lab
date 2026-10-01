@@ -14,7 +14,7 @@ class UserSeeder extends Seeder
 
     public function run(): void
     {
-        $owner = Rule::firstWhere('name', Rules::Owner->value);
+        $owner = Rule::firstOrCreate(['name' => Rules::Owner->value]);
 
         User::factory()
             ->for($owner)

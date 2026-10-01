@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[UsePolicy(PartnerDemandPolicy::class)]
-#[Fillable(['partner_id', 'request_service_id', 'service_service_step_id', 'order', 'partner_commission', 'partner_commission_type', 'started_at', 'ended_at'])]
+#[Fillable(['partner_id', 'request_service_id', 'service_service_step_id', 'order', 'partner_commission', 'partner_commission_type', 'result_photo_path', 'started_at', 'ended_at'])]
 class PartnerDemand extends Model
 {
     use HasFactory;
@@ -82,6 +82,7 @@ class PartnerDemand extends Model
                 if ($this->partner_id) {
                     return 'assigned';
                 }
+
                 return 'pending';
             }
         );
@@ -90,7 +91,7 @@ class PartnerDemand extends Model
     protected function canStartNow(): Attribute
     {
         $this->loadMissing('requestService.partnerDemands');
-        
+
         $previousDemands = $this->requestService->partnerDemands->where('order', '<', $this->order);
 
         return Attribute::make(
