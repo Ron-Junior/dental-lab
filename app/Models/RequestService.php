@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['dentist_request_id', 'service_id', 'step_id', 'unit_price', 'quantity', 'completed_at'])]
+#[Fillable(['dentist_request_id', 'service_id', 'unit_price', 'quantity', 'completed_at'])]
 class RequestService extends Model
 {
     protected $casts = [
@@ -41,11 +41,6 @@ class RequestService extends Model
         return $this->belongsTo(Service::class);
     }
 
-    public function step(): BelongsTo
-    {
-        return $this->belongsTo(ServiceStep::class);
-    }
-
     public function partnerDemands(): HasMany
     {
         return $this->hasMany(PartnerDemand::class);
@@ -64,16 +59,6 @@ class RequestService extends Model
         return Attribute::make(
             get: fn ($value) => $value / 100,
             set: fn (float $value) => $value * 100
-        );
-    }
-
-    public function completedSteps(): Attribute
-    {
-        $this->loadMissing('service.serviceSteps');
-
-        $index = $this->completed_at ? $this->service->serviceSteps->count() - 1: $this->service->serviceSteps->search(fn ($step) => $step->id === $this->step_id);
-        return Attribute::make(
-            get: fn () => $this->step_id ? $index + 1 : ($this->completed_at ? $this->service->serviceSteps->count() : 0)
         );
     }
 }

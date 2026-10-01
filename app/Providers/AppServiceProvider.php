@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\CurrencyService;
+use Illuminate\Foundation\AliasLoader;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +14,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton('currency.service', function () {
+            return new CurrencyService();
+        });
+
+        $loader = AliasLoader::getInstance();
+        $loader->alias('Currency', \App\Facades\Currency::class);
     }
 
     /**

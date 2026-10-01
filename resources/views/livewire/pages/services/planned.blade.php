@@ -3,6 +3,7 @@
 use App\Models\DentistRequest;
 use App\Models\RequestService;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Volt\Component;
@@ -15,7 +16,15 @@ new class extends Component
     #[Computed, On('requests::refresh')]
     public function dentistRequests(): LengthAwarePaginator
     {
-        return DentistRequest::with('dentist.user', 'requestServices.service.serviceSteps')->orderBy('created_at')->paginate(10);
+        return DentistRequest::with([
+                'dentist.user',
+                'requestServices.service.serviceSteps',
+                'requestServices' => fn($query) => $query->withCount(['partnerDemands as demands_completed' => fn($query) => $query->whereNotNull('ended_at')]),
+                'requestServices.service' => fn($query) => $query->withCount(['serviceSteps'])
+            ])
+            ->withSum(['requestServices' => fn($query) => $query->select(DB::raw('unit_price * quantity'))], 'total_price')
+            ->orderBy('created_at')
+            ->paginate(10);
     }
 
     public function getColor(int $completed, int $total): string
@@ -55,8 +64,8 @@ new class extends Component
         <div class="space-y-4">
             @forelse ($this->dentistRequests as $dentistRequest)
                 @php
-                    $completedSteps = $dentistRequest->requestServices->sum(fn($r) => $r->completed_steps);
-                    $totalSteps = $dentistRequest->requestServices->sum(fn($r) => $r->service->serviceSteps->count());
+                    $completedSteps = $dentistRequest->requestServices->sum('demands_completed');
+                    $totalSteps = $dentistRequest->requestServices->sum('service.service_steps_count');
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
@@ -68,7 +77,7 @@ new class extends Component
                         
                         <div></div>
 
-                        <flux:text class="truncate">R$ {{ number_format($dentistRequest->requestServices->sum(fn ($requestService) => $requestService->unit_price * $requestService->quantity), 2, ',', '.') }}</flux:text>
+                        <flux:text class="truncate">{{ currency_from_int($dentistRequest->request_services_sum_total_price, true) }}</flux:text>
                         
                         <flux:text class="hidden xl:block text-center">{{ $dentistRequest->requestServices->sum('quantity') }}</flux:text>
                         
@@ -147,10 +156,10 @@ new class extends Component
 
                                 <div class="content-center pr-2">
                                     @if ($requestService->completed_at === null)
-                                        <flux:tooltip content="{{ number_format($requestService->completedSteps/$requestService->service->serviceSteps->count() * 100, 0, ',', '.') }}%" class="w-full">
+                                        <flux:tooltip content="{{ number_format($requestService->demands_completed/$requestService->service->serviceSteps->count() * 100, 0, ',', '.') }}%" class="w-full">
                                             <flux:progress 
-                                                :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
-                                                value="{{ $requestService->completedSteps }}" 
+                                                :color="$this->getColor($requestService->demands_completed, $requestService->service->serviceSteps->count())"
+                                                value="{{ $requestService->demands_completed }}" 
                                                 max="{{ $requestService->service->serviceSteps->count() }}"
                                             />
                                         </flux:tooltip>
@@ -233,12 +242,12 @@ new class extends Component
                                     <div class="space-y-1">
                                         <div class="flex justify-between items-center text-xs">
                                             <flux:text size="xs" class="text-zinc-500">Etapas</flux:text>
-                                            <flux:text size="xs" class="font-medium">{{ $requestService->completedSteps }} / {{ $requestService->service->serviceSteps->count() }}</flux:text>
+                                            <flux:text size="xs" class="font-medium">{{ $requestService->demands_completed }} / {{ $requestService->service->serviceSteps->count() }}</flux:text>
                                         </div>
                                         <flux:tooltip content="test">
                                             <flux:progress 
-                                                :color="$this->getColor($requestService->completedSteps, $requestService->service->serviceSteps->count())"
-                                                value="{{ $requestService->completedSteps }}" 
+                                                :color="$this->getColor($requestService->demands_completed, $requestService->service->serviceSteps->count())"
+                                                value="{{ $requestService->demands_completed }}" 
                                                 max="{{ $requestService->service->serviceSteps->count() }}"
                                             />
                                         </flux:tooltip>

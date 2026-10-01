@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('dentist_request_id')->constrained()->onDelete('cascade');
             $table->foreignId('service_id')->constrained()->onDelete('cascade');
-            $table->foreignId('step_id')->nullable()->constrained('service_steps')->onDelete('cascade');
             $table->integer('unit_price')->nullable();
             $table->tinyInteger('quantity')->nullable();
             $table->timestamp('completed_at')->nullable();
