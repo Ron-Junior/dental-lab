@@ -48,6 +48,11 @@ RUN apk add --no-cache \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_sqlite pdo_pgsql pgsql mbstring exif pcntl bcmath gd opcache
 
+# Configurar limites do PHP para upload de arquivos
+RUN echo "upload_max_filesize = 64M" > /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/uploads.ini
+
 WORKDIR /var/www/html
 
 # Copiar arquivos da aplicação original
@@ -61,10 +66,14 @@ COPY --from=frontend-builder /app/public/build ./public/build
 
 RUN php artisan livewire:publish --assets
 
-# Ajustar permissões para storage, cache e banco SQLite
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
+# Criar diretórios de storage se não existirem e ajustar permissões
+RUN mkdir -p /var/www/html/storage/app/public \
+             /var/www/html/storage/app/livewire-tmp \
+             /var/www/html/storage/framework/cache/data \
+             /var/www/html/storage/framework/sessions \
+             /var/www/html/storage/framework/views \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
 # Configuração do Nginx
 COPY deploy/sandbox/conf/nginx/nginx-site.conf /etc/nginx/http.d/default.conf
 

@@ -19,6 +19,9 @@ php artisan route:cache
 echo "Caching views..."
 php artisan view:cache
 
+echo "Creating storage link..."
+php artisan storage:link --force
+
 echo "Running migrations..."
 php artisan migrate:fresh --seed
 
