@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['user_id', 'phone', 'is_active', 'started_date'])]
 class Partner extends Model
@@ -15,6 +16,11 @@ class Partner extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function serviceSteps(): BelongsToMany
+    {
+        return $this->belongsToMany(ServiceStep::class, 'service_step_partner', 'partner_id', 'service_step_id');
     }
 
     public function scopeSearch($query, string $value)

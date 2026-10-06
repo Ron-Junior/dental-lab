@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum ComissionTypes: string
+enum CommissionTypes: string
 {
     case Percentage = 'percentage';
     case Fixed = 'fixed';

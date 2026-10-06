@@ -89,7 +89,7 @@ new class extends Component
 };
 ?>
 
-@use(\App\Enums\ComissionTypes)
+@use(\App\Enums\CommissionTypes)
 
 <div>
     <flux:modal class="md:w-lg" flyout variant="floating" name="manage-partners-modal" @close="closeModal">
@@ -115,7 +115,7 @@ new class extends Component
                             wire:model="selectedPartners.{{ $index }}.commission_type"
                         >
                             <flux:select.option value="">Selecione um tipo de comissão</flux:select.option>
-                            @foreach (ComissionTypes::cases() as $type)
+                            @foreach (CommissionTypes::cases() as $type)
                                 <flux:select.option :value="$type->value">{{ $type->getName() }}</flux:select.option>
                             @endforeach
                         </flux:select>

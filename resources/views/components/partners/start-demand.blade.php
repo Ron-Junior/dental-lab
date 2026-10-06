@@ -1,6 +1,6 @@
 <?php
 
-use App\Enums\ComissionTypes;
+use App\Enums\CommissionTypes;
 use App\Models\PartnerDemand;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
@@ -43,7 +43,7 @@ new class extends Component
     #[Computed()]
     public function commission(): string
     {
-        if ($this->partnerCommissionType === ComissionTypes::Percentage->value) {
+        if ($this->partnerCommissionType === CommissionTypes::Percentage->value) {
             return $this->partnerCommissionValue . '%';
         } else {
             return 'R$ ' .number_format( $this->partnerCommissionValue, 2, ',', '.');
