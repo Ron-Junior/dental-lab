@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 #[UsePolicy(PartnerDemandPolicy::class)]
 #[Fillable(['partner_id', 'request_service_id', 'service_service_step_id', 'order', 'partner_commission', 'partner_commission_type', 'result_photo_path', 'started_at', 'ended_at'])]
@@ -90,12 +91,13 @@ class PartnerDemand extends Model
 
     protected function canStartNow(): Attribute
     {
-        $this->loadMissing('requestService.partnerDemands');
-
-        $previousDemands = $this->requestService->partnerDemands->where('order', '<', $this->order);
-
         return Attribute::make(
-            get: fn () => $this->status === 'assigned' && $previousDemands->every(fn ($demand) => $demand->ended_at),
+            get: function () {
+                $this->loadMissing('requestService.partnerDemands');
+                $previousDemands = $this->requestService?->partnerDemands?->where('order', '<', $this->order) ?? collect();
+
+                return $this->status === 'assigned' && $previousDemands->every(fn ($demand) => $demand->ended_at);
+            }
         );
     }
 
@@ -103,6 +105,19 @@ class PartnerDemand extends Model
     {
         return Attribute::make(
             get: fn () => $this->status === 'in_progress',
+        );
+    }
+
+    protected function resultPhotoUrl(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if (! $this->result_photo_path) {
+                    return null;
+                }
+
+                return Storage::temporaryUrl($this->result_photo_path, now()->addMinutes(5));
+            }
         );
     }
 }
