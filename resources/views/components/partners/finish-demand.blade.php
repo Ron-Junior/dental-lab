@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\CompleteService;
 use App\Models\PartnerDemand;
 use Flux\Flux;
 use Livewire\Attributes\On;
@@ -17,7 +18,7 @@ new class extends Component
     #[On('finish-demand::open')]
     public function openModal(int $partnerDemandId): void
     {
-        $this->partnerDemand = PartnerDemand::find($partnerDemandId);
+        $this->partnerDemand = PartnerDemand::with('requestService.partnerDemands')->find($partnerDemandId);
 
         Flux::modal('finish-demand-modal')->show();
     }
@@ -35,12 +36,22 @@ new class extends Component
         $this->validate([
             'image' => 'nullable|image|max:5128',
         ]);
-
-        $path = $this->image->store('requests/'. $this->partnerDemand->request_service_id);
+        
+        if ($this->image) {
+            $path = $this->image->store('requests/'. $this->partnerDemand->request_service_id);
+            $this->partnerDemand->result_photo_path = $path;
+        }
 
         $this->partnerDemand->ended_at = now();
-        $this->partnerDemand->result_photo_path = $path;
         $this->partnerDemand->save();
+
+        $requestServiceIsCompleted = $this->partnerDemand->requestService->partnerDemands->every(
+            fn ($pd) => $pd->ended_at !== null
+        );
+
+        if ($requestServiceIsCompleted) {
+            CompleteService::handle($this->partnerDemand->request_service_id);
+        }
 
         $this->closeModal();
         $this->dispatch('demand::refresh');
