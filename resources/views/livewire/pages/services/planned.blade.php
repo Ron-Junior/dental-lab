@@ -175,12 +175,11 @@ new class extends Component
                                         <flux:menu>
                                             @can('updateStatus', $requestService)
                                                 <flux:menu.item
-                                                    :disabled="(bool)$requestService->completed_at"
                                                     icon="eye"
                                                     icon:variant="outline"
                                                     wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
                                                 >
-                                                    Ver Progresso
+                                                    Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}
                                                 </flux:menu.item>
                                                 <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
@@ -242,13 +241,12 @@ new class extends Component
                                 <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50">
                                     @can('updateStatus', $requestService)
                                         <flux:button
-                                            :disabled="$requestService->completed_at"
                                             size="xs"
                                             icon="eye"
                                             icon:variant="outline"
                                             variant="ghost"
                                             wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
-                                        >Ver Progresso</flux:button>
+                                        >Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}</flux:button>
                                         <flux:button
                                             :disabled="$requestService->completed_at"
                                             size="xs"
