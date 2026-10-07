@@ -23,7 +23,7 @@ echo "Creating storage link..."
 php artisan storage:link --force
 
 echo "Running migrations..."
-php artisan migrate:fresh --seed
+php artisan migrate
 
 echo "Starting PHP-FPM and Nginx..."
 php-fpm -D
