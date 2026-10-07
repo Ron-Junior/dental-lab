@@ -104,7 +104,7 @@ class PartnerDemand extends Model
     protected function canCompleteNow(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->status === 'in_progress',
+            get: fn () => $this->status === DemandStatus::InProgress,
         );
     }
 
