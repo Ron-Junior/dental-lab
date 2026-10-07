@@ -33,7 +33,7 @@ new class extends Component
         $this->authorize('complete', $this->partnerDemand);
         
         $this->validate([
-            'image' => 'required|image|max:5128',
+            'image' => 'nullable|image|max:5128',
         ]);
 
         $path = $this->image->store('requests/'. $this->partnerDemand->request_service_id);
