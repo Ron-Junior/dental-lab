@@ -50,7 +50,7 @@ new class extends Component
             return [
                 'label' => 'Atribuído',
                 'color' => 'purple',
-                'icon' => 'user-check',
+                'icon' => 'user',
             ];
         }
 
@@ -224,16 +224,16 @@ new class extends Component
     </flux:modal>
 
     {{-- Modal para visualização da imagem em tamanho grande --}}
-    <flux:modal name="image-preview-modal" class="mx-2 sm:max-w-2xl md:max-w-4xl space-y-4 p-4 sm:p-6">
+    <flux:modal name="image-preview-modal" class="w-full sm:max-w-2xl md:max-w-4xl space-y-4 p-4 sm:p-6">
         <div class="flex items-center justify-between">
             <flux:heading size="lg" class="text-base sm:text-lg">Comprovante da Etapa</flux:heading>
         </div>
 
-        <div class="flex items-center justify-center bg-zinc-950/95 rounded-lg p-2 sm:p-4 min-h-[200px] max-h-[70vh] overflow-hidden">
-            <template x-if="previewPhotoUrl">
-                <img :src="previewPhotoUrl" alt="Foto do comprovante ampliada" class="max-w-full max-h-[65vh] object-contain rounded-md shadow-2xl" />
-            </template>
-        </div>
+        <template x-if="previewPhotoUrl">
+            <div  x-zoom="previewPhotoUrl" class="flex items-center justify-center bg-zinc-950/95 rounded-lg p-2 sm:p-4 min-h-[200px] max-h-[70vh] overflow-hidden">
+                <img alt="Foto do comprovante ampliada" class="max-w-full max-h-[65vh] object-contain rounded-md shadow-2xl" />
+            </div>
+        </template>
 
         <div class="flex items-center justify-end">
             <flux:modal.close>
