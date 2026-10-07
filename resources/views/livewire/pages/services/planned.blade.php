@@ -288,5 +288,5 @@ new class extends Component
 
     <livewire:service.update />
     <livewire:service.requesting />
-    <livewire:service.step-progress />
+    <livewire:service.progress />
 </div>
