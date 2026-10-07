@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\CompleteService;
 use App\Models\PartnerDemand;
 use Flux\Flux;
 use Livewire\Attributes\On;
@@ -44,14 +43,6 @@ new class extends Component
 
         $this->partnerDemand->ended_at = now();
         $this->partnerDemand->save();
-
-        $requestServiceIsCompleted = $this->partnerDemand->requestService->partnerDemands->every(
-            fn ($pd) => $pd->ended_at !== null
-        );
-
-        if ($requestServiceIsCompleted) {
-            CompleteService::handle($this->partnerDemand->request_service_id);
-        }
 
         $this->closeModal();
         $this->dispatch('demand::refresh');
