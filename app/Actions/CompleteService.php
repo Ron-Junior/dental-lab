@@ -11,6 +11,10 @@ class CompleteService
     {
         $service = RequestService::with(['dentistRequest.requestServices', 'dentistRequest.dentist.user'])->find($requestServiceId);
 
+        if (! $service->partnerDemands->every(fn ($demand) => $demand->ended_at !== null)) {
+            return;
+        }
+
         $service->update([
             'completed_at' => now(),
         ]);

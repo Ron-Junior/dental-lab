@@ -1,8 +1,10 @@
 <?php
 
+use App\Actions\CompleteService;
 use App\Models\RequestService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -26,6 +28,12 @@ new class extends Component
         ])->find($this->requestServiceId);
 
         Flux::modal('service-step-progress-modal')->show();
+    }
+
+    #[Computed()]
+    public function canComplete(): bool
+    {
+        return $this->requestService->partnerDemands->every(fn ($demand) => $demand->ended_at !== null);
     }
 
     public function getStatusInfo($demand): array
@@ -59,6 +67,16 @@ new class extends Component
             'color' => 'zinc',
             'icon' => 'ellipsis-horizontal-circle',
         ];
+    }
+
+    public function complete(): void
+    {
+        if (!$this->canComplete()) {
+            Flux::toast(text: 'Existem etapas que não foram concluídas.');
+            return ;
+        }
+
+        CompleteService::handle($this->requestServiceId);
     }
 };
 
@@ -216,9 +234,7 @@ new class extends Component
             </div>
 
             <div class="flex items-center justify-end pt-2">
-                <flux:modal.close>
-                    <flux:button variant="ghost" size="sm">Fechar</flux:button>
-                </flux:modal.close>
+                <flux:button wire:click="complete" :disabled="!$this->canComplete" variant="ghost" size="sm">Completar</flux:button>
             </div>
         @endif
     </flux:modal>

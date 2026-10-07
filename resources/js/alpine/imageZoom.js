@@ -2,7 +2,7 @@ export default function (Alpine) {
     Alpine.directive('zoom', (el, { expression }, { evaluate, effect }) => {
         if (!expression) return;
 
-        // Estilização do contêiner para permitir o pan
+        // Estilização do contêiner
         el.style.position = 'relative';
         el.style.overflow = 'hidden';
         el.style.userSelect = 'none';
@@ -14,42 +14,61 @@ export default function (Alpine) {
         if (img !== el) {
             img.style.width = '100%';
             img.style.height = '100%';
+            img.style.objectFit = 'contain';
         }
-        img.style.transformOrigin = '0 0'; // Mudado para 0 0 para cálculo preciso de coordenadas de foco
+        img.style.transformOrigin = '0 0';
         img.style.transition = 'transform 100ms ease-out';
-        img.style.pointerEvents = 'none'; // Impede a tag img de roubar eventos de clique do pai
+        img.style.pointerEvents = 'none';
 
         let scale = 1;
         let translateX = 0;
         let translateY = 0;
 
-        // Estados para o Drag/Pan (Arrastar)
+        // Estados para Drag / Touch
         let isDragging = false;
-        let dragStartX = 0;
-        let dragStartY = 0;
+        let startX = 0;
+        let startY = 0;
 
-        // Estados para Mobile (Pinça)
-        let isZoomingMobile = false;
+        // Estados para Pinça (Mobile)
+        let isPinching = false;
         let initialDistance = 0;
-        let touchStartX = 0;
-        let touchStartY = 0;
+        let initialScale = 1;
+        let initialTranslateX = 0;
+        let initialTranslateY = 0;
+        let centerPoint = { x: 0, y: 0 };
 
-        const getDistance = (e) => {
-            if (e.touches.length < 2) return 0;
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const getDistance = (touches) => {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
             return Math.sqrt(dx * dx + dy * dy);
         };
 
-        const getCenter = (e) => {
-            if (e.touches.length < 2) return { x: 0, y: 0 };
+        const getCenter = (touches, rect) => {
             return {
-                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                x: ((touches[0].clientX + touches[1].clientX) / 2) - rect.left,
+                y: ((touches[0].clientY + touches[1].clientY) / 2) - rect.top
             };
         };
 
+        // Mantém a imagem dentro dos limites do contêiner quando expandida
+        const clampBounds = () => {
+            const rect = el.getBoundingClientRect();
+            const maxTranslateX = 0;
+            const minTranslateX = rect.width * (1 - scale);
+            const maxTranslateY = 0;
+            const minTranslateY = rect.height * (1 - scale);
+
+            if (scale > 1) {
+                translateX = Math.min(maxTranslateX, Math.max(minTranslateX, translateX));
+                translateY = Math.min(maxTranslateY, Math.max(minTranslateY, translateY));
+            } else {
+                translateX = 0;
+                translateY = 0;
+            }
+        };
+
         const applyTransform = () => {
+            clampBounds();
             img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
         };
 
@@ -58,8 +77,9 @@ export default function (Alpine) {
             translateX = 0;
             translateY = 0;
             isDragging = false;
+            isPinching = false;
             el.style.cursor = 'grab';
-            img.style.transition = 'transform 200ms ease-out'; // Volta suave ao normal
+            img.style.transition = 'transform 200ms ease-out';
             applyTransform();
             setTimeout(() => {
                 img.style.transition = 'transform 100ms ease-out';
@@ -78,9 +98,9 @@ export default function (Alpine) {
             }
         });
 
-        // DESKTOP: Zoom com Ctrl + Roda do Mouse na Posição Exata do Cursor
+        // DESKTOP: Wheel Zoom
         el.addEventListener('wheel', (e) => {
-            if (e.ctrlKey) {
+            if (e.ctrlKey || e.metaKey || true) { // Permite zoom via wheel direto ou com Ctrl
                 e.preventDefault();
 
                 const rect = el.getBoundingClientRect();
@@ -91,38 +111,32 @@ export default function (Alpine) {
                 const oldScale = scale;
 
                 if (e.deltaY < 0) {
-                    scale = Math.min(6, scale + zoomFactor); // Máximo 6x
+                    scale = Math.min(6, scale + zoomFactor);
                 } else {
-                    scale = Math.max(1, scale - zoomFactor); // Mínimo 1x
+                    scale = Math.max(1, scale - zoomFactor);
                 }
 
-                // Ajusta as coordenadas para dar zoom exatamente onde o mouse está apontando
                 translateX = mouseX - (mouseX - translateX) * (scale / oldScale);
                 translateY = mouseY - (mouseY - translateY) * (scale / oldScale);
-
-                if (scale === 1) {
-                    translateX = 0;
-                    translateY = 0;
-                }
 
                 applyTransform();
             }
         }, { passive: false });
 
-        // DESKTOP: Mover a imagem arrastando (Pan)
+        // DESKTOP: Mouse Drag
         el.addEventListener('mousedown', (e) => {
             if (scale > 1) {
                 isDragging = true;
                 el.style.cursor = 'grabbing';
-                dragStartX = e.clientX - translateX;
-                dragStartY = e.clientY - translateY;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
             }
         });
 
         window.addEventListener('mousemove', (e) => {
             if (isDragging) {
-                translateX = e.clientX - dragStartX;
-                translateY = e.clientY - dragStartY;
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
                 applyTransform();
             }
         });
@@ -134,43 +148,61 @@ export default function (Alpine) {
             }
         });
 
-        el.addEventListener('mouseleave', () => {
-            // Se preferir que resete ao tirar o mouse do quadrado, mantenha a linha abaixo desativada por comentário.
-            // reset();
-        });
+        el.addEventListener('dblclick', reset);
 
-        // Adiciona um duplo clique rápido para resetar a visualização
-        el.addEventListener('dblclick', () => {
-            reset();
-        });
-
-        // MOBILE: Gesto de pinça + Arrastar com dois dedos
+        // MOBILE: Touch Events
         el.addEventListener('touchstart', (e) => {
+            const rect = el.getBoundingClientRect();
+
             if (e.touches.length === 2) {
-                isZoomingMobile = true;
-                initialDistance = getDistance(e);
-                const center = getCenter(e);
-                touchStartX = center.x - translateX;
-                touchStartY = center.y - translateY;
+                // Início do Zoom com dois dedos (Pinça)
+                isPinching = true;
+                isDragging = false;
+                initialDistance = getDistance(e.touches);
+                initialScale = scale;
+                initialTranslateX = translateX;
+                initialTranslateY = translateY;
+                centerPoint = getCenter(e.touches, rect);
+            } else if (e.touches.length === 1 && scale > 1) {
+                // Início do Pan/Mover com um dedo (quando ampliado)
+                isDragging = true;
+                isPinching = false;
+                startX = e.touches[0].clientX - translateX;
+                startY = e.touches[0].clientY - translateY;
             }
-        });
+        }, { passive: true });
 
         el.addEventListener('touchmove', (e) => {
-            if (isZoomingMobile && e.touches.length === 2) {
-                const currentDistance = getDistance(e);
-                scale = Math.max(1, Math.min(6, (currentDistance / initialDistance)));
+            const rect = el.getBoundingClientRect();
 
-                const center = getCenter(e);
-                translateX = center.x - touchStartX;
-                translateY = center.y - touchStartY;
+            if (isPinching && e.touches.length === 2) {
+                e.preventDefault();
+                const currentDistance = getDistance(e.touches);
+                const factor = currentDistance / initialDistance;
+                const newScale = Math.max(1, Math.min(6, initialScale * factor));
+
+                const currentCenter = getCenter(e.touches, rect);
+
+                // Aplica o zoom proporcional ao centro dos dedos
+                translateX = currentCenter.x - (centerPoint.x - initialTranslateX) * (newScale / initialScale);
+                translateY = currentCenter.y - (centerPoint.y - initialTranslateY) * (newScale / initialScale);
+                scale = newScale;
+
+                applyTransform();
+            } else if (isDragging && e.touches.length === 1 && scale > 1) {
+                e.preventDefault();
+                translateX = e.touches[0].clientX - startX;
+                translateY = e.touches[0].clientY - startY;
                 applyTransform();
             }
-        });
+        }, { passive: false });
 
         el.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) isZoomingMobile = false;
-            if (e.touches.length === 0 && scale > 1) {
-                // Mantém o zoom fixado no mobile até que dê um duplo toque ou mude de imagem
+            if (e.touches.length < 2) {
+                isPinching = false;
+            }
+            if (e.touches.length === 0) {
+                isDragging = false;
             }
         });
     });

@@ -78,13 +78,13 @@ class PartnerDemand extends Model
                     return DemandStatus::Done;
                 }
                 if ($this->started_at) {
-                    return 'in_progress';
+                    return DemandStatus::InProgress;
                 }
                 if ($this->partner_id) {
-                    return 'assigned';
+                    return DemandStatus::Assigned;
                 }
 
-                return 'pending';
+                return DemandStatus::Pending;
             }
         );
     }
@@ -96,7 +96,7 @@ class PartnerDemand extends Model
                 $this->loadMissing('requestService.partnerDemands');
                 $previousDemands = $this->requestService?->partnerDemands?->where('order', '<', $this->order) ?? collect();
 
-                return $this->status === 'assigned' && $previousDemands->every(fn ($demand) => $demand->ended_at);
+                return $this->status === DemandStatus::Assigned && $previousDemands->every(fn ($demand) => $demand->ended_at);
             }
         );
     }

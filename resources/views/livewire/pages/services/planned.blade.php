@@ -184,13 +184,6 @@ new class extends Component
                                                 </flux:menu.item>
                                                 <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
-                                                    icon="check"
-                                                    wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
-                                                >
-                                                    Concluir
-                                                </flux:menu.item>
-                                                <flux:menu.item
-                                                    :disabled="(bool)$requestService->completed_at"
                                                     icon="no-symbol"
                                                     variant="danger"
                                                     wire:click="dispatch('service::canceled', '{{ $requestService->id }}')"
@@ -246,22 +239,16 @@ new class extends Component
                                     </div>
                                 @endif
 
-                                <div class="flex items-center justify-end gap-1 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50">
+                                <div class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50">
                                     @can('updateStatus', $requestService)
                                         <flux:button
                                             :disabled="$requestService->completed_at"
                                             size="xs"
                                             icon="eye"
+                                            icon:variant="outline"
                                             variant="ghost"
                                             wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
                                         >Ver Progresso</flux:button>
-                                        <flux:button 
-                                            :disabled="$requestService->completed_at"
-                                            size="xs"
-                                            icon="check"
-                                            variant="ghost"
-                                            wire:click="dispatch('service::completed', '{{ $requestService->id }}')"
-                                        >Concluir</flux:button>
                                         <flux:button
                                             :disabled="$requestService->completed_at"
                                             size="xs"
@@ -301,6 +288,5 @@ new class extends Component
 
     <livewire:service.update />
     <livewire:service.requesting />
-    <livewire:service.complete />
     <livewire:service.step-progress />
 </div>
