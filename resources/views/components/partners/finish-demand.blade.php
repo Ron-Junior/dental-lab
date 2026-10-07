@@ -65,6 +65,9 @@ new class extends Component
         </div>
 
         <x-form.image-upload wire:model="image" />
+        @error('image')
+            <flux:text variant="error">{{ $message }}</flux:text>
+        @enderror
 
         <flux:text variant="strong">Deseja finalizar com o serviço?</flux:text>
 
