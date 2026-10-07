@@ -23,66 +23,69 @@ export function registerFluxImageWebpUploader() {
                 processFile(file) {
                     if (!file) return;
 
-                    const baseName = file.name.replace(/\.[^/.]+$/, "");
-                    this.fileName = baseName + ".webp";
-                    this.isProcessing = true;
-                    this.statusText = 'Convertendo para WebP...';
+                    this.$wire.$refresh().then(() => {
+                        const baseName = file.name.replace(/\.[^/.]+$/, "");
+                        this.fileName = baseName + ".webp";
+                        this.isProcessing = true;
+                        this.statusText = 'Convertendo para WebP...';
 
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            canvas.width = this.targetWidth;
-                            canvas.height = this.targetHeight;
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = this.targetWidth;
+                                canvas.height = this.targetHeight;
 
-                            const ctx = canvas.getContext('2d');
+                                const ctx = canvas.getContext('2d');
 
-                            // Recorte Proporcional (Crop Cover Centralizado)
-                            let sourceX = 0, sourceY = 0;
-                            let sourceWidth = img.width, sourceHeight = img.height;
+                                // Recorte Proporcional (Crop Cover Centralizado)
+                                let sourceX = 0, sourceY = 0;
+                                let sourceWidth = img.width, sourceHeight = img.height;
 
-                            const aspectSource = img.width / img.height;
-                            const aspectTarget = this.targetWidth / this.targetHeight;
+                                const aspectSource = img.width / img.height;
+                                const aspectTarget = this.targetWidth / this.targetHeight;
 
-                            if (aspectSource > aspectTarget) {
-                                sourceWidth = img.height * aspectTarget;
-                                sourceX = (img.width - sourceWidth) / 2;
-                            } else {
-                                sourceHeight = img.width / aspectTarget;
-                                sourceY = (img.height - sourceHeight) / 2;
-                            }
+                                if (aspectSource > aspectTarget) {
+                                    sourceWidth = img.height * aspectTarget;
+                                    sourceX = (img.width - sourceWidth) / 2;
+                                } else {
+                                    sourceHeight = img.width / aspectTarget;
+                                    sourceY = (img.height - sourceHeight) / 2;
+                                }
 
-                            ctx.drawImage(
-                                img, 
-                                sourceX, sourceY, sourceWidth, sourceHeight, 
-                                0, 0, this.targetWidth, this.targetHeight
-                            );
+                                ctx.drawImage(
+                                    img,
+                                    sourceX, sourceY, sourceWidth, sourceHeight,
+                                    0, 0, this.targetWidth, this.targetHeight
+                                );
 
-                            // Converte o Canvas em um arquivo Blob real (WebP)
-                            canvas.toBlob((blob) => {
-                                if (!blob) return;
+                                // Converte o Canvas em um arquivo Blob real (WebP)
+                                canvas.toBlob((blob) => {
+                                    if (!blob) return;
 
-                                // Cria um objeto File nativo a partir do Blob retornado
-                                const webpFile = new File([blob], this.fileName, { type: 'image/webp' });
-                                this.previewUrl = URL.createObjectURL(blob);
+                                    // Cria um objeto File nativo a partir do Blob retornado
+                                    const webpFile = new File([blob], this.fileName, { type: 'image/webp' });
+                                    this.previewUrl = URL.createObjectURL(blob);
 
-                                // Dispara o Upload usando o driver do Livewire
-                                this.uploadToLivewire(webpFile);
-                            }, 'image/webp', this.quality);
+                                    // Dispara o Upload usando o driver do Livewire
+                                    this.uploadToLivewire(webpFile);
+                                }, 'image/webp', this.quality);
+                            };
+                            img.src = e.target.result;
                         };
-                        img.src = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
+                        reader.readAsDataURL(file);
+                    }).catch(() => {
+                        window.location.reload();
+                    });
                 },
 
                 uploadToLivewire(file) {
                     this.statusText = 'Enviando...';
 
-                    // Chama a API de upload nativa do Livewire via JavaScript
                     this.$wire.upload(
-                        this.modelName, 
-                        file, 
+                        this.modelName,
+                        file,
                         (uploadedFilename) => {
                             // Sucesso
                             this.isProcessing = false;
@@ -102,7 +105,7 @@ export function registerFluxImageWebpUploader() {
                 removeImage() {
                     this.previewUrl = null;
                     this.fileName = '';
-                    
+
                     // Limpa a propriedade no Livewire chamando $wire.set
                     this.$wire.set(this.modelName, null);
 
