@@ -12,12 +12,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('product_categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name', 150);
-            $table->timestamps();
-        });
-
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             
@@ -35,8 +29,6 @@ return new class extends Migration
             $table->index(['category_id', 'name']);
             $table->timestamps();
         });
-        
-        (new ProductCategorySeeder())->run();
     }
 
     /**
@@ -45,6 +37,5 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('products');
-        Schema::dropIfExists('product_categories');
     }
 };
