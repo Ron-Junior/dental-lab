@@ -61,7 +61,7 @@ php artisan flux:icon crown grip-vertical github
 
 <!-- Modal -->
 ```blade
-<flux:modal wire:model="showModal">
+<flux:modal class="backdrop:backdrop-blur-sm" wire:model="showModal">
     <flux:heading>Title</flux:heading>
     <p>Content</p>
 </flux:modal>

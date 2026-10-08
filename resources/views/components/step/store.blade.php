@@ -57,7 +57,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal flyout variant="floating" class="md:w-lg" name="store-step-modal" @close="closeModal">
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" flyout variant="floating" name="store-step-modal" @close="closeModal">
         <form wire:submit="store" class="space-y-6" wire:key="store-step-modal">
             <flux:heading size="lg">Nova Etapa</flux:heading>
             <flux:subheading>Adicione uma nova etapa ao serviço.</flux:subheading>

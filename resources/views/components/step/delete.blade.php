@@ -36,7 +36,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="delete-step-modal" @close="closeModal">
+    <flux:modal class="backdrop:backdrop-blur-sm" name="delete-step-modal" @close="closeModal">
         <div class="space-y-6" wire:key="delete-step-modal">
             <flux:heading size="lg">Excluir Etapa</flux:heading>
             <flux:subheading>Tem certeza que deseja excluir esta etapa?</flux:subheading>

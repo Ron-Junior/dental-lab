@@ -86,7 +86,7 @@ new class extends Component
 ?>
 
 <div x-data="{ previewPhotoUrl: null }">
-    <flux:modal name="service-progress-modal" class="w-full sm:max-w-xl md:max-w-2xl space-y-6 p-4 sm:p-6 max-h-[90vh] overflow-y-auto" flyout variant="floating">
+    <flux:modal name="service-progress-modal" class="backdrop:backdrop-blur-sm w-full sm:max-w-xl md:max-w-2xl space-y-6 p-4 sm:p-6 max-h-[90vh] overflow-y-auto" flyout variant="floating">
         @if ($requestService)
             @php
                 $completedCount = $requestService->partnerDemands->whereNotNull('ended_at')->count();
@@ -243,7 +243,7 @@ new class extends Component
     </flux:modal>
 
     {{-- Modal para visualização da imagem em tamanho grande --}}
-    <flux:modal name="image-preview-modal" class="w-full sm:max-w-2xl md:max-w-4xl space-y-4 p-4 sm:p-6">
+    <flux:modal name="image-preview-modal" class="backdrop:backdrop-blur-sm w-full sm:max-w-2xl md:max-w-4xl space-y-4 p-4 sm:p-6">
         <div class="flex items-center justify-between">
             <flux:heading size="lg" class="text-base sm:text-lg">Comprovante da Etapa</flux:heading>
         </div>

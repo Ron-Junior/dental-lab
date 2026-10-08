@@ -30,7 +30,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="delete-dentist-modal" title="Excluir Dentista">
+    <flux:modal class="backdrop:backdrop-blur-sm" name="delete-dentist-modal" title="Excluir Dentista">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">Deletar Dentista</flux:heading>

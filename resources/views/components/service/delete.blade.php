@@ -31,7 +31,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="delete-service-modal" >
+    <flux:modal class="backdrop:backdrop-blur-sm" name="delete-service-modal" >
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">Deletar Serviço</flux:heading>

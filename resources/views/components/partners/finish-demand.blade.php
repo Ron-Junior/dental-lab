@@ -52,7 +52,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal class="md:w-lg space-y-4" name="finish-demand-modal" @close="closeModal">
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg space-y-4" name="finish-demand-modal" @close="closeModal">
         <div>
             <flux:heading>Finalizar demanda</flux:heading>
             <flux:text>Você está dando inicio ao serviço de {{ $partnerDemand?->serviceServiceStep->serviceStep->name }} para o assistente {{ $partnerDemand?->partner->user->name }}</flux:text>

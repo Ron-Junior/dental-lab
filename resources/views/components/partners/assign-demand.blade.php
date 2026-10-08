@@ -64,7 +64,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal flyout variant="floating" class="md:w-lg space-y-4" name="assign-demand-modal" @close="closeModal">
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg space-y-4" flyout variant="floating" name="assign-demand-modal" @close="closeModal">
         <div>
             <flux:heading size="lg">Atribuir demanda</flux:heading>
             <flux:subheading>Selecione um parceiro para atribuir a demanda.</flux:subheading>

@@ -173,7 +173,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="store-service-modal" flyout variant="floating" class="md:w-lg" >
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" name="store-service-modal" flyout variant="floating" >
         <div class="space-y-6" wire:key="store-service-modal">
             <flux:heading size="lg">Novo Serviço</flux:heading>
             <flux:subheading>Adicione um novo serviço ao laboratório.</flux:subheading>

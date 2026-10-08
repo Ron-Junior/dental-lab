@@ -29,7 +29,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="delete-partner-modal" title="Excluir Parceiro">
+    <flux:modal class="backdrop:backdrop-blur-sm" name="delete-partner-modal" title="Excluir Parceiro">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">Deletar Parceiro</flux:heading>

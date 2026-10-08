@@ -72,7 +72,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="store-dentist-modal" flyout variant="floating" class="md:w-lg" >
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" name="store-dentist-modal" flyout variant="floating" >
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">Novo Dentista</flux:heading>

@@ -4,6 +4,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -15,7 +16,7 @@ new class extends Component
 
     public array $filteringCategories = [];
 
-    #[Computed()]
+    #[Computed, On('products::refresh')]
     public function products(): LengthAwarePaginator
     {
         return Product::query()
@@ -97,4 +98,7 @@ new class extends Component
             @endforeach
         </flux:table.rows>
     </flux:table>
+
+    <livewire:products.store />
+    <livewire:products.delete />
 </div>

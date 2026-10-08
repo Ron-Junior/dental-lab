@@ -99,7 +99,7 @@ new class extends Component
 @use(\App\Enums\CommissionTypes)
 
 <div>
-    <flux:modal class="md:w-lg" flyout variant="floating" name="manage-partners-modal" @close="closeModal">
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" flyout variant="floating" name="manage-partners-modal" @close="closeModal">
         <flux:heading>Gerenciar Parceiros</flux:heading>
         <flux:subheading>Escolha os parceiros do laboratório que podem realizar essa etapa.</flux:subheading>
 
