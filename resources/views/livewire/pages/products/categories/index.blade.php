@@ -4,9 +4,12 @@ use App\Models\ProductCategory;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 new class extends Component
 {
+    use WithPagination;
+    
     #[Computed()]
     public function categories(): LengthAwarePaginator
     {

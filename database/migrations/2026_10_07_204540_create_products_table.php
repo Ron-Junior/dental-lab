@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignId('category_id')->nullable()->constrained('product_categories')->nullOnDelete();
 
             $table->string('name', 150);
-            $table->string('barcode', 50)->nullable();
             $table->string('unit_of_measure', 10);
 
             $table->decimal('current_stock', 10, 2)->default(0.00);
