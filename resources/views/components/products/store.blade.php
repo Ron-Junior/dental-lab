@@ -75,7 +75,7 @@ new class extends Component
 ?>
 
 <div>
-    <flux:modal name="store-product-modal" flyout variant="floating" class="md:w-lg" @close="closeModal">
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" name="store-product-modal" flyout variant="floating" @close="closeModal">
         <div class="space-y-6">
             <div>
                 <flux:heading size="lg">Novo Produto</flux:heading>
