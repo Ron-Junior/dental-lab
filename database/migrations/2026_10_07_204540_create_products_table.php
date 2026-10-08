@@ -14,16 +14,16 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            
             $table->foreignId('category_id')->nullable()->constrained('product_categories')->nullOnDelete();
 
             $table->string('name', 150);
-            $table->string('sku')->nullable();
             $table->string('barcode', 50)->nullable();
-            $table->string('unit_of_measure', 10); 
+            $table->string('unit_of_measure', 10);
 
             $table->decimal('current_stock', 10, 2)->default(0.00);
+            $table->decimal('min_stock', 10, 2)->default(0.00);
             
+            $table->boolean('has_batches')->default(false);
             $table->boolean('is_active')->default(true);
             
             $table->index(['category_id', 'name']);

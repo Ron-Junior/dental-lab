@@ -51,8 +51,10 @@ new  class extends Component
                     <flux:table.cell class="whitespace-nowrap">{{ $dentist->user->email }}</flux:table.cell>
                     <flux:table.cell class="whitespace-nowrap">{{ $dentist->phone }}</flux:table.cell>
                     <flux:table.cell class="py-0">
-                        <flux:button wire:click="dispatch('dentist::edit', '{{ $dentist->id }}')" icon="pencil" variant="ghost"></flux:button>
-                        <flux:button wire:click="dispatch('dentist::delete', '{{ $dentist->id }}')" icon="trash" variant="ghost"></flux:button>
+                        <div class="flex justify-end gap-3">
+                            <flux:button wire:click="dispatch('dentist::edit', '{{ $dentist->id }}')" icon="pencil" variant="ghost"></flux:button>
+                            <flux:button wire:click="dispatch('dentist::delete', '{{ $dentist->id }}')" icon="trash" variant="ghost"></flux:button>
+                        </div>
                     </flux:table.cell>
                 </flux:table.row>
             @endforeach

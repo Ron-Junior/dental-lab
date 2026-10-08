@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\Production\ProductionSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -21,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ServiceSeeder::class,
             PartnerSeeder::class,
             DentistRequestSeeder::class,
+            ProductionSeeder::class,
         ]);
     }
 }
