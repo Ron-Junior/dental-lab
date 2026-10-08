@@ -19,7 +19,7 @@ new class extends Component
     protected function rules(): array
     {
         return [
-            'selectedPartners.*.partner_id' => 'required|exists:partners,id',
+            'selectedPartners.*.partner_id' => 'required|distinct|exists:partners,id',
             'selectedPartners.*.commission' => 'required|numeric',
             'selectedPartners.*.commission_type' => 'required|in:percentage,fixed',
         ];
@@ -42,7 +42,14 @@ new class extends Component
     #[Computed]
     public function partners(): Collection
     {
-        return Partner::with('user')->get();
+        $selectedIds = collect($this->selectedPartners)
+            ->pluck('partner_id')
+            ->filter()
+            ->toArray();
+
+        return Partner::with('user')
+            ->whereNotIn('id', $selectedIds)
+            ->get();
     }
 
     public function closeModal(): void
@@ -72,7 +79,7 @@ new class extends Component
         $this->validate();
 
         $syncData = collect($this->selectedPartners)
-            ->filter(fn($partner) => !empty($partner['partner_id'])) // Remove parceiros sem ID
+            ->filter(fn($partner) => !empty($partner['partner_id']))
             ->mapWithKeys(fn($partner) => [
                 $partner['partner_id'] => [
                     'commission' => $partner['commission'] ?? null,
