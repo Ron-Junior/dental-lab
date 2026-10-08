@@ -82,20 +82,22 @@ new class extends Component
             >
                 Serviços Solicitados
             </flux:sidebar.item>
-            <flux:sidebar.item
-                icon="rectangle-stack"
-                href="{{ route('products.index') }}"
-                wire:navigate
-            >
+            <flux:sidebar.group icon="archive-box" expandable heading="Estoque" class="grid">
+                <flux:sidebar.item
+                    icon="rectangle-stack"
+                    href="{{ route('products.index') }}"
+                    wire:navigate
+                >
                 Produtos
-            </flux:sidebar.item>
-            <flux:sidebar.item
-                icon="tag"
-                href="{{ route('products.categories.index') }}"
-                wire:navigate
-            >
-                Categorias de produtos
-            </flux:sidebar.item>
+                </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="tag"
+                    href="{{ route('products.categories.index') }}"
+                    wire:navigate
+                >
+                Categorias
+                </flux:sidebar.item>
+            </flux:sidebar.group>
         </flux:sidebar.nav>
         <flux:sidebar.spacer />
         <flux:sidebar.nav>
