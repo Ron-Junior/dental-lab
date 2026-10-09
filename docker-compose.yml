@@ -4,7 +4,7 @@ services:
     container_name: laravel_dev
     working_dir: /var/www
     ports:
-      - "8000:8000"
+      - "10000:10000"
       - "5173:5173"
     volumes:
       - .:/var/www
@@ -16,7 +16,7 @@ services:
       ln -sf /usr/bin/php85 /usr/bin/php && 
       composer dump-autoload && 
       composer install &&
-      php artisan serve --host=0.0.0.0 --port=8000
+      php artisan serve --host=0.0.0.0 --port=10000
       "
     networks:
       - dev-network

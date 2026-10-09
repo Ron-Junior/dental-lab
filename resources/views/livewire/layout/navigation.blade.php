@@ -97,6 +97,13 @@ new class extends Component
                 >
                 Categorias
                 </flux:sidebar.item>
+                <flux:sidebar.item
+                    icon="arrows-up-down"
+                    href="{{ route('products.movements.index') }}"
+                    wire:navigate
+                >
+                Movimentações
+                </flux:sidebar.item>
             </flux:sidebar.group>
         </flux:sidebar.nav>
         <flux:sidebar.spacer />

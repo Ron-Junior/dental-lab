@@ -14,8 +14,14 @@ Route::group(['middleware' => 'auth'], function () {
 
     Volt::route('etapas', 'pages.steps.index')->name('steps.index');
 
-    Volt::route('produtos', 'pages.products.index')->name('products.index');
-    Volt::route('produtos/categorias', 'pages.products.categories.index')->name('products.categories.index');
+
+    Route::prefix('produtos')->group(function () {
+        Volt::route('', 'pages.products.index')->name('products.index');
+        Volt::route('categorias', 'pages.products.categories.index')->name('products.categories.index');
+        Volt::route('movimentacoes', 'pages.products.movements.index')->name('products.movements.index');
+    });
+
+
     Volt::route('parceiros', 'pages.partners.index')->name('partners.index');
     Volt::route('dentistas', 'dentists.index')->name('dentists.index');
     Volt::route('demandas', 'pages.dentists.demands')->name('dentists.demands.index');
