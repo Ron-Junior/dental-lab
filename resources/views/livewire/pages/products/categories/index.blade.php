@@ -24,7 +24,7 @@ new class extends Component
             <flux:heading size="xl">Categorias de Produtos</flux:heading>
             <flux:text class="mt-2">As categorias de produtos oferecidos pelo laboratório.</flux:text>
         </div>
-        <flux:modal.trigger name="store-category-modal">
+        <flux:modal.trigger name="store-product-category-modal">
             <flux:button icon="plus">Nova Categoria</flux:button>
         </flux:modal.trigger>
     </div>
@@ -50,4 +50,7 @@ new class extends Component
             @endforeach
         </flux:table.rows>
     </flux:table>
+
+    <livewire:products.categories.store />
+    <livewire:products.categories.delete />
 </div>

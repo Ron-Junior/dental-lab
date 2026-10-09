@@ -32,13 +32,15 @@ new class extends Component
     {
         $this->validate();
 
-        ServiceStep::updateOrCreate(
-            ['id' => $this->editingStep?->id],
-            [
+        $this->editingStep 
+            ? $this->editingStep->update([
                 'name' => $this->name,
                 'description' => $this->description,
-            ]
-        );
+            ])
+            : ServiceStep::create([
+                'name' => $this->name,
+                'description' => $this->description,
+            ]);
 
         $this->reset();
         $this->dispatch('step::refresh');

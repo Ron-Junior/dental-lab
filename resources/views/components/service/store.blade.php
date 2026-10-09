@@ -92,14 +92,13 @@ new class extends Component
         $actionText = $this->serviceId ? 'atualizado' : 'criado';
 
         DB::transaction(function () {
-            $service = Service::updateOrCreate(
-                ['id' => $this->serviceId],
-                [
+            $service = $this->serviceId
+                ? Service::whereId($this->serviceId)->first()
+                : Service::create([
                     'name' => $this->name,
                     'description' => $this->description,
                     'price' => str($this->price)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
-                ]
-            );
+                ]);
 
             $syncData = collect($this->steps)
                 ->pluck('service_step_id')

@@ -57,15 +57,19 @@ new class extends Component
     {
         $this->validate();
         
-        Product::updateOrCreate(
-            ['id' => $this->product?->id],
-            [
+        $this->product 
+            ? $this->product->update([
                 'category_id' => $this->categoryId,
                 'name' => $this->name,
                 'unit_of_measure' => $this->unit_of_measure,
                 'min_stock' => $this->minimumStock,
-            ],
-        );
+            ])
+            : Product::create([
+                'category_id' => $this->categoryId,
+                'name' => $this->name,
+                'unit_of_measure' => $this->unit_of_measure,
+                'min_stock' => $this->minimumStock,
+            ]);
 
         $this->closeModal();
         Flux::toast(variant: 'success', text: "Produto salvo com sucesso");

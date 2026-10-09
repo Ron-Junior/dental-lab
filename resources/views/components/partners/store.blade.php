@@ -48,12 +48,14 @@ new class extends Component
                 'rule_id' => $rule->id,
             ]);
 
-            Partner::updateOrCreate([
-                'id' => $this->partner?->id,
-            ], [
-                'user_id' => $user->id,
-                'phone' => $this->phone,
-            ]);
+            $this->partner
+                ? $this->partner->update([
+                    'phone' => $this->phone
+                ])
+                : Partner::create([
+                    'user_id' => $user->id,
+                    'phone' => $this->phone
+                ]);
 
             if ($user->wasRecentlyCreated) {
                 SendInvitation::handle($user);

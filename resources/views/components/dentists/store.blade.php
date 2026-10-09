@@ -50,13 +50,10 @@ new class extends Component
                 'rule_id' => $rule->id,
             ]);
 
-            Dentist::updateOrCreate(
-                ['id' => $this->dentistId],
-                [
-                'user_id' => $user->id,
-                'phone' => $this->phone,
-            ]);
-
+            $this->dentistId 
+                ? Dentist::whereId($this->dentistId)->update(['phone' => $this->phone])
+                : Dentist::create(['user_id' => $user->id, 'phone' => $this->phone]);
+            
             if ($user->wasRecentlyCreated) {
                 SendInvitation::handle($user);
             }
