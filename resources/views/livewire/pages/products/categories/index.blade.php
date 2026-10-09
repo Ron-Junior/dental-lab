@@ -3,6 +3,7 @@
 use App\Models\ProductCategory;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -10,10 +11,10 @@ new class extends Component
 {
     use WithPagination;
     
-    #[Computed()]
+    #[Computed(), On('category::refresh')]
     public function categories(): LengthAwarePaginator
     {
-        return ProductCategory::paginate(15);
+        return ProductCategory::orderBy('name')->paginate(15);
     }
 };
 ?>

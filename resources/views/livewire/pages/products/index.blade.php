@@ -22,6 +22,7 @@ new class extends Component
         return Product::query()
             ->search($this->filteringName)
             ->searchCategory($this->filteringCategories)
+            ->orderBy('name')
             ->paginate(15);
     }
 
