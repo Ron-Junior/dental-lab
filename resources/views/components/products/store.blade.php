@@ -25,6 +25,9 @@ new class extends Component
     #[Validate('required|numeric|min:0')]
     public ?float $minimumStock = 0.00;
 
+    #[Validate('required|boolean')]
+    public ?bool $hasBatches = false;
+
     public ?Product $product = null;
 
     #[On('product::edit')]
@@ -35,6 +38,7 @@ new class extends Component
         $this->minimumStock = $this->product->min_stock;
         $this->unit_of_measure = $this->product->unit_of_measure->value;
         $this->categoryId = $this->product->category_id;
+        $this->hasBatches = $this->product->has_batches;
         
         Flux::modal('store-product-modal')->show();
     }
@@ -63,12 +67,14 @@ new class extends Component
                 'name' => $this->name,
                 'unit_of_measure' => $this->unit_of_measure,
                 'min_stock' => $this->minimumStock,
+                'has_batches' => $this->hasBatches,
             ])
             : Product::create([
                 'category_id' => $this->categoryId,
                 'name' => $this->name,
                 'unit_of_measure' => $this->unit_of_measure,
                 'min_stock' => $this->minimumStock,
+                'has_batches' => $this->hasBatches,
             ]);
 
         $this->closeModal();
@@ -119,6 +125,13 @@ new class extends Component
                         <flux:select.option value="{{ $unit }}">{{ $unit->label() }}</flux:select.option>
                     @endforeach
                 </flux:select>
+                <div class="my-6 w-fit justify-self-end">
+                    <flux:switch
+                        wire:model="hasBatches"
+                        label="Possui Lotes"
+                        name="hasBatches"
+                    />
+                </div>
                 
                 <div class="flex justify-end gap-2">
                     <flux:modal.close>

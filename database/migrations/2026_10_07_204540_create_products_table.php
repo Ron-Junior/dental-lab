@@ -18,6 +18,7 @@ return new class extends Migration
 
             $table->string('name', 150);
             $table->string('unit_of_measure', 10);
+            $table->string('anvisa_registration', 30)->nullable();
 
             $table->decimal('current_stock', 10, 2)->default(0.00);
             $table->decimal('min_stock', 10, 2)->default(0.00);

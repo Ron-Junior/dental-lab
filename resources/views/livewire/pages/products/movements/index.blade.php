@@ -33,7 +33,7 @@ new class extends Component
             <flux:heading size="xl">Movimentações do Estoque</flux:heading>
             <flux:text class="mt-2">As movimentações de entrada e saída de produtos do estoque.</flux:text>
         </div>
-        <flux:modal.trigger name="store-product-modal">
+        <flux:modal.trigger name="store-stock-movement-modal">
             <flux:button icon="plus">Nova Movimentação</flux:button>
         </flux:modal.trigger>
     </div>
@@ -81,6 +81,6 @@ new class extends Component
         </flux:table.rows>
     </flux:table>
 
-    <livewire:products.store />
+    <livewire:products.stock.store />
     <livewire:products.delete />
 </div>

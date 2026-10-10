@@ -23,7 +23,7 @@ return new class extends Migration
             $table->nullableMorphs('movable');
             
             $table->decimal('quantity', 10, 2);
-            $table->decimal('unit_cost', 10, 2)->nullable();
+            $table->integer('unit_cost')->nullable();
             
             $table->timestamps();
 

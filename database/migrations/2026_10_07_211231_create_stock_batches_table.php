@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('batch_number', 50);
             $table->decimal('initial_quantity', 10, 2);
             $table->decimal('current_quantity', 10, 2);
-            $table->decimal('cost_price', 10, 2)->nullable();
+            $table->integer('cost_price')->nullable();
             
             $table->date('expiration_date');
             

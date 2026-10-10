@@ -16,4 +16,13 @@ enum StockMovementsTypes: string
             self::Adjustment => 'Ajuste',
         };
     }
+
+    public function getReasons(): array
+    {
+        return match($this) {
+            self::In => StockMovementsReasons::in(),
+            self::Out => StockMovementsReasons::out(),
+            self::Adjustment => StockMovementsReasons::adjustiment(),
+        };
+    }
 }
