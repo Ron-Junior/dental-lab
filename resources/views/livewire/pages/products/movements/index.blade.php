@@ -135,9 +135,9 @@ new class extends Component
                 Controle de movimentações, entradas, saídas e rastreabilidade de lotes e validades.
             </flux:subheading>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
             <flux:modal.trigger name="store-stock-movement-modal">
-                <flux:button variant="primary" icon="plus">Nova Movimentação</flux:button>
+                <flux:button icon="plus" class="w-full sm:w-auto">Nova Movimentação</flux:button>
             </flux:modal.trigger>
         </div>
     </div>
@@ -209,11 +209,11 @@ new class extends Component
     </div>
 
     <!-- Navegação de Abas -->
-    <div class="border-b border-zinc-200 dark:border-zinc-800 flex gap-6">
+    <div class="border-b border-zinc-200 dark:border-zinc-800 flex gap-4 sm:gap-6 overflow-x-auto whitespace-nowrap">
         <button 
             type="button"
             wire:click="$set('activeTab', 'movements')"
-            class="pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 {{ $activeTab === 'movements' ? 'border-primary-500 text-primary-600 dark:text-primary-400 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}"
+            class="pb-3 text-sm font-medium transition-colors border-b-2 shrink-0 flex items-center gap-2 {{ $activeTab === 'movements' ? 'border-primary-500 text-primary-600 dark:text-primary-400 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}"
         >
             <flux:icon class="size-4" name="arrows-up-down" />
             Movimentações do Estoque
@@ -221,7 +221,7 @@ new class extends Component
         <button 
             type="button"
             wire:click="$set('activeTab', 'batches')"
-            class="pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-2 {{ $activeTab === 'batches' ? 'border-primary-500 text-primary-600 dark:text-primary-400 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}"
+            class="pb-3 text-sm font-medium transition-colors border-b-2 shrink-0 flex items-center gap-2 {{ $activeTab === 'batches' ? 'border-primary-500 text-primary-600 dark:text-primary-400 font-semibold' : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}"
         >
             <flux:icon class="size-4" name="archive-box" />
             Lotes & Rastreabilidade (ANVISA)
@@ -272,9 +272,9 @@ new class extends Component
             </div>
         </div>
 
-        <!-- Tabela de Movimentações -->
-        <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
-            <flux:table :paginate="$this->stockMovements">
+        <!-- Desktop Table View -->
+        <div class="hidden md:block bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
+            <flux:table :paginate="$this->stockMovements" class="px-6">
                 <flux:table.columns>
                     <flux:table.column>Data / Hora</flux:table.column>
                     <flux:table.column>Produto</flux:table.column>
@@ -396,15 +396,91 @@ new class extends Component
                                     <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600" name="arrows-up-down" />
                                     <p class="font-medium text-base">Nenhuma movimentação de estoque encontrada</p>
                                     <p class="text-xs text-zinc-400">Registre novas entradas, saídas ou ajustes para começar a rastrear o estoque.</p>
-                                    <flux:modal.trigger name="store-stock-movement-modal">
-                                        <flux:button class="mt-2" size="sm" variant="primary">Nova Movimentação</flux:button>
-                                    </flux:modal.trigger>
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>
                     @endforelse
                 </flux:table.rows>
             </flux:table>
+        </div>
+
+        <!-- Mobile Cards View for Movements -->
+        <div class="md:hidden space-y-3">
+            @forelse ($this->stockMovements as $movement)
+                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3 shadow-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                            {{ $movement->created_at?->format('d/m/Y H:i') }}
+                        </span>
+                        @if ($movement->type === StockMovementsTypes::In)
+                            <flux:badge color="green" size="sm" icon="arrow-down-tray">Entrada</flux:badge>
+                        @elseif ($movement->type === StockMovementsTypes::Out)
+                            <flux:badge color="red" size="sm" icon="arrow-up-tray">Saída</flux:badge>
+                        @else
+                            <flux:badge color="blue" size="sm" icon="scale">Ajuste</flux:badge>
+                        @endif
+                    </div>
+
+                    <div>
+                        <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-base">
+                            {{ $movement->product?->name }}
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            @if ($movement->product?->category)
+                                <span class="text-xs text-zinc-400">{{ $movement->product->category->name }}</span>
+                                <span class="text-xs text-zinc-300">•</span>
+                            @endif
+                            <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ $movement->reason?->label() ?? '-' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg">
+                        <div>
+                            <span class="text-zinc-400 uppercase tracking-wider block font-medium">Quantidade</span>
+                            <span class="font-bold text-sm block mt-0.5 {{ $movement->type === StockMovementsTypes::In ? 'text-emerald-600 dark:text-emerald-400' : ($movement->type === StockMovementsTypes::Out ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-800 dark:text-zinc-200') }}">
+                                {{ $movement->type === StockMovementsTypes::In ? '+' : ($movement->type === StockMovementsTypes::Out ? '-' : '') }} {{ number_format($movement->quantity, 2, ',', '.') }} {{ $movement->product?->unit_of_measure?->value }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-zinc-400 uppercase tracking-wider block font-medium">Valor Total</span>
+                            <span class="font-semibold text-sm text-zinc-800 dark:text-zinc-200 block mt-0.5">
+                                {{ $movement->unit_cost ? 'R$ ' . number_format($movement->unit_cost * (float)$movement->quantity, 2, ',', '.') : '-' }}
+                            </span>
+                        </div>
+                        @if ($movement->stockBatch)
+                            <div>
+                                <span class="text-zinc-400 uppercase tracking-wider block font-medium">Lote</span>
+                                <span class="font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mt-0.5">
+                                    {{ $movement->stockBatch->batch_number }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-zinc-400 uppercase tracking-wider block font-medium">Validade</span>
+                                <span class="text-xs block mt-0.5 {{ $movement->stockBatch->isExpired() ? 'text-rose-500 font-semibold' : ($movement->stockBatch->isExpiringSoon() ? 'text-amber-500' : 'text-zinc-600 dark:text-zinc-300') }}">
+                                    {{ $movement->stockBatch->expiration_date?->format('d/m/Y') ?? '-' }}
+                                </span>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                        <span class="truncate max-w-45">{{ $movement->external_identifier ?: 'Sem doc.' }}</span>
+                        <span>{{ $movement->user?->name ?? 'Sistema' }}</span>
+                    </div>
+                </div>
+            @empty
+                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
+                    <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="arrows-up-down" />
+                    <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhuma movimentação encontrada</p>
+                    <p class="text-xs text-zinc-400">Registre novas entradas, saídas ou ajustes no estoque.</p>
+                </div>
+            @endforelse
+
+            @if ($this->stockMovements->hasPages())
+                <div class="pt-2">
+                    {{ $this->stockMovements->links() }}
+                </div>
+            @endif
         </div>
 
     @else
@@ -428,7 +504,8 @@ new class extends Component
                 </div>
             </div>
 
-            <div class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
+            <!-- Desktop Table View for Batches -->
+            <div class="hidden px-6 md:block bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
                 <flux:table :paginate="$this->stockBatches">
                     <flux:table.columns>
                         <flux:table.column>Produto</flux:table.column>
@@ -511,6 +588,82 @@ new class extends Component
                         @endforelse
                     </flux:table.rows>
                 </flux:table>
+            </div>
+
+            <!-- Mobile Cards View for Batches -->
+            <div class="md:hidden space-y-3">
+                @forelse ($this->stockBatches as $batch)
+                    <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3 shadow-xs">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-mono font-bold text-sm text-zinc-800 dark:text-zinc-200">
+                                Lote: {{ $batch->batch_number }}
+                            </span>
+                            @if ($batch->current_quantity <= 0)
+                                <flux:badge color="zinc" size="sm">Esgotado</flux:badge>
+                            @elseif ($batch->isExpired())
+                                <flux:badge color="red" size="sm" icon="exclamation-circle">Vencido</flux:badge>
+                            @elseif ($batch->isExpiringSoon(30))
+                                <flux:badge color="amber" size="sm" icon="clock">Vence em {{ $batch->expiration_date->diffInDays(now()) }}d</flux:badge>
+                            @else
+                                <flux:badge color="green" size="sm" icon="check-circle">Regular</flux:badge>
+                            @endif
+                        </div>
+
+                        <div>
+                            <div class="font-semibold text-zinc-900 dark:text-zinc-100 text-base">
+                                {{ $batch->product?->name }}
+                            </div>
+                            <div class="text-xs text-zinc-400 mt-0.5">
+                                {{ $batch->product?->category?->name ?? 'Material Dentário' }}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 text-xs bg-zinc-50 dark:bg-zinc-800/50 p-2.5 rounded-lg">
+                            <div>
+                                <span class="text-zinc-400 uppercase tracking-wider block font-medium">Saldo Atual</span>
+                                <span class="font-bold text-sm block mt-0.5 {{ $batch->current_quantity <= 0 ? 'text-zinc-400 line-through' : 'text-zinc-900 dark:text-zinc-100' }}">
+                                    {{ number_format($batch->current_quantity, 2, ',', '.') }} {{ $batch->product?->unit_of_measure?->value }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-zinc-400 uppercase tracking-wider block font-medium">Inicial</span>
+                                <span class="font-medium text-xs text-zinc-600 dark:text-zinc-300 block mt-0.5">
+                                    {{ number_format($batch->initial_quantity, 2, ',', '.') }} {{ $batch->product?->unit_of_measure?->value }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-zinc-400 uppercase tracking-wider block font-medium">Validade</span>
+                                <span class="font-medium text-xs text-zinc-700 dark:text-zinc-300 block mt-0.5">
+                                    {{ $batch->expiration_date?->format('d/m/Y') }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="pt-1">
+                            <flux:button 
+                                class="w-full"
+                                size="sm" 
+                                variant="outline" 
+                                icon="arrows-up-down"
+                                wire:click="dispatch('stock-movement::create', { productId: {{ $batch->product_id }} })"
+                            >
+                                Movimentar este lote
+                            </flux:button>
+                        </div>
+                    </div>
+                @empty
+                    <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
+                        <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="archive-box" />
+                        <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhum lote cadastrado</p>
+                        <p class="text-xs text-zinc-400">Lotes são criados automaticamente nas entradas com rastreamento.</p>
+                    </div>
+                @endforelse
+
+                @if ($this->stockBatches->hasPages())
+                    <div class="pt-2">
+                        {{ $this->stockBatches->links() }}
+                    </div>
+                @endif
             </div>
         </div>
     @endif

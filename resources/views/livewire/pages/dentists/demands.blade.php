@@ -113,7 +113,7 @@ new class extends Component
     </div>
 
     {{-- Desktop Table View --}}
-    <div class="hidden md:block">
+    <div class="hidden md:block px-6">
         <flux:table :paginate="$this->demands">
             <flux:table.columns>
                 <flux:table.column>Serviço / Etapa</flux:table.column>
