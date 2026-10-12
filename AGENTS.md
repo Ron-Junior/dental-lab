@@ -13,6 +13,13 @@ Before relying on a package's API, confirm its installed version:
 - PHP packages: run `composer show --direct` to list direct dependencies with versions, or `composer show <vendor/package>` for a single package.
 - JS packages: check `package.json` for the installed versions.
 
+## Command Execution Priority (Docker vs Local)
+
+- **Prioritize Docker execution**: Always give priority to executing PHP, Artisan, Composer, Pint, PHPUnit, and test commands inside the running Docker container.
+- In this project, the application container is `laravel_dev` (service `app` in `docker-compose.yml`).
+- Example Docker command: `docker exec -t laravel_dev php artisan <command>` or `docker exec -t laravel_dev vendor/bin/<tool> <options>`.
+- **Local fallback**: Only if no Docker container is currently running (or Docker is unavailable), execute the commands locally on the host.
+
 ## Skills Activation
 
 This project has domain-specific skills available in `**/skills/**`. You MUST activate the relevant skill whenever you work in that domain—don't wait until you're stuck.
@@ -77,7 +84,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ## Artisan
 
-- Run Artisan commands directly via the command line (e.g., `php artisan route:list`). Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
+- Run Artisan commands giving priority to Docker execution (e.g., `docker exec -t laravel_dev php artisan route:list`), falling back to local `php artisan` if Docker is not running. Use `php artisan list` to discover available commands and `php artisan [command] --help` to check parameters.
 - Inspect routes with `php artisan route:list`. Filter with: `--method=GET`, `--name=users`, `--path=api`, `--except-vendor`, `--only-vendor`.
 - Read configuration values using dot notation: `php artisan config:show app.name`, `php artisan config:show database.default`. Or read config files directly from the `config/` directory.
 
@@ -166,7 +173,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 # Laravel Pint Code Formatter
 
-- If you have modified any PHP files, you must run `vendor/bin/pint --dirty --format agent` before finalizing changes to ensure your code matches the project's expected style.
+- If you have modified any PHP files, run `vendor/bin/pint --format agent` (giving priority to Docker execution: `docker exec -t laravel_dev vendor/bin/pint --format agent`, falling back to local if Docker is not running) before finalizing changes to ensure your code matches the project's expected style.
 - Do not run `vendor/bin/pint --test --format agent`, simply run `vendor/bin/pint --format agent` to fix any formatting issues.
 
 === phpunit/core rules ===
@@ -179,8 +186,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 ## Running Tests
 
-- Run the narrowest set of tests that covers the change. Pass a file path or `--filter=testName` to `php artisan test --compact`.
+- Run the narrowest set of tests that covers the change, giving priority to Docker execution (e.g. `docker exec -t laravel_dev php artisan test --compact` or `docker exec -t laravel_dev vendor/bin/phpunit`). If Docker is not running, run locally.
 - Rerun a test after each change to it.
-- Run `vendor/bin/phpunit` to call the test runner directly. It accepts the same file path and `--filter=testName` arguments.
 
 </laravel-boost-guidelines>
