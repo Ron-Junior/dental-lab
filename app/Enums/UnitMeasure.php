@@ -14,7 +14,7 @@ enum UnitMeasure: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::Gram => 'Grama (g)',
             self::Kilogram => 'Quilograma (kg)',
             self::Milliliter => 'Mililitro (ml)',

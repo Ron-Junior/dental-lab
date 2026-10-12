@@ -9,8 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-use function Illuminate\Log\log;
-
 #[Fillable(['dentist_request_id', 'service_id', 'unit_price', 'quantity', 'completed_at'])]
 class RequestService extends Model
 {
@@ -26,7 +24,7 @@ class RequestService extends Model
         static::created(function ($model) {
             $model->loadMissing('service.serviceSteps');
             $steps = $model->service->serviceSteps;
-   
+
             $model->partnerDemands()->saveMany(
                 $steps->map(fn ($step) => new PartnerDemand([
                     'request_service_id' => $model->id,

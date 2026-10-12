@@ -10,18 +10,18 @@ return new class extends Migration
     {
         Schema::create('stock_batches', function (Blueprint $table) {
             $table->id();
-            
+
             $table->foreignId('product_id')
-                  ->constrained('products')
-                  ->onDelete('cascade');
-            
+                ->constrained('products')
+                ->onDelete('cascade');
+
             $table->string('batch_number', 50);
             $table->decimal('initial_quantity', 10, 2);
             $table->decimal('current_quantity', 10, 2);
             $table->integer('cost_price')->nullable();
-            
+
             $table->date('expiration_date');
-            
+
             $table->timestamps();
 
             $table->index(['product_id', 'current_quantity']);

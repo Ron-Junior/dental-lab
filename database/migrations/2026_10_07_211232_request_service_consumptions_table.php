@@ -11,11 +11,11 @@ return new class extends Migration
         Schema::create('request_service_consumptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('request_service_id')->constrained()->onDelete('cascade');
-            
+
             $table->foreignId('product_id')->constrained();
             $table->foreignId('stock_batch_id')->nullable()->constrained();
-            
-            $table->decimal('quantity_used', 10, 2); 
+
+            $table->decimal('quantity_used', 10, 2);
             $table->timestamps();
         });
     }

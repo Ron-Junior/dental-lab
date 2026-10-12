@@ -6,7 +6,4 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable('name')]
-class ProductCategory extends Model
-{
-    
-}
+class ProductCategory extends Model {}

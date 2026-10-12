@@ -1,6 +1,5 @@
 <?php
 
-use Database\Seeders\ProductCategorySeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -22,10 +21,10 @@ return new class extends Migration
 
             $table->decimal('current_stock', 10, 2)->default(0.00);
             $table->decimal('min_stock', 10, 2)->default(0.00);
-            
+
             $table->boolean('has_batches')->default(false);
             $table->boolean('is_active')->default(true);
-            
+
             $table->index(['category_id', 'name']);
             $table->timestamps();
         });

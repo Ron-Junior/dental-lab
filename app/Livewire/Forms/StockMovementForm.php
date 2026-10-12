@@ -2,39 +2,125 @@
 
 namespace App\Livewire\Forms;
 
+use App\Actions\StockMovement;
 use App\Enums\StockMovementsReasons;
 use App\Enums\StockMovementsTypes;
-use Livewire\Attributes\Validate;
+use App\Models\StockMovement as ModelsStockMovement;
 use Livewire\Form;
 
 class StockMovementForm extends Form
 {
-    #[Validate('required|exists:products,id', 'produto')]
     public ?int $productId = null;
 
-    #[Validate('required|numeric|min:0', 'quantidade')]
     public ?float $amount = null;
 
-    #[Validate(['required'], 'tipo de movimentação')]
-    public ?StockMovementsTypes $movementType = StockMovementsTypes::In;
+    public string|StockMovementsTypes|null $movementType = 'in';
 
-    #[Validate('required', 'motivo')]
-    public ?StockMovementsReasons $reason = null;
+    public string|StockMovementsReasons|null $reason = null;
 
-    #[Validate('nullable|string|max:255', 'identificador externo')]
     public ?string $externalIdentifier = null;
 
-    #[Validate('nullable|required_if:hasBatches,true|numeric|min:0', 'custo')]
     public ?string $cost = null;
 
-    #[Validate('nullable|required_if:hasBatches,true|string', 'lote')]
     public ?string $batchNumber = null;
 
-    #[Validate('nullable|required_if:hasBatches,true|date', 'data de validade')]
+    public ?int $stockBatchId = null;
+
     public ?string $expirationDate = null;
 
-    #[Validate('nullable|numeric|min:0', 'quantidade por unidade')]
     public ?float $quantityPerUnit = null;
 
-    public ?bool $hasBatches = false;
+    public ?string $notes = null;
+
+    public bool $hasBatches = false;
+
+    public function getTypeEnum(): ?StockMovementsTypes
+    {
+        if ($this->movementType instanceof StockMovementsTypes) {
+            return $this->movementType;
+        }
+
+        return $this->movementType ? StockMovementsTypes::tryFrom((string) $this->movementType) : null;
+    }
+
+    public function getReasonEnum(): ?StockMovementsReasons
+    {
+        if ($this->reason instanceof StockMovementsReasons) {
+            return $this->reason;
+        }
+
+        return $this->reason ? StockMovementsReasons::tryFrom((string) $this->reason) : null;
+    }
+
+    public function getAvailableReasons(): array
+    {
+        $type = $this->getTypeEnum();
+
+        return $type ? $type->getReasons() : [];
+    }
+
+    public function rules(): array
+    {
+        $type = $this->getTypeEnum();
+        $isIncoming = $type === StockMovementsTypes::In;
+        $isOutgoing = $type === StockMovementsTypes::Out;
+
+        $rules = [
+            'productId' => 'required|exists:products,id',
+            'movementType' => 'required',
+            'reason' => 'required',
+            'amount' => 'required|numeric|gt:0',
+            'quantityPerUnit' => 'nullable|numeric|min:0',
+            'externalIdentifier' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
+        ];
+
+        if ($isIncoming) {
+            $rules['cost'] = 'nullable|string';
+            if ($this->hasBatches) {
+                $rules['batchNumber'] = 'required|string|max:50';
+                $rules['expirationDate'] = 'required|date';
+            }
+        } elseif ($isOutgoing && $this->hasBatches) {
+            $rules['stockBatchId'] = 'required|exists:stock_batches,id';
+        }
+
+        return $rules;
+    }
+
+    public function validationAttributes(): array
+    {
+        return [
+            'productId' => 'produto',
+            'movementType' => 'tipo de movimentação',
+            'reason' => 'motivo',
+            'amount' => 'quantidade',
+            'quantityPerUnit' => 'quantidade por unidade',
+            'externalIdentifier' => 'identificador externo',
+            'cost' => 'preço total',
+            'batchNumber' => 'número do lote',
+            'expirationDate' => 'data de validade',
+            'stockBatchId' => 'lote',
+            'notes' => 'observações',
+        ];
+    }
+
+    public function save(): ModelsStockMovement
+    {
+        $this->validate();
+
+        return StockMovement::handle($this->productId, [
+            'movementType' => $this->getTypeEnum(),
+            'reason' => $this->getReasonEnum(),
+            'amount' => $this->amount,
+            'quantityPerUnit' => $this->quantityPerUnit,
+            'cost' => $this->cost,
+            'batchNumber' => $this->batchNumber,
+            'stockBatchId' => $this->stockBatchId,
+            'expirationDate' => $this->expirationDate,
+            'externalIdentifier' => $this->externalIdentifier,
+            'notes' => $this->notes,
+            'hasBatches' => $this->hasBatches,
+        ]);
+    }
 }

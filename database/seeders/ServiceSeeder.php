@@ -56,7 +56,7 @@ class ServiceSeeder extends Seeder
                 'name' => 'Faceta',
                 'description' => 'Criação de uma faceta para um sorriso perfeito',
             ]);
-        
+
         Service::factory()
             ->hasAttached([$digitalDraw, $milling, $makeup, $glaze], [
                 ['order' => 1],

@@ -71,28 +71,39 @@ new class extends Component
             @foreach ($this->products as $product)
                 <flux:table.row :key="$product->id">
                     <flux:table.cell>
-                        {{ $product->name }}
+                        <div class="flex items-center gap-2">
+                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $product->name }}</span>
+                            @if ($product->has_batches)
+                                <flux:badge size="xs" color="sky" icon="archive-box">Lote</flux:badge>
+                            @endif
+                        </div>
                     </flux:table.cell>
                     <flux:table.cell>
-                        {{ $product->unit_of_measure }}
+                        {{ $product->unit_of_measure?->label() }}
                     </flux:table.cell>
                     <flux:table.cell>
-                        @if ($product->current_stock < $product->min_stock)
-                            <flux:text class="text-red-500 flex items-center gap-2">
-                                {{ $product->current_stock }} 
-                                <flux:icon class="size-5" name="exclamation-triangle" />
-                            </flux:text>
+                        @if ($product->current_stock <= 0)
+                            <flux:badge color="red" size="sm" icon="exclamation-circle">
+                                0.00 {{ $product->unit_of_measure?->value }} (Sem Estoque)
+                            </flux:badge>
+                        @elseif ($product->current_stock <= $product->min_stock)
+                            <flux:badge color="amber" size="sm" icon="exclamation-triangle">
+                                {{ $product->current_stock }} {{ $product->unit_of_measure?->value }} (Baixo)
+                            </flux:badge>
                         @else
-                            {{ $product->current_stock }}
+                            <span class="font-medium text-zinc-800 dark:text-zinc-200">
+                                {{ $product->current_stock }} {{ $product->unit_of_measure?->value }}
+                            </span>
                         @endif
                     </flux:table.cell>
                     <flux:table.cell>
-                        {{ $product->min_stock }}
+                        {{ $product->min_stock }} {{ $product->unit_of_measure?->value }}
                     </flux:table.cell>
                     <flux:table.cell class="py-0">
-                        <div class="flex justify-end gap-3">
-                            <flux:button wire:click="dispatch('product::edit', '{{ $product->id }}')" icon="pencil" variant="ghost"></flux:button>
-                            <flux:button wire:click="dispatch('product::delete', '{{ $product->id }}')" icon="trash" variant="ghost"></flux:button>
+                        <div class="flex justify-end gap-1">
+                            <flux:button wire:click="dispatch('stock-movement::create', { productId: {{ $product->id }} })" icon="arrows-up-down" variant="ghost" title="Movimentar Estoque"></flux:button>
+                            <flux:button wire:click="dispatch('product::edit', '{{ $product->id }}')" icon="pencil" variant="ghost" title="Editar Produto"></flux:button>
+                            <flux:button wire:click="dispatch('product::delete', '{{ $product->id }}')" icon="trash" variant="ghost" title="Excluir Produto"></flux:button>
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
@@ -101,5 +112,6 @@ new class extends Component
     </flux:table>
 
     <livewire:products.store />
+    <livewire:products.stock.store />
     <livewire:products.delete />
 </div>

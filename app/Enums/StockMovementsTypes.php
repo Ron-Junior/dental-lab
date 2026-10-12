@@ -10,7 +10,7 @@ enum StockMovementsTypes: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::In => 'Entrada',
             self::Out => 'Saída',
             self::Adjustment => 'Ajuste',
@@ -19,7 +19,7 @@ enum StockMovementsTypes: string
 
     public function getReasons(): array
     {
-        return match($this) {
+        return match ($this) {
             self::In => StockMovementsReasons::in(),
             self::Out => StockMovementsReasons::out(),
             self::Adjustment => StockMovementsReasons::adjustiment(),

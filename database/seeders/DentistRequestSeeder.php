@@ -14,7 +14,6 @@ use Illuminate\Database\Seeder;
 
 class DentistRequestSeeder extends Seeder
 {
-
     public function run(): void
     {
         Model::setEventDispatcher(app('events'));
@@ -39,9 +38,9 @@ class DentistRequestSeeder extends Seeder
                 // Ao chamar create() aqui, GARANTIMOS que o booted() do RequestService vai rodar
                 RequestService::create([
                     'dentist_request_id' => $dentistRequest->id,
-                    'service_id'         => $serviceOne->id,
-                    'unit_price'         => $serviceOne->price,
-                    'quantity'           => fake()->numberBetween(1, 10),
+                    'service_id' => $serviceOne->id,
+                    'unit_price' => $serviceOne->price,
+                    'quantity' => fake()->numberBetween(1, 10),
                 ]);
             })
             ->create();
@@ -52,9 +51,9 @@ class DentistRequestSeeder extends Seeder
             ->afterCreating(function (DentistRequest $dentistRequest) use ($serviceTwo) {
                 RequestService::create([
                     'dentist_request_id' => $dentistRequest->id,
-                    'service_id'         => $serviceTwo->id,
-                    'unit_price'         => $serviceTwo->price,
-                    'quantity'           => fake()->numberBetween(1, 10),
+                    'service_id' => $serviceTwo->id,
+                    'unit_price' => $serviceTwo->price,
+                    'quantity' => fake()->numberBetween(1, 10),
                 ]);
             })
             ->create();

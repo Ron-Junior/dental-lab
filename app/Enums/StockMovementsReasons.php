@@ -4,7 +4,7 @@ namespace App\Enums;
 
 enum StockMovementsReasons: string
 {
-// Entradas (In)
+    // Entradas (In)
     case Purchase = 'purchase';
     case ProductionSurplus = 'production_surplus'; // Sobra de produção
     case Devolution = 'devolution';
@@ -21,7 +21,7 @@ enum StockMovementsReasons: string
 
     public function label(): string
     {
-        return match($this) {
+        return match ($this) {
             self::Purchase => 'Compra de Fornecedor',
             self::ProductionSurplus => 'Retorno / Sobra de Produção',
             self::Devolution => 'Devolução de Cliente / OS Cancelada',
