@@ -64,8 +64,10 @@ new class extends Component
         $this->partnerDemand->started_at = now();
         $this->partnerDemand->save();
 
-        $this->closeModal();
+        $this->dispatch('stock::out', $this->partnerDemand->request_service_id);
         $this->dispatch('demand::refresh');
+        
+        $this->closeModal();
         Flux::toast(heading: 'Serviço iniciado com sucesso!', variant: 'success', text: "");
         Flux::modals()->close();
     }

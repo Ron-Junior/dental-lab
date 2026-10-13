@@ -15,13 +15,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('stock_batch_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('dentist_request_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('created_by_user_id')->nullable()->constrained('users')->nullOnDelete();
 
             $table->string('type', 10);
             $table->string('reason', 255)->nullable();
             $table->string('external_identifier', 255)->nullable();
-
-            $table->nullableMorphs('movable');
 
             $table->decimal('quantity', 10, 2);
             $table->integer('unit_cost')->nullable();

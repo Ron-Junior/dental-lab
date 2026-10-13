@@ -317,6 +317,7 @@ new class extends Component
     </div>
 
     <livewire:stock.get />
+    <livewire:products.stock.out />
     <livewire:partners.assign-demand/>
     <livewire:partners.start-demand/>
     <livewire:partners.finish-demand/>

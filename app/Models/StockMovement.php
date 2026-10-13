@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 #[Fillable([
     'product_id',
@@ -20,8 +19,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
     'reason',
     'external_identifier',
     'notes',
-    'movable_id',
-    'movable_type',
     'quantity',
     'unit_cost',
 ])]
@@ -46,11 +43,6 @@ class StockMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
-    }
-
-    public function movable(): MorphTo
-    {
-        return $this->morphTo();
     }
 
     protected function unitCost(): Attribute
