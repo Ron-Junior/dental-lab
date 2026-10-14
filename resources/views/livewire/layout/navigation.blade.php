@@ -123,7 +123,7 @@ new class extends Component
         </flux:sidebar.nav>
         <flux:sidebar.spacer />
         <flux:dropdown position="top" align="start" class="max-lg:hidden">
-            <flux:sidebar.profile avatar="https://fluxui.dev/img/demo/user.png" name="Olivia Martin" />
+            <flux:sidebar.profile avatar="{{Auth::user()?->profile_photo_url}}" name="{{ Auth::user()?->name }}" />
             <flux:menu>
                 <flux:menu.item icon:variant="outline" icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
@@ -134,7 +134,7 @@ new class extends Component
         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
         <flux:spacer />
         <flux:dropdown position="top" align="start">
-            <flux:profile avatar="https://fluxui.dev/img/demo/user.png" />
+            <flux:profile avatar="{{Auth::user()?->profile_photo_url}}" />
             <flux:menu>
                 <flux:menu.item icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
