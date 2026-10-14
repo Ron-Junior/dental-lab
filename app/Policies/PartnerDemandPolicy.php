@@ -39,7 +39,7 @@ class PartnerDemandPolicy
             return true;
         }
 
-        return $partnerDemand->partner_id === $user->id;
+        return $partnerDemand->partner?->user_id === $user->id;
     }
 
     public function complete(User $user, PartnerDemand $partnerDemand): bool
@@ -58,6 +58,6 @@ class PartnerDemandPolicy
             return true;
         }
 
-        return $partnerDemand->partner_id === $user->id;
+        return $partnerDemand->partner?->user_id === $user->id;
     }
 }

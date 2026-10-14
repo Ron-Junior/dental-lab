@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\Rules;
 use App\Models\Partner;
 use App\Models\PartnerDemand;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -41,7 +43,13 @@ new class extends Component
     #[Computed]
     public function partners()
     {
-        return Partner::with('user')->get()->map(fn ($partner) => [
+        $query = Partner::with('user');
+
+        if (Auth::user()->rule->name === Rules::LabPartner) {
+            $query->where('user_id', Auth::id());
+        }
+
+        return $query->get()->map(fn ($partner) => [
             'id' => $partner->id,
             'name' => $partner->user->name ?? "Parceiro #{$partner->id}",
         ]);
@@ -50,14 +58,20 @@ new class extends Component
     #[Computed, On('demand::refresh')]
     public function demands(): LengthAwarePaginator
     {
-        return PartnerDemand::with([
+        $query = PartnerDemand::with([
             'requestService.partnerDemands',
             'requestService.service',
             'requestService.dentistRequest.dentist.user',
             'serviceServiceStep.serviceStep.partners.user',
             'partner.user',
         ])
-            ->whereNull('ended_at')
+            ->whereNull('ended_at');
+
+        if (Auth::user()->rule->name === Rules::LabPartner) {
+            $query->whereHas('partner', fn ($partnerQuery) => $partnerQuery->where('user_id', Auth::id()));
+        }
+
+        return $query
             ->search($this->search)
             ->assignedToPartner($this->filterPartnersIds)
             ->orderBy('request_service_id')

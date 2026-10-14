@@ -6,15 +6,15 @@ use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Number;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?int $requestServiceId = null;
-
-    public ?RequestService $requestService = null;
 
     #[Validate('required|integer|exists:services,id')]
     public ?int $serviceId = null;
@@ -28,13 +28,13 @@ new class extends Component
     #[On('service::update')]
     public function open(int $requestServiceId): void
     {
+        $requestService = RequestService::findOrFail($requestServiceId);
+        $this->authorize('update', $requestService);
+
         $this->requestServiceId = $requestServiceId;
-
-        $this->requestService = RequestService::find($requestServiceId);
-
-        $this->serviceId = $this->requestService->service_id;
-        $this->unitPrice = number_format($this->requestService->unit_price, 2, ',', '.');
-        $this->quantity = $this->requestService->quantity;
+        $this->serviceId = $requestService->service_id;
+        $this->unitPrice = number_format($requestService->unit_price, 2, ',', '.');
+        $this->quantity = $requestService->quantity;
 
         Flux::modal('edit-service-modal')->show();
     }
@@ -61,11 +61,14 @@ new class extends Component
     {
         $this->validate();
 
-        $this->requestService->unit_price = str($this->unitPrice)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat();
-        $this->requestService->quantity = $this->quantity;
-        $this->requestService->service_id = $this->serviceId;
+        $requestService = RequestService::findOrFail($this->requestServiceId);
+        $this->authorize('update', $requestService);
 
-        $this->requestService->save();
+        $requestService->unit_price = str($this->unitPrice)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat();
+        $requestService->quantity = $this->quantity;
+        $requestService->service_id = $this->serviceId;
+
+        $requestService->save();
    
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Serviço atualizado com sucesso!');
         Flux::modal('edit-service-modal')->close();

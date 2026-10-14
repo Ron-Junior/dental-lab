@@ -9,11 +9,24 @@ class ServiceServiceStepPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->rule->name != Rules::Dentist;
+        $user->loadMissing('rule');
+
+        return in_array($user->rule->name, [
+            Rules::Owner,
+            Rules::Lab,
+            Rules::LabManager,
+            Rules::LabPartner,
+        ], true);
     }
 
     public function delete(User $user): bool
     {
-        return $user->rule->name != Rules::Dentist;
+        $user->loadMissing('rule');
+
+        return in_array($user->rule->name, [
+            Rules::Owner,
+            Rules::Lab,
+            Rules::LabManager,
+        ], true);
     }
 }

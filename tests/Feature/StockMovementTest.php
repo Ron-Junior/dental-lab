@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Actions\StockMovement as StockMovementAction;
+use App\Enums\Rules;
 use App\Enums\StockMovementsReasons;
 use App\Enums\StockMovementsTypes;
 use App\Enums\UnitMeasure;
 use App\Models\Product;
+use App\Models\Rule;
 use App\Models\StockBatch;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -171,7 +173,8 @@ class StockMovementTest extends TestCase
 
     public function test_movements_page_renders_successfully(): void
     {
-        $user = User::factory()->create();
+        $rule = Rule::firstOrCreate(['name' => Rules::Lab->value]);
+        $user = User::factory()->for($rule)->create();
         $this->actingAs($user);
 
         $response = $this->get(route('products.movements.index'));

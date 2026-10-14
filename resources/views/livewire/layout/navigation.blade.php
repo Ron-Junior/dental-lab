@@ -34,7 +34,7 @@ new class extends Component
             >
                 Dashboard
             </flux:sidebar.item>
-            @can('viewAny', \App\Models\Service::class)
+            @can('viewAny', \App\Models\Dentist::class)
                 <flux:sidebar.item
                     icon="inbox"
                     href="{{ route('services.index') }}"
@@ -49,8 +49,6 @@ new class extends Component
                 >
                     Etapas de Serviços
                 </flux:sidebar.item>
-            @endcan
-            @can('viewAny', \App\Models\Dentist::class)
                 <flux:sidebar.item
                     icon="user-circle"
                     href="{{ route('dentists.index') }}"
@@ -65,6 +63,36 @@ new class extends Component
                 >
                     Parceiros
                 </flux:sidebar.item>
+                <flux:sidebar.group icon="archive-box" expandable heading="Estoque" class="grid">
+                    <flux:sidebar.item
+                        icon="rectangle-stack"
+                        href="{{ route('products.index') }}"
+                        wire:navigate
+                    >
+                    Produtos
+                    </flux:sidebar.item>
+                    <flux:sidebar.item
+                        icon="tag"
+                        href="{{ route('products.categories.index') }}"
+                        wire:navigate
+                    >
+                    Categorias
+                    </flux:sidebar.item>
+                    <flux:sidebar.item
+                        icon="arrows-up-down"
+                        href="{{ route('products.movements.index') }}"
+                        wire:navigate
+                    >
+                    Movimentações
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                <flux:sidebar.item
+                    icon="chart-bar-square"
+                    href="{{ route('reports.index') }}"
+                    wire:navigate
+                >
+                    Relatórios
+                </flux:sidebar.item>
             @endcan
             @can('viewAny', \App\Models\ServiceServiceStep::class)
                 <flux:sidebar.item
@@ -75,43 +103,13 @@ new class extends Component
                     Demandas
                 </flux:sidebar.item>
             @endcan
-            <flux:sidebar.item
-                icon="clipboard-document-list"
-                href="{{ route('services.planned.index') }}"
-                wire:navigate
-            >
-                Serviços Solicitados
-            </flux:sidebar.item>
-            <flux:sidebar.group icon="archive-box" expandable heading="Estoque" class="grid">
+            @can('viewAny', \App\Models\DentistRequest::class)
                 <flux:sidebar.item
-                    icon="rectangle-stack"
-                    href="{{ route('products.index') }}"
+                    icon="clipboard-document-list"
+                    href="{{ route('services.planned.index') }}"
                     wire:navigate
                 >
-                Produtos
-                </flux:sidebar.item>
-                <flux:sidebar.item
-                    icon="tag"
-                    href="{{ route('products.categories.index') }}"
-                    wire:navigate
-                >
-                Categorias
-                </flux:sidebar.item>
-                <flux:sidebar.item
-                    icon="arrows-up-down"
-                    href="{{ route('products.movements.index') }}"
-                    wire:navigate
-                >
-                Movimentações
-                </flux:sidebar.item>
-            </flux:sidebar.group>
-            @can('viewAny', \App\Models\Dentist::class)
-                <flux:sidebar.item
-                    icon="chart-bar-square"
-                    href="{{ route('reports.index') }}"
-                    wire:navigate
-                >
-                    Relatórios
+                    Serviços Solicitados
                 </flux:sidebar.item>
             @endcan
         </flux:sidebar.nav>

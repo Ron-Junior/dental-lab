@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\Rules;
 use App\Models\DentistRequest;
 use App\Models\RequestService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
@@ -16,7 +19,7 @@ new class extends Component
     #[Computed, On('requests::refresh')]
     public function dentistRequests(): LengthAwarePaginator
     {
-        return DentistRequest::with([
+        $query = DentistRequest::with([
             'dentist.user',
             'requestServices.service.serviceSteps',
             'requestServices' => fn ($query) => $query->withCount([
@@ -24,9 +27,13 @@ new class extends Component
             ]),
             'requestServices.service' => fn ($query) => $query->withCount(['serviceSteps']),
         ])
-        ->withSum('requestServices as total_price', DB::raw('unit_price * quantity'))
-        ->orderBy('created_at')
-        ->paginate(10);
+            ->withSum('requestServices as total_price', DB::raw('unit_price * quantity'));
+
+        if (Auth::user()->rule->name === Rules::Dentist) {
+            $query->whereHas('dentist', fn (Builder $dentistQuery) => $dentistQuery->where('user_id', Auth::id()));
+        }
+
+        return $query->orderBy('created_at')->paginate(10);
     }
 
     public function getColor(int $completed, int $total): string
@@ -91,7 +98,7 @@ new class extends Component
                         </div>
                         
                         <div class="justify-self-end">
-                            <flux:button 
+                            <flux:button
                                 size="xs"
                                 icon="chevron-down" 
                                 variant="ghost" 
@@ -192,15 +199,17 @@ new class extends Component
                                                 <flux:menu.separator />
                                             @endcan
 
-                                            <flux:menu.item
-                                                wire:key="edit-service-menu-{{ $requestService->id }}"
-                                                :disabled="(bool)($requestService->completed_at || $requestService->step_id)"
-                                                icon="pencil"
-                                                icon:variant="outline"
-                                                wire:click="dispatch('service::update', '{{ $requestService->id }}')"
-                                            >
-                                                Editar
-                                            </flux:menu.item>
+                                            @can('viewAny', \App\Models\Dentist::class)
+                                                <flux:menu.item
+                                                    wire:key="edit-service-menu-{{ $requestService->id }}"
+                                                    :disabled="(bool)($requestService->completed_at || $requestService->step_id)"
+                                                    icon="pencil"
+                                                    icon:variant="outline"
+                                                    wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                                >
+                                                    Editar
+                                                </flux:menu.item>
+                                            @endcan
                                         </flux:menu>
                                     </flux:dropdown>
                                 </div>
@@ -256,14 +265,16 @@ new class extends Component
                                         >Cancelar</flux:button>
                                     @endcan
 
-                                    <flux:button 
-                                        wire:key="edit-service-mobile-{{ $requestService->id }}"
-                                        :disabled="$requestService->completed_at || $requestService->step_id"
-                                        size="xs"
-                                        icon="pencil"
-                                        variant="ghost"
-                                        wire:click="dispatch('service::update', '{{ $requestService->id }}')"
-                                    >Editar</flux:button>
+                                    @can('viewAny', \App\Models\Dentist::class)
+                                        <flux:button
+                                            wire:key="edit-service-mobile-{{ $requestService->id }}"
+                                            :disabled="$requestService->completed_at || $requestService->step_id"
+                                            size="xs"
+                                            icon="pencil"
+                                            variant="ghost"
+                                            wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                        >Editar</flux:button>
+                                    @endcan
                                 </div>
                             </div>
                         @endforeach

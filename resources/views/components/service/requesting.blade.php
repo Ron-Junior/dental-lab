@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Rules;
 use App\Models\Dentist;
 use App\Models\DentistRequest;
 use App\Models\RequestService;
@@ -59,7 +60,9 @@ new class extends Component
             return ;
         }
 
-        $this->dentistId = Auth::user()->dentist->id;
+        $this->authorize('create', DentistRequest::class);
+
+        $this->dentistId = Auth::user()->dentist?->id;
     }
 
     #[Computed(true)]
@@ -108,7 +111,12 @@ new class extends Component
     
     public function save(): void
     {
-        $this->authorize('update', DentistRequest::class);
+        $this->authorize('create', DentistRequest::class);
+
+        if (Auth::user()->rule->name === Rules::Dentist) {
+            $this->dentistId = Auth::user()->dentist?->id;
+        }
+
         $this->validate();
 
         DB::transaction(function () {
