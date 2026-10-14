@@ -34,36 +34,62 @@ new class extends Component
             >
                 Dashboard
             </flux:sidebar.item>
+            @if (auth()->user()->can('viewAny', \App\Models\Dentist::class) || auth()->user()->can('viewAny', \App\Models\ServiceServiceStep::class) || auth()->user()->can('viewAny', \App\Models\DentistRequest::class))
+                <flux:sidebar.group icon="clipboard-document-list" expandable heading="Operações" class="grid">
+                    @can('viewAny', \App\Models\Dentist::class)
+                        <flux:sidebar.item
+                            icon="inbox"
+                            href="{{ route('services.index') }}"
+                            wire:navigate
+                        >
+                            Serviços
+                        </flux:sidebar.item>
+                        <flux:sidebar.item
+                            icon="numbered-list"
+                            href="{{ route('steps.index') }}"
+                            wire:navigate
+                        >
+                            Etapas de Serviços
+                        </flux:sidebar.item>
+                    @endcan
+                    @can('viewAny', \App\Models\ServiceServiceStep::class)
+                        <flux:sidebar.item
+                            icon="calendar-days"
+                            href="{{ route('dentists.demands.index') }}"
+                            wire:navigate
+                        >
+                            Demandas
+                        </flux:sidebar.item>
+                    @endcan
+                    @can('viewAny', \App\Models\DentistRequest::class)
+                        <flux:sidebar.item
+                            icon="clipboard-document-list"
+                            href="{{ route('services.planned.index') }}"
+                            wire:navigate
+                        >
+                            Serviços Solicitados
+                        </flux:sidebar.item>
+                    @endcan
+                </flux:sidebar.group>
+            @endif
             @can('viewAny', \App\Models\Dentist::class)
-                <flux:sidebar.item
-                    icon="inbox"
-                    href="{{ route('services.index') }}"
-                    wire:navigate
-                >
-                    Serviços
-                </flux:sidebar.item>
-                <flux:sidebar.item
-                    icon="numbered-list"
-                    href="{{ route('steps.index') }}"
-                    wire:navigate
-                >
-                    Etapas de Serviços
-                </flux:sidebar.item>
-                <flux:sidebar.item
-                    icon="user-circle"
-                    href="{{ route('dentists.index') }}"
-                    wire:navigate
-                >
-                    Dentistas
-                </flux:sidebar.item>
-                <flux:sidebar.item
-                    icon="user-group"
-                    href="{{ route('partners.index') }}"
-                    wire:navigate
-                >
-                    Parceiros
-                </flux:sidebar.item>
-                <flux:sidebar.group icon="archive-box" expandable heading="Estoque" class="grid">
+                <flux:sidebar.group icon="user-group" expandable heading="Cadastros" class="grid" :expanded="false">
+                    <flux:sidebar.item
+                        icon="user-circle"
+                        href="{{ route('dentists.index') }}"
+                        wire:navigate
+                    >
+                        Dentistas
+                    </flux:sidebar.item>
+                    <flux:sidebar.item
+                        icon="user-group"
+                        href="{{ route('partners.index') }}"
+                        wire:navigate
+                    >
+                        Parceiros
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                <flux:sidebar.group icon="archive-box" expandable heading="Estoque e Produtos" class="grid" :expanded="false">
                     <flux:sidebar.item
                         icon="rectangle-stack"
                         href="{{ route('products.index') }}"
@@ -94,38 +120,12 @@ new class extends Component
                     Relatórios
                 </flux:sidebar.item>
             @endcan
-            @can('viewAny', \App\Models\ServiceServiceStep::class)
-                <flux:sidebar.item
-                    icon="calendar-days"
-                    href="{{ route('dentists.demands.index') }}"
-                    wire:navigate
-                >
-                    Demandas
-                </flux:sidebar.item>
-            @endcan
-            @can('viewAny', \App\Models\DentistRequest::class)
-                <flux:sidebar.item
-                    icon="clipboard-document-list"
-                    href="{{ route('services.planned.index') }}"
-                    wire:navigate
-                >
-                    Serviços Solicitados
-                </flux:sidebar.item>
-            @endcan
         </flux:sidebar.nav>
         <flux:sidebar.spacer />
-        <flux:sidebar.nav>
-            <flux:sidebar.item icon="cog-6-tooth" href="#">Settings</flux:sidebar.item>
-            <flux:sidebar.item icon="information-circle" href="#">Help</flux:sidebar.item>
-        </flux:sidebar.nav>
         <flux:dropdown position="top" align="start" class="max-lg:hidden">
             <flux:sidebar.profile avatar="https://fluxui.dev/img/demo/user.png" name="Olivia Martin" />
             <flux:menu>
-                <flux:menu.radio.group>
-                    <flux:menu.radio checked>Olivia Martin</flux:menu.radio>
-                    <flux:menu.radio>Truly Delta</flux:menu.radio>
-                </flux:menu.radio.group>
-                <flux:menu.separator />
+                <flux:menu.item icon:variant="outline" icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
             </flux:menu>
         </flux:dropdown>
@@ -136,11 +136,7 @@ new class extends Component
         <flux:dropdown position="top" align="start">
             <flux:profile avatar="https://fluxui.dev/img/demo/user.png" />
             <flux:menu>
-                <flux:menu.radio.group>
-                    <flux:menu.radio checked>Olivia Martin</flux:menu.radio>
-                    <flux:menu.radio>Truly Delta</flux:menu.radio>
-                </flux:menu.radio.group>
-                <flux:menu.separator />
+                <flux:menu.item icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
             </flux:menu>
         </flux:dropdown>

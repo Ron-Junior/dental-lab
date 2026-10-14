@@ -10,7 +10,7 @@ Route::get('/', function () {
 
 Route::group(['middleware' => 'auth'], function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
-    Route::view('profile', 'profile')->name('profile');
+    Route::view('perfil', 'profile')->name('profile');
 
     Route::middleware('can:viewAny,App\Models\Dentist')->group(function () {
         Volt::route('etapas', 'pages.steps.index')->name('steps.index');
