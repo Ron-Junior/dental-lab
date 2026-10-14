@@ -25,9 +25,6 @@ php artisan storage:link --force
 echo "Running migrations..."
 php artisan migrate
 
-echo "Running DB Production Seed..."
-php artisan db:seed --class=Database\\Seeders\\Production\\ProductionSeeder
-
 echo "Starting PHP-FPM and Nginx..."
 php-fpm -D
 exec nginx -g "daemon off;"
