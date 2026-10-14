@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Symfony\Component\Uid\Ulid;
 
 #[Fillable('dentist_id', 'code', 'completed_at')]
@@ -34,5 +35,15 @@ class DentistRequest extends Model
     public function requestServices(): HasMany
     {
         return $this->hasMany(RequestService::class);
+    }
+
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    public function partnerDemands(): HasManyThrough
+    {
+        return $this->hasManyThrough(PartnerDemand::class, RequestService::class);
     }
 }

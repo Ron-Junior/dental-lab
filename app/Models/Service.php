@@ -18,7 +18,7 @@ class Service extends Model
 
     public function serviceSteps(): BelongsToMany
     {
-        return $this->belongsToMany(ServiceStep::class, 'service_service_step')->withPivot('order');
+        return $this->belongsToMany(ServiceStep::class, 'service_service_step')->withPivot(['id', 'order']);
     }
 
     public function price(): Attribute

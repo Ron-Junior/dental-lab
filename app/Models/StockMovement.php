@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'product_id',
     'stock_batch_id',
+    'dentist_request_id',
     'created_by_user_id',
     'type',
     'reason',

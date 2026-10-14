@@ -105,6 +105,15 @@ new class extends Component
                 Movimentações
                 </flux:sidebar.item>
             </flux:sidebar.group>
+            @can('viewAny', \App\Models\Dentist::class)
+                <flux:sidebar.item
+                    icon="chart-bar-square"
+                    href="{{ route('reports.index') }}"
+                    wire:navigate
+                >
+                    Relatórios
+                </flux:sidebar.item>
+            @endcan
         </flux:sidebar.nav>
         <flux:sidebar.spacer />
         <flux:sidebar.nav>

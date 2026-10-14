@@ -141,9 +141,9 @@ class StockMovement
                         ->where('current_quantity', '>', 0);
 
                     if (! empty($data['stockBatchId'])) {
-                        $batchQuery->orderByRaw("id = ? DESC", [$data['stockBatchId']]);
+                        $batchQuery->orderByRaw('id = ? DESC', [$data['stockBatchId']]);
                     } elseif (! empty($data['batchNumber'])) {
-                        $batchQuery->orderByRaw("batch_number = ? DESC", [trim($data['batchNumber'])]);
+                        $batchQuery->orderByRaw('batch_number = ? DESC', [trim($data['batchNumber'])]);
                     }
 
                     // Ordena o restante por data de vencimento (FIFO - Primeiro a vencer sai primeiro)
@@ -171,6 +171,7 @@ class StockMovement
 
                         // Cria uma movimentação individual para o lote atual
                         $movementsCreated[] = ModelsStockMovement::create([
+                            'dentist_request_id' => $data['dentist_request_id'] ?? null,
                             'product_id' => $product->id,
                             'stock_batch_id' => $batch->id,
                             'created_by_user_id' => Auth::id(),
@@ -188,6 +189,7 @@ class StockMovement
             } else {
                 // Produto sem controle de lotes
                 $movementsCreated[] = ModelsStockMovement::create([
+                    'dentist_request_id' => $data['dentist_request_id'] ?? null,
                     'product_id' => $product->id,
                     'stock_batch_id' => null,
                     'created_by_user_id' => Auth::id(),

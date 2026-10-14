@@ -26,6 +26,9 @@ Route::group(['middleware' => 'auth'], function () {
     Volt::route('serviços', 'pages.services.index')->name('services.index');
     Volt::route('serviços-solicitados', 'pages.services.planned')->name('services.planned.index');
     Volt::route('solicitações/{id}', 'pages.services.planned')->name('dentist-request.show');
+    Volt::route('relatorios', 'pages.reports.index')
+        ->middleware('can:viewAny,App\Models\Dentist')
+        ->name('reports.index');
 });
 
 require __DIR__.'/auth.php';

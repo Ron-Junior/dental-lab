@@ -28,7 +28,7 @@ class RequestService extends Model
             $model->partnerDemands()->saveMany(
                 $steps->map(fn ($step) => new PartnerDemand([
                     'request_service_id' => $model->id,
-                    'service_service_step_id' => $step->id,
+                    'service_service_step_id' => $step->pivot->id,
                     'order' => $step->pivot->order,
                 ]))
             );
