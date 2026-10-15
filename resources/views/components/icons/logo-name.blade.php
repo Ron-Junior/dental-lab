@@ -65,7 +65,7 @@
     <!-- GRUPO DE TEXTO DO LOGOTIPO -->
     <g id="textGroup" transform="translate(185, 0)">
         <!-- Nome Principal da Marca -->
-        <text id="svgBrandText" x="0" y="98" font-family="'Plus Jakarta Sans', 'Inter', sans-serif" font-weight="800" font-size="54" fill="#ffffff" letter-spacing="1">PROTHO</text>
+        <text id="svgBrandText" x="0" y="98" font-family="'Plus Jakarta Sans', 'Inter', sans-serif" font-weight="800" font-size="54" fill="currentColor" letter-spacing="1">PROTHO</text>
 
         <!-- Detalhe Decorativo na Letra (Ponto de precisão no texto) -->
         <circle id="brandDot" cx="251.60032653808594" cy="92" r="5" fill="url(#gradAccent)"></circle>

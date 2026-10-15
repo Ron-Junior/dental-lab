@@ -20,7 +20,7 @@
         <div class="min-h-screen flex flex-col items-center px-4 justify-center">
             <div>
                 <a href="/" wire:navigate>
-                    <x-icons.logo-name class="w-64" />
+                    <x-icons.logo-name class="w-64 text-zinc-700 dark:text-white" />
                 </a>
             </div>
 
