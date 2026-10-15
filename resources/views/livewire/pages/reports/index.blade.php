@@ -41,8 +41,6 @@ new class extends Component
 
     public string $revenueGroup = 'period';
 
-    public bool $includePartnerCommissions = true;
-
     public function mount(): void
     {
         $this->dateFrom = now()->startOfMonth()->toDateString();
@@ -60,7 +58,6 @@ new class extends Component
             'serviceId' => ['nullable', 'integer', 'exists:services,id'],
             'activeReport' => ['required', 'in:profitability,revenue,partners'],
             'revenueGroup' => ['required', 'in:period,dentist,service'],
-            'includePartnerCommissions' => ['boolean'],
         ];
     }
 
@@ -258,9 +255,8 @@ new class extends Component
             && (int) $order->incomplete_revenue_lines_count === 0
             && (int) $order->material_movements_count > 0
             && (int) $order->unpriced_material_movements_count === 0
-            && (! $this->includePartnerCommissions
-                || ((int) $order->pending_partner_demands_count === 0
-                    && (int) $order->unpriced_partner_demands_count === 0));
+            && (int) $order->pending_partner_demands_count === 0
+            && (int) $order->unpriced_partner_demands_count === 0;
     }
 
     public function grossProfitCents(DentistRequest $order): ?int
@@ -270,10 +266,7 @@ new class extends Component
         }
 
         $profit = (int) $order->revenue_cents - (int) $order->cmv_cents;
-
-        if ($this->includePartnerCommissions) {
-            $profit -= (int) $order->partner_commissions_cents;
-        }
+        $profit -= (int) $order->partner_commissions_cents;
 
         return $profit;
     }
@@ -293,8 +286,8 @@ new class extends Component
             (int) $order->incomplete_revenue_lines_count > 0 || (int) $order->revenue_lines_count === 0 => 'Receita incompleta',
             (int) $order->material_movements_count === 0 => 'Sem consumo vinculado',
             (int) $order->unpriced_material_movements_count > 0 => 'Custo parcial',
-            $this->includePartnerCommissions && (int) $order->pending_partner_demands_count > 0 => 'Comissões pendentes',
-            $this->includePartnerCommissions && (int) $order->unpriced_partner_demands_count > 0 => 'Comissão incompleta',
+            (int) $order->pending_partner_demands_count > 0 => 'Comissões pendentes',
+            (int) $order->unpriced_partner_demands_count > 0 => 'Comissão incompleta',
             default => 'Completo',
         };
     }
@@ -512,17 +505,10 @@ new class extends Component
             </flux:card>
         </div>
 
-        <div class="flex justify-end">
-            <flux:switch
-                wire:model.live="includePartnerCommissions"
-                label="Incluir comissão de parceiros no cálculo do lucro"
-            />
-        </div>
-
         <flux:callout icon="information-circle" variant="warning">
             <flux:callout.heading>Como ler este relatório</flux:callout.heading>
             <flux:callout.text>
-                O CMV considera saídas de estoque vinculadas ao pedido com custo unitário informado. @if ($includePartnerCommissions) As comissões concluídas entram no cálculo do lucro; percentuais incidem sobre o valor total do serviço (preço unitário × quantidade). @else As comissões de parceiros estão excluídas do cálculo do lucro. @endif
+                O CMV considera saídas de estoque vinculadas ao pedido com custo unitário informado. As comissões concluídas entram no cálculo do lucro; percentuais incidem sobre o valor total do serviço (preço unitário × quantidade).
                 O lucro bruto por pedido só aparece quando receita e custos considerados estão completos. Não inclui impostos, retrabalho, perdas ou despesas fixas.
             </flux:callout.text>
         </flux:callout>
@@ -591,7 +577,7 @@ new class extends Component
             </flux:table>
         </flux:card>
         <flux:text size="sm">
-            * Lucro bruto = faturamento − CMV dos materiais{{ $includePartnerCommissions ? ' − comissões concluídas dos parceiros' : '' }}.
+            * Lucro bruto = faturamento − CMV dos materiais − comissões concluídas dos parceiros.
         </flux:text>
     @elseif ($activeReport === 'revenue')
         @php($summary = $this->revenueSummary)

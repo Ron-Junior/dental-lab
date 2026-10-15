@@ -73,7 +73,7 @@ class ReportsTest extends TestCase
             ->assertSee('87,5%');
     }
 
-    public function test_profitability_report_can_exclude_partner_commissions_from_order_profit(): void
+    public function test_profitability_report_always_includes_partner_commissions(): void
     {
         $user = $this->userWithRule(Rules::Lab);
         $dentist = $this->dentist();
@@ -104,12 +104,9 @@ class ReportsTest extends TestCase
 
         Livewire::actingAs($user)
             ->test('pages.reports.index')
-            ->assertSet('includePartnerCommissions', true)
             ->assertSee('R$ 175,00')
-            ->set('includePartnerCommissions', false)
-            ->assertSee('R$ 195,00')
-            ->assertSee('97,5%')
-            ->assertSee('As comissões de parceiros estão excluídas do cálculo do lucro.');
+            ->assertSee('87,5%')
+            ->assertDontSee('Incluir comissão de parceiros no cálculo do lucro');
     }
 
     public function test_dentist_user_cannot_access_financial_reports(): void
