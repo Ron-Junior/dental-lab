@@ -1,10 +1,18 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
+    #[On('profile-updated')]
+    public function refreshProfile(): void
+    {
+        Auth::user()->refresh();
+    }
+
     /**
      * Log the current user out of the application.
      */
@@ -123,7 +131,7 @@ new class extends Component
         </flux:sidebar.nav>
         <flux:sidebar.spacer />
         <flux:dropdown position="top" align="start" class="max-lg:hidden">
-            <flux:sidebar.profile avatar="{{auth()->user()->profile_photo_url}}" name="{{ Auth::user()?->name }}" />
+            <flux:sidebar.profile :avatar="auth()->user()->profile_photo_url" :name="auth()->user()?->name" />
             <flux:menu>
                 <flux:menu.item icon:variant="outline" icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
@@ -134,7 +142,7 @@ new class extends Component
         <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
         <flux:spacer />
         <flux:dropdown position="top" align="start">
-            <flux:profile avatar="{{auth()->user()->profile_photo_url}}" />
+            <flux:profile :avatar="auth()->user()->profile_photo_url" />
             <flux:menu>
                 <flux:menu.item icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>

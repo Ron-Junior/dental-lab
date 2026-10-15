@@ -50,6 +50,32 @@ class ProfileTest extends TestCase
         $this->assertNull($user->email_verified_at);
     }
 
+    public function test_navigation_reflects_profile_changes_after_profile_update_event(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Previous Name',
+            'profile_photo_url' => 'https://example.com/previous-photo.webp',
+        ]);
+
+        $this->actingAs($user);
+
+        $navigation = Volt::test('layout.navigation')
+            ->assertSee('Previous Name')
+            ->assertSee('previous-photo.webp');
+
+        $user->update([
+            'name' => 'Updated Name',
+            'profile_photo_url' => 'https://example.com/updated-photo.webp',
+        ]);
+
+        $navigation
+            ->dispatch('profile-updated', name: 'Updated Name', photoUrl: 'https://example.com/updated-photo.webp')
+            ->assertSee('Updated Name')
+            ->assertSee('updated-photo.webp')
+            ->assertDontSee('Previous Name')
+            ->assertDontSee('previous-photo.webp');
+    }
+
     public function test_current_profile_photo_is_rendered_in_the_avatar_upload_component(): void
     {
         Storage::fake('s3');
