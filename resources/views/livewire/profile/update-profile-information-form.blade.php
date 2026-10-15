@@ -3,14 +3,23 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new class extends Component
 {
+    use WithFileUploads;
+
     public string $name = '';
 
     public string $email = '';
+
+    public $photo = null;
 
     /**
      * Mount the component.
@@ -31,17 +40,68 @@ new class extends Component
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+            'photo' => ['nullable', 'mimetypes:image/webp', 'extensions:webp', 'max:10240'],
         ]);
 
-        $user->fill($validated);
+        $user->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
 
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
         }
 
+        $temporaryDisk = FileUploadConfiguration::disk();
+        $temporaryPhotoPath = null;
+        $previousPhotoPath = null;
+
+        if ($this->photo !== null) {
+            $previousPhotoUrl = $user->getRawOriginal('profile_photo_url');
+            $temporaryPhotoPath = FileUploadConfiguration::path($this->photo->getFilename(), false);
+            $photoPath = 'profile-photos/'.Str::uuid().'.webp';
+
+            $photoCopied = $temporaryDisk === 's3'
+                ? Storage::disk('s3')->copy($temporaryPhotoPath, $photoPath)
+                : Storage::disk($temporaryDisk)->copyToDisk('s3', $temporaryPhotoPath, $photoPath);
+
+            if (! $photoCopied) {
+                throw ValidationException::withMessages([
+                    'photo' => __('The photo could not be uploaded. Please try again.'),
+                ]);
+            }
+
+            $user->profile_photo_url = $photoPath;
+
+            if ($previousPhotoUrl !== null && str_starts_with($previousPhotoUrl, 'profile-photos/')) {
+                $previousPhotoFilename = substr($previousPhotoUrl, strlen('profile-photos/'));
+
+                if (basename($previousPhotoFilename) === $previousPhotoFilename) {
+                    $previousPhotoPath = $previousPhotoUrl;
+                }
+            }
+        }
+
         $user->save();
 
-        $this->dispatch('profile-updated', name: $user->name);
+        if ($previousPhotoPath !== null) {
+            if (! Storage::disk('s3')->delete($previousPhotoPath)) {
+                report(new \RuntimeException('Failed to delete the previous profile photo from S3.'));
+            }
+        }
+
+        if ($temporaryPhotoPath !== null) {
+            if (! Storage::disk($temporaryDisk)->delete([
+                $temporaryPhotoPath,
+                $temporaryPhotoPath.'.json',
+            ])) {
+                report(new \RuntimeException('Failed to delete the temporary profile photo from S3.'));
+            }
+
+            $this->reset('photo');
+        }
+
+        $this->dispatch('profile-updated', name: $user->name, photoUrl: $user->profile_photo_url);
     }
 
     /**
@@ -75,6 +135,12 @@ new class extends Component
     </header>
 
     <form wire:submit="updateProfileInformation" class="space-y-5">
+        <x-profile.avatar-upload
+            model="photo"
+            :current-url="auth()->user()->profile_photo_url"
+            :user-name="auth()->user()->name"
+        />
+
         <flux:field>
             <flux:label for="name">{{ __('Name') }}</flux:label>
             <flux:input wire:model="name" id="name" name="name" type="text" required autofocus autocomplete="name" />
