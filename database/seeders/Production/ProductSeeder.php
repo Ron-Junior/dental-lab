@@ -413,7 +413,8 @@ class ProductSeeder extends Seeder
             ]);
 
             foreach ($products as $productData) {
-                Product::create(
+                Product::firstOrCreate(
+                    ['name' => $productData['name']],
                     array_merge($productData, [
                         'category_id' => $category->id,
                         'current_stock' => 0.00,
