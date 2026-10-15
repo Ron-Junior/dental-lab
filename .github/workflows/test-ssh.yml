@@ -10,9 +10,9 @@ jobs:
       - name: Executar comando remoto via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: ${{{{ secrets.SSH_HOST }}}}
-          username: ${{{{ secrets.SSH_USER }}}}
-          key: ${{{{ secrets.SSH_PRIVATE_KEY }}}}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "Conexao bem-sucedida!"
             uname -a
