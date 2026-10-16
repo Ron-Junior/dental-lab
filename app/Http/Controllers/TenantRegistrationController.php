@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\TenantStatus;
 use App\Http\Requests\StoreTenantRegistrationRequest;
 use App\Jobs\ProvisionTenant;
+use App\Models\CentralUser;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TenantRegistrationController extends Controller
@@ -23,10 +26,25 @@ class TenantRegistrationController extends Controller
         $centralConnection = config('tenancy.database.central_connection');
 
         $tenant = DB::connection($centralConnection)->transaction(function () use ($data): Tenant {
+            $owner = CentralUser::query()->firstOrCreate(
+                ['email' => $data['email']],
+                [
+                    'name' => $data['admin_name'],
+                    'password' => $data['password'],
+                ],
+            );
+
+            if (! Hash::check($data['password'], $owner->password)) {
+                throw ValidationException::withMessages([
+                    'email' => 'Já existe uma conta com este e-mail. Informe a senha dessa conta.',
+                ]);
+            }
+
             $tenant = Tenant::query()->create([
                 'id' => $data['slug'],
                 'name' => $data['laboratory_name'],
                 'status' => TenantStatus::Provisioning,
+                'owner_user_id' => $owner->id,
                 'owner_name' => $data['admin_name'],
                 'owner_email' => $data['email'],
                 'owner_password' => $data['password'],

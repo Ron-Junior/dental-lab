@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TenantStatus;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDomains;
@@ -19,5 +20,15 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'owner_password' => 'encrypted',
             'status' => TenantStatus::class,
         ];
+    }
+
+    public static function getCustomColumns(): array
+    {
+        return [...parent::getCustomColumns(), 'owner_user_id'];
+    }
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(CentralUser::class, 'owner_user_id');
     }
 }

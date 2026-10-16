@@ -4,10 +4,11 @@ use App\Http\Controllers\TenantOnboardingController;
 use App\Http\Controllers\TenantOnboardingStatusController;
 use App\Http\Controllers\TenantRegistrationController;
 use Illuminate\Support\Facades\Route;
+use Livewire\Volt\Volt;
 
 foreach (config('tenancy.central_domains') as $domain) {
     Route::domain($domain)->group(function () {
-        Route::get('/', fn () => redirect()->route('onboarding.create'));
+        Volt::route('/', 'pages.auth.central-login')->name('central.login');
         Route::get('/cadastro', [TenantRegistrationController::class, 'create'])->name('onboarding.create');
         Route::post('/cadastro', [TenantRegistrationController::class, 'store'])
             ->middleware('throttle:5,1')

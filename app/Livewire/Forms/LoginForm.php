@@ -28,9 +28,24 @@ class LoginForm extends Form
      */
     public function authenticate(): void
     {
+        $this->authenticateWithGuard('web');
+    }
+
+    /**
+     * Attempt to authenticate a central owner.
+     *
+     * @throws ValidationException
+     */
+    public function authenticateCentral(): void
+    {
+        $this->authenticateWithGuard('central');
+    }
+
+    private function authenticateWithGuard(string $guard): void
+    {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only(['email', 'password']), $this->remember)) {
+        if (! Auth::guard($guard)->attempt($this->only(['email', 'password']), $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
