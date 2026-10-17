@@ -9,6 +9,12 @@ use Livewire\Volt\Volt;
 foreach (config('tenancy.central_domains') as $domain) {
     Route::domain($domain)->group(function () {
         Volt::route('/', 'pages.auth.central-login')->name('central.login');
+
+        Route::middleware('auth:central')->group(function () {
+            Volt::route('laboratorios', 'pages.central.laboratories.index')
+                ->name('central.laboratories.index');
+        });
+
         Route::get('/cadastro', [TenantRegistrationController::class, 'create'])->name('onboarding.create');
         Route::post('/cadastro', [TenantRegistrationController::class, 'store'])
             ->middleware('throttle:5,1')

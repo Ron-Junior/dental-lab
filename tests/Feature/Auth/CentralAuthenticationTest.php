@@ -34,7 +34,7 @@ class CentralAuthenticationTest extends TestCase
             ->set('form.password', 'safe-password')
             ->call('login')
             ->assertHasNoErrors()
-            ->assertRedirect(route('onboarding.create', absolute: false));
+            ->assertRedirect(route('central.laboratories.index', absolute: false));
 
         $this->assertAuthenticated('central');
         $this->assertGuest('web');

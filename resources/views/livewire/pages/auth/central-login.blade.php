@@ -17,7 +17,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('onboarding.create', absolute: false), navigate: true);
+        $this->redirectIntended(default: route('central.laboratories.index', absolute: false), navigate: true);
     }
 }; ?>
 

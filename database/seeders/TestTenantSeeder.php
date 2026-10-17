@@ -16,13 +16,7 @@ class TestTenantSeeder extends Seeder
             return;
         }
 
-        $owner = CentralUser::query()->firstOrCreate(
-            ['email' => 'owner@example.test'],
-            [
-                'name' => 'Owner de Teste',
-                'password' => 'password',
-            ],
-        );
+        $owner = CentralUser::query()->where('email', 'owner@example.test')->firstOrFail();
 
         $tenant = Tenant::query()->firstOrCreate(
             ['id' => 'laboratorio-teste'],
