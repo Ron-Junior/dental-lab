@@ -2,8 +2,8 @@
 
 use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenant;
-use App\Models\CentralUser;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -82,14 +82,6 @@ new #[Layout('layouts.guest')] class extends Component
         $centralConnection = config('tenancy.database.central_connection');
 
         $tenant = DB::connection($centralConnection)->transaction(function () use ($data): Tenant {
-            $owner = CentralUser::query()->firstOrCreate(
-                ['email' => $data['email']],
-                [
-                    'name' => $data['admin_name'],
-                    'password' => $data['password'],
-                ],
-            );
-
             if (! Hash::check($data['password'], $owner->password)) {
                 throw ValidationException::withMessages([
                     'email' => 'Já existe uma conta com este e-mail. Informe a senha dessa conta.',
@@ -108,6 +100,12 @@ new #[Layout('layouts.guest')] class extends Component
             $tenant->domains()->create([
                 'domain' => $data['slug'].'.'.config('tenancy.central_domain'),
             ]);
+
+            $tenant->run(fn () => User::query()->create([
+                'name' => $data['admin_name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+            ]));
 
             return $tenant;
         });
