@@ -17,10 +17,14 @@ class TestTenantSeeder extends Seeder
             return;
         }
 
-        $tenant = Tenant::query()->create([
-            'id' => 'lab',
-            'name' => 'Laboratório de Teste',
-        ]);
+        $tenant = Tenant::firstOrCreate(
+            [
+                'id' => 'lab',
+            ],
+            [
+                'name' => 'Laboratório de Teste',
+            ]
+        );
 
         $tenant->domains()->firstOrCreate([
             'domain' => $tenant->id.'.'.config('tenancy.central_domain'),

@@ -22,6 +22,7 @@ return [
         'localhost:10000',
         '127.0.0.1',
         '127.0.0.1:10000',
+        'protho.test',
         rtrim((string) env('CENTRAL_DOMAIN', 'localhost'), '.'),
     ],
 

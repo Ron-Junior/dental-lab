@@ -26,9 +26,6 @@ class ProvisionTenantTest extends TestCase
             'id' => 'provisioned-lab',
             'name' => 'Laboratório Provisionado',
             'status' => TenantStatus::Provisioning,
-            'owner_name' => 'Ana Silva',
-            'owner_email' => 'ana@example.com',
-            'owner_password' => 'safe-password',
         ]);
         $tenant->domains()->create([
             'domain' => 'provisioned-lab.'.config('tenancy.central_domain'),
