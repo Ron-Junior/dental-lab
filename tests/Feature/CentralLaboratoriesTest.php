@@ -90,7 +90,6 @@ class CentralLaboratoriesTest extends TestCase
             'id' => $id,
             'name' => $name,
             'status' => $status,
-            'owner_user_id' => $owner->id,
         ]);
 
         $tenant->domains()->create([

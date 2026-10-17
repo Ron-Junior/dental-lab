@@ -21,14 +21,4 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             'status' => TenantStatus::class,
         ];
     }
-
-    public static function getCustomColumns(): array
-    {
-        return [...parent::getCustomColumns(), 'owner_user_id'];
-    }
-
-    public function owner(): BelongsTo
-    {
-        return $this->belongsTo(CentralUser::class, 'owner_user_id');
-    }
 }

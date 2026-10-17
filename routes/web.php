@@ -1,8 +1,5 @@
 <?php
 
-use App\Http\Controllers\TenantOnboardingController;
-use App\Http\Controllers\TenantOnboardingStatusController;
-use App\Http\Controllers\TenantRegistrationController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -15,13 +12,8 @@ foreach (config('tenancy.central_domains') as $domain) {
                 ->name('central.laboratories.index');
         });
 
-        Route::get('/cadastro', [TenantRegistrationController::class, 'create'])->name('onboarding.create');
-        Route::post('/cadastro', [TenantRegistrationController::class, 'store'])
-            ->middleware('throttle:5,1')
-            ->name('onboarding.store');
-        Route::get('/bem-vindo/{tenant}', [TenantOnboardingController::class, 'show'])
+        Volt::route('/cadastro', 'pages.auth.central-registration')->name('onboarding.create');
+        Volt::route('/bem-vindo/{tenant}', 'pages.central.onboarding')
             ->name('onboarding.show');
-        Route::get('/bem-vindo/{tenant}/status', TenantOnboardingStatusController::class)
-            ->name('onboarding.status');
     });
 }

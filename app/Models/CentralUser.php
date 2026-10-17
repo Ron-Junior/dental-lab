@@ -25,9 +25,4 @@ class CentralUser extends Authenticatable
             'password' => 'hashed',
         ];
     }
-
-    public function tenants(): HasMany
-    {
-        return $this->hasMany(Tenant::class, 'owner_user_id');
-    }
 }

@@ -28,7 +28,6 @@ class DatabaseSeederTest extends TestCase
             $tenant = Tenant::query()->findOrFail('laboratorio-teste');
 
             $this->assertSame(TenantStatus::Active, $tenant->status);
-            $this->assertSame($owner->id, $tenant->owner_user_id);
             $this->assertSame(1, $owner->tenants()->count());
             $this->assertTrue($tenant->run(
                 fn (): bool => User::query()->where('email', 'owner@example.test')->exists(),

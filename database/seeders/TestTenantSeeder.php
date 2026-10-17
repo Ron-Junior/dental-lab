@@ -16,24 +16,18 @@ class TestTenantSeeder extends Seeder
             return;
         }
 
-        $owner = CentralUser::query()->where('email', 'owner@example.test')->firstOrFail();
+        $owner = User::query()->where('email', 'lab@email.com')->firstOrFail();
 
         $tenant = Tenant::query()->firstOrCreate(
             ['id' => 'laboratorio-teste'],
             [
                 'name' => 'Laboratório de Teste',
                 'status' => TenantStatus::Provisioning,
-                'owner_user_id' => $owner->id,
                 'owner_name' => $owner->name,
                 'owner_email' => $owner->email,
                 'owner_password' => 'password',
             ],
         );
-
-        if ($tenant->owner_user_id !== $owner->id) {
-            $tenant->owner_user_id = $owner->id;
-            $tenant->save();
-        }
 
         $tenant->domains()->firstOrCreate([
             'domain' => $tenant->id.'.'.config('tenancy.central_domain'),
