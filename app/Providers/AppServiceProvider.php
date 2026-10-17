@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Facades\Currency;
+use App\Http\Middleware\InitializeTenancyForLivewireUniversal;
 use App\Services\CurrencyService;
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Support\Facades\Route;
@@ -40,5 +41,12 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('production', 'sandbox')) {
             URL::forceScheme('https');
         }
+        Livewire::setUpdateRoute(function ($handle) {
+            return Route::post('/livewire/update', $handle)
+                ->middleware([
+                    'web',
+                    InitializeTenancyForLivewireUniversal::class,
+                ]);
+        });
     }
 }
