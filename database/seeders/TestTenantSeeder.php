@@ -4,9 +4,10 @@ namespace Database\Seeders;
 
 use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenant;
-use App\Models\CentralUser;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class TestTenantSeeder extends Seeder
 {
@@ -16,25 +17,21 @@ class TestTenantSeeder extends Seeder
             return;
         }
 
-        $owner = User::query()->where('email', 'lab@email.com')->firstOrFail();
-
-        $tenant = Tenant::query()->firstOrCreate(
-            ['id' => 'laboratorio-teste'],
-            [
-                'name' => 'Laboratório de Teste',
-                'status' => TenantStatus::Provisioning,
-                'owner_name' => $owner->name,
-                'owner_email' => $owner->email,
-                'owner_password' => 'password',
-            ],
-        );
+        $tenant = Tenant::query()->create([
+            'id' => 'lab',
+            'name' => 'Laboratório de Teste',
+        ]);
 
         $tenant->domains()->firstOrCreate([
             'domain' => $tenant->id.'.'.config('tenancy.central_domain'),
         ]);
 
         if ($tenant->status !== TenantStatus::Active) {
-            ProvisionTenant::dispatchSync($tenant->id);
+            ProvisionTenant::dispatchSync($tenant->id, [
+                'name' => 'Laboratório Teste',
+                'email' => 'lab@email.com',
+                'password' => Hash::make('password'),
+            ]);
         }
     }
 }

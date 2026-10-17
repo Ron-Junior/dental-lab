@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TenantStatus;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
@@ -17,8 +18,15 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     protected function casts(): array
     {
         return [
-            'owner_password' => 'encrypted',
             'status' => TenantStatus::class,
+        ];
+    }
+
+    public static function getCustomColumns(): array
+    {
+        return [
+            'id',
+            'name',
         ];
     }
 }

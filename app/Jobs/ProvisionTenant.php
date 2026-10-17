@@ -32,8 +32,10 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * @param  string  $tenantId  Central tenant identifier.
+     * @param  array $userData  User data to create the owner user for the tenant.
+     * @return void
      */
-    public function __construct(public string $tenantId) {}
+    public function __construct(public string $tenantId, public array $userData) {}
 
     public function handle(): void
     {
@@ -58,23 +60,23 @@ class ProvisionTenant implements ShouldQueue
             '--force' => true,
         ]);
 
-        $tenant->run(function () use ($tenant): void {
+        $tenant->run(function (): void {
             $ownerRule = Rule::query()
-                ->where('name', Rules::Owner->value)
+                ->where('name', Rules::Lab->value)
                 ->firstOrFail();
 
             User::query()->firstOrCreate(
-                ['email' => $tenant->owner_email],
+                ['email' => $this->userData['email']],
                 [
-                    'name' => $tenant->owner_name,
-                    'password' => $tenant->owner_password,
+                    'name' => $this->userData['name'],
+                    'email' => $this->userData['email'],
+                    'password' => $this->userData['password'],
                     'rule_id' => $ownerRule->id,
                 ],
             );
         });
 
         $tenant->status = TenantStatus::Active;
-        $tenant->owner_password = null;
         $tenant->save();
 
         Notification::route('mail', $tenant->owner_email)

@@ -5,8 +5,11 @@ namespace App\Providers;
 use App\Facades\Currency;
 use App\Services\CurrencyService;
 use Illuminate\Foundation\AliasLoader;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
+use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 
 class AppServiceProvider extends ServiceProvider
 {

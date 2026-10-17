@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\TenantStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +18,8 @@ class CreateTenantsTable extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->string('id')->primary();
+            $table->string('name');
+            $table->string('status', 20)->default(TenantStatus::Provisioning->value);
             $table->timestamps();
             $table->json('data')->nullable();
         });

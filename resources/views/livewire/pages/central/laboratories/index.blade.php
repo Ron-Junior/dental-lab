@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CentralUser;
+use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
@@ -39,7 +40,7 @@ new #[Layout('layouts.central')] class extends Component
             'failed' => 0,
         ];
 
-        foreach ($user->tenants()->get() as $tenant) {
+        foreach ($this->tenants as $tenant) {
             $status = $tenant->status?->value ?? (string) $tenant->getAttribute('status');
 
             $counts['total']++;
@@ -65,7 +66,7 @@ new #[Layout('layouts.central')] class extends Component
 
         $search = trim($this->search);
 
-        return $user->tenants()
+        return Tenant::query()
             ->with('domains')
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {

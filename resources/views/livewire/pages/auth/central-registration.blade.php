@@ -78,6 +78,12 @@ new #[Layout('layouts.guest')] class extends Component
 
         RateLimiter::hit($rateLimitKey, 60);
 
+        $userData = [
+            'name' => $this->admin_name,
+            'email' => $this->email,
+            'password' => $this->password,
+        ];
+
         $data = $this->validate();
         $centralConnection = config('tenancy.database.central_connection');
 
@@ -101,16 +107,10 @@ new #[Layout('layouts.guest')] class extends Component
                 'domain' => $data['slug'].'.'.config('tenancy.central_domain'),
             ]);
 
-            $tenant->run(fn () => User::query()->create([
-                'name' => $data['admin_name'],
-                'email' => $data['email'],
-                'password' => $data['password'],
-            ]));
-
             return $tenant;
         });
 
-        ProvisionTenant::dispatch($tenant->id)->afterCommit();
+        ProvisionTenant::dispatch($tenant->id, $userData)->afterCommit();
 
         $this->redirectRoute('onboarding.show', ['tenant' => $tenant->id], navigate: true);
     }
