@@ -1,0 +1,40 @@
+name: Deploy to Oracle Cloud
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH Key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ORACLE_SSH_KEY }}
+
+      - name: Deploy to Oracle VPS via SSH
+        env:
+          HOST: ${{ secrets.ORACLE_HOST }}
+          USER: ${{ secrets.ORACLE_USER }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+            cd /var/www/prod-protho
+            
+            git pull origin master
+            
+            cd deploy
+            
+            docker compose down
+            docker compose up -d --build
+            
+            docker exec laravel_app php artisan migrate --force
+            docker exec laravel_app php artisan config:cache
+            docker exec laravel_app php artisan route:cache
+            docker exec laravel_app php artisan view:cache
+          EOF

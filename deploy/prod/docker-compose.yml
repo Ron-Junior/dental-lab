@@ -1,0 +1,39 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/prod/Dockerfile
+    container_name: laravel_app_prod
+    restart: always
+    ports:
+      - "80:8000"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - VIRTUAL_HOST=163.176.25.186
+      - LETSENCRYPT_HOST=163.176.25.186
+    volumes:
+      - ../../.:/var/www
+      - /var/www/vendor
+      - /var/www/node_modules
+    networks:
+      - prod-network
+
+  redis:
+    image: redis:alpine
+    container_name: laravel_redis_prod
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - prod-network
+
+networks:
+  prod-network:
+    driver: bridge
+
+volumes:
+  redis_data_prod:
+    driver: local
