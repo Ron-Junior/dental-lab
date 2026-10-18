@@ -13,7 +13,7 @@ services:
       - VIRTUAL_HOST=163.176.25.186
       - LETSENCRYPT_HOST=163.176.25.186
     volumes:
-      - ../../storage:/var/www/html/prod-protho/storage
+      - ../../storage:/var/www/prod-protho/storage
     networks:
       - prod-network
 
