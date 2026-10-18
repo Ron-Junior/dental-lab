@@ -28,7 +28,7 @@ jobs:
             
             git pull origin master
             
-            cd deploy
+            cd deploy/prod
             
             docker compose down
             docker compose up -d --build
