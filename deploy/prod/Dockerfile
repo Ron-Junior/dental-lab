@@ -70,19 +70,19 @@ RUN { \
     } > /usr/local/etc/php/conf.d/custom.ini
 
 # 3. Configurar o Apache apontando para a pasta pública do projeto
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/prod-protho/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+ENV APACHE_DOCUMENT_ROOT=/var/www/prod-protho/public
+RUN sed -ri -e 's!/var/www!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 # Habilitar mod_rewrite do Apache para as rotas do Laravel/Livewire
 RUN a2enmod rewrite headers
 
 # 4. Definir o diretório de trabalho
-WORKDIR /var/www/html/prod-protho
+WORKDIR /var/www/prod-protho
 
 # 5. Copiar o código da aplicação e o vendor gerado
-COPY --chown=www-data:www-data . /var/www/html/prod-protho
-COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/prod-protho/vendor
+COPY --chown=www-data:www-data . /var/www/prod-protho
+COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/prod-protho/vendor
 
 # 6. Ajustar permissões das pastas essenciais
 RUN chmod -R 775 storage bootstrap/cache \
