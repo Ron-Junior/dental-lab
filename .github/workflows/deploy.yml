@@ -24,7 +24,7 @@ jobs:
           USER: ${{ secrets.SSH_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
-            cd /var/www/html/prod-protho
+            cd /var/www/prod-protho
             
             git pull origin master
             
