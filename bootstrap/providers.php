@@ -8,6 +8,5 @@ use App\Providers\VoltServiceProvider;
 return [
     AppServiceProvider::class,
     TenancyServiceProvider::class,
-    TelescopeServiceProvider::class,
     VoltServiceProvider::class,
 ];
