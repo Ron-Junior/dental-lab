@@ -1,6 +1,5 @@
 FROM php:8.5-fpm-alpine
 
-# Instala todas as dependências do sistema necessárias, incluindo o postgresql-dev para o pdo_pgsql
 RUN apk add --no-cache \
     git \
     curl \
@@ -17,10 +16,11 @@ RUN apk add --no-cache \
     g++ \
     make
 
-# Configura o GD
-RUN docker-php-ext-configure gd --with-jpeg --with-webp
+# Configura explicitamente o GD e o caminho do PostgreSQL para o PHP 8.5
+RUN docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-configure pdo_pgsql --with-pdo-pgsql=/usr
 
-# Instala as extensões necessárias para o Laravel e Supabase
+# Instala as extensões sem erros
 RUN docker-php-ext-install -j$(nproc) \
     pdo \
     pdo_pgsql \
