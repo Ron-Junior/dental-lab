@@ -15,17 +15,17 @@ RUN composer install \
     --no-dev
 
 COPY . .
-RUN composer dump-autoload --classmap-authoritative
+RUN composer dump-autoload --classmap-authoritative --no-scripts
 
 
 # ==========================================
-# Estágio 2: Imagem Final de Produção
+# Estágio 2: Imagem Final de Produção (PHP 8.4)
 # ==========================================
-FROM php:8.3-apache AS production
+FROM php:8.4-apache AS production
 
-LABEL maintainer="Seu Nome <seu-email@dominio.com>"
+LABEL maintainer="Ronaldo Costa"
 
-# 1. Instalar dependências do sistema e extensões (incluindo libpq-dev para o Supabase/Postgres)
+# 1. Instalar dependências do sistema e extensões essenciais (PostgreSQL / Supabase)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     libzip-dev \
@@ -45,11 +45,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     intl \
     gd \
     bcmath \
-    opcache \
     pcntl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Configurar o OPcache e Limites do PHP diretamente no Dockerfile (Sem arquivos externos)
+# 2. Configurar o OPcache nativo e limites de performance do PHP
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.enable_cli=1'; \
@@ -69,22 +68,20 @@ RUN { \
     echo 'date.timezone = "America/Sao_Paulo"'; \
     } > /usr/local/etc/php/conf.d/custom.ini
 
-# 3. Configurar o Apache apontando para a pasta pública do projeto
-ENV APACHE_DOCUMENT_ROOT=/var/www/prod-protho/public
-RUN sed -ri -e 's!/var/www!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+# 3. Configurar o Apache para apontar para a pasta public do projeto
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/prod-protho/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-# Habilitar mod_rewrite do Apache para as rotas do Laravel/Livewire
 RUN a2enmod rewrite headers
 
-# 4. Definir o diretório de trabalho
-WORKDIR /var/www/prod-protho
+WORKDIR /var/www/html/prod-protho
 
-# 5. Copiar o código da aplicação e o vendor gerado
-COPY --chown=www-data:www-data . /var/www/prod-protho
-COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/prod-protho/vendor
+# 4. Copiar código da aplicação e o vendor otimizado
+COPY --chown=www-data:www-data . /var/www/html/prod-protho
+COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/prod-protho/vendor
 
-# 6. Ajustar permissões das pastas essenciais
+# 5. Ajustar permissões das pastas storage e bootstrap/cache
 RUN chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
