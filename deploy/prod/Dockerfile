@@ -1,5 +1,6 @@
 FROM php:8.5-fpm-alpine
 
+# Instala todas as dependências do sistema necessárias, incluindo o postgresql-dev para o pdo_pgsql
 RUN apk add --no-cache \
     git \
     curl \
@@ -10,6 +11,7 @@ RUN apk add --no-cache \
     zip \
     unzip \
     oniguruma-dev \
+    postgresql-dev \
     libxml2-dev \
     autoconf \
     g++ \
@@ -18,7 +20,7 @@ RUN apk add --no-cache \
 # Configura o GD
 RUN docker-php-ext-configure gd --with-jpeg --with-webp
 
-# Instala APENAS o que o Laravel precisa para conectar na nuvem (sem o servidor pgsql pesado)
+# Instala as extensões necessárias para o Laravel e Supabase
 RUN docker-php-ext-install -j$(nproc) \
     pdo \
     pdo_pgsql \
