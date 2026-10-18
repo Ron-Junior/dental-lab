@@ -69,17 +69,17 @@ RUN { \
     } > /usr/local/etc/php/conf.d/custom.ini
 
 # 3. Configurar o Apache para apontar para a pasta public do projeto
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/prod-protho/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+ENV APACHE_DOCUMENT_ROOT=/var/www/prod-protho/public
+RUN sed -ri -e 's!/var/www!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
 RUN a2enmod rewrite headers
 
-WORKDIR /var/www/html/prod-protho
+WORKDIR /var/www/prod-protho
 
 # 4. Copiar código da aplicação e o vendor otimizado
-COPY --chown=www-data:www-data . /var/www/html/prod-protho
-COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/html/prod-protho/vendor
+COPY --chown=www-data:www-data . /var/www/prod-protho
+COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/prod-protho/vendor
 
 # 5. Ajustar permissões das pastas storage e bootstrap/cache
 RUN chmod -R 775 storage bootstrap/cache \
