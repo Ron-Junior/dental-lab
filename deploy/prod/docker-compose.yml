@@ -1,7 +1,7 @@
 services:
   app:
     build:
-      context: ../..
+      context: .
       dockerfile: deploy/prod/Dockerfile
     container_name: laravel_app_prod
     restart: always
