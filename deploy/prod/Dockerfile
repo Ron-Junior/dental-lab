@@ -5,6 +5,7 @@ RUN apk add --no-cache \
     curl \
     libpng-dev \
     libwebp-dev \
+    libjpeg-turbo-dev \
     libzip-dev \
     zip \
     unzip \
@@ -14,6 +15,9 @@ RUN apk add --no-cache \
     autoconf \
     g++ \
     make
+
+# Configura o GD explicitamente antes de rodar o install
+RUN docker-php-ext-configure gd --with-jpeg --with-webp
 
 # Instala as extensões essenciais, incluindo o opcache
 RUN docker-php-ext-install pdo pdo_pgsql pgsql bcmath gd zip opcache
