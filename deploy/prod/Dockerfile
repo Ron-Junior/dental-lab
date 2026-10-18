@@ -10,19 +10,24 @@ RUN apk add --no-cache \
     zip \
     unzip \
     oniguruma-dev \
-    postgresql-dev \
     libxml2-dev \
     autoconf \
     g++ \
     make
 
-# Configura o GD explicitamente antes de rodar o install
+# Configura o GD
 RUN docker-php-ext-configure gd --with-jpeg --with-webp
 
-# Instala as extensões essenciais, incluindo o opcache
-RUN docker-php-ext-install pdo pdo_pgsql pgsql bcmath gd zip opcache
+# Instala APENAS o que o Laravel precisa para conectar na nuvem (sem o servidor pgsql pesado)
+RUN docker-php-ext-install -j$(nproc) \
+    pdo \
+    pdo_pgsql \
+    bcmath \
+    gd \
+    zip \
+    opcache
 
-# --- CONFIGURAÇÃO AGRESSIVA DO OPCACHE PARA PRODUÇÃO ---
+# --- CONFIGURAÇÃO DO OPCACHE ---
 RUN { \
     echo '[opcache]'; \
     echo 'opcache.enable=1'; \
@@ -33,14 +38,12 @@ RUN { \
     echo 'opcache.save_comments=1'; \
     echo 'opcache.revalidate_freq=0'; \
     } > /usr/local/etc/php/conf.d/opcache.ini
-# -----------------------------------------------------
 
 # Instalando o Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copia todo o código da raiz para dentro do container
 COPY . .
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
