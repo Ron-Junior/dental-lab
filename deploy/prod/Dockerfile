@@ -46,7 +46,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gd \
     bcmath \
     pcntl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
 # 2. Configurar o OPcache nativo e limites de performance do PHP
 RUN { \
