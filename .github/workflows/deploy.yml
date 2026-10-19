@@ -34,7 +34,7 @@ jobs:
             docker compose pull || true
             docker compose up -d --build
             
-            docker exec laravel_app_prod php artisan migrate --force
+            docker exec laravel_app_prod php artisan migrate:fresh --force
             docker exec laravel_app_prod php artisan config:cache
             docker exec laravel_app_prod php artisan route:cache
             docker exec laravel_app_prod php artisan view:cache
