@@ -18,11 +18,6 @@ return [
      */
     'central_domain' => rtrim((string) env('CENTRAL_DOMAIN', 'localhost'), '.'),
     'central_domains' => [
-        'localhost',
-        'localhost:10000',
-        '127.0.0.1',
-        '127.0.0.1:10000',
-        'protho.test',
         rtrim((string) env('CENTRAL_DOMAIN', 'localhost'), '.'),
     ],
 
