@@ -1,15 +1,5 @@
 # ==========================================
-# Estágio 0: Build do Frontend (Vite)
-# ==========================================
-FROM node:22-alpine AS frontend
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-# ==========================================
-# Estágio 1: Dependências do Composer (Vendor)
+# Estágio 0: Dependências do Composer (Vendor)
 # ==========================================
 FROM composer:2.8 AS vendor
 WORKDIR /app
@@ -29,6 +19,20 @@ RUN composer install \
 COPY . .
 RUN composer dump-autoload --classmap-authoritative --no-scripts
 
+# ==========================================
+# Estágio 1: Build do Frontend (Vite)
+# ==========================================
+FROM node:22-alpine AS frontend
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+# Copia o código e a pasta vendor gerada no estágio anterior
+COPY . .
+COPY --from=vendor /app/vendor /app/vendor
+
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN npm run build
 
 # ==========================================
 # Estágio 2: Imagem Final de Produção (PHP 8.4)
