@@ -1,7 +1,7 @@
 # ==========================================
 # Estágio 0: Build do Frontend (Vite)
 # ==========================================
-FROM node:20-alpine AS frontend
+FROM node:22-alpine AS frontend
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -14,6 +14,7 @@ RUN npm run build
 FROM composer:2.8 AS vendor
 WORKDIR /app
 
+# Copia apenas os arquivos de dependência primeiro para aproveitar o cache do Docker
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -24,6 +25,7 @@ RUN composer install \
     --prefer-dist \
     --no-dev
 
+# Agora copia o restante do código necessário para o dump-autoload otimizado
 COPY . .
 RUN composer dump-autoload --classmap-authoritative --no-scripts
 

@@ -1,11 +1,33 @@
-/node_modules
-/public/hot
-/public/storage
-/storage/*.key
-/vendor
+# Pastas pesadas de dependências e builds locais
+node_modules
+public/build
+public/hot
+public/storage
+vendor
+
+# Controle de versão (Ganha MUITO tempo no contexto de build)
+.git
+.gitignore
+
+# Configurações de ambiente e chaves
 .env
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
+.env.*
+.env.example
+storage/*.key
+
+# Arquivos de log e depuração
 npm-debug.log
 yarn-error.log
+storage/logs/*
+
+# Testes e ferramentas locais
+.phpunit.result.cache
+phpunit.xml
+tests/
+Homestead.json
+Homestead.yaml
+
+# Arquivos temporários e de IDE
+.idea/
+.vscode/
+.DS_Store
