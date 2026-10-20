@@ -11,7 +11,6 @@ services:
       - ../../.env
     environment:
       - APP_ENV=production
-      - APP_DEBUG=false
       - VIRTUAL_HOST=163.176.25.186
       - LETSENCRYPT_HOST=163.176.25.186
     volumes:
