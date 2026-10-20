@@ -1,4 +1,14 @@
 # ==========================================
+# Estágio 0: Build do Frontend (Vite)
+# ==========================================
+FROM node:20-alpine AS frontend
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# ==========================================
 # Estágio 1: Dependências do Composer (Vendor)
 # ==========================================
 FROM composer:2.8 AS vendor
@@ -82,6 +92,7 @@ WORKDIR /var/www/prod-protho
 # 4. Copiar código da aplicação e o vendor otimizado
 COPY --chown=www-data:www-data . /var/www/prod-protho
 COPY --chown=www-data:www-data --from=vendor /app/vendor /var/www/prod-protho/vendor
+COPY --chown=www-data:www-data --from=frontend /app/public/build /var/www/prod-protho/public/build
 
 # 5. Ajustar permissões das pastas storage e bootstrap/cache
 RUN chmod -R 775 storage bootstrap/cache \
