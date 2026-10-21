@@ -37,7 +37,7 @@ RUN npm run build
 # ==========================================
 # Estágio 2: Imagem Final de Produção (PHP 8.4)
 # ==========================================
-FROM php:8.4-apache AS production
+FROM php:8.4-apache-alpine AS production
 
 LABEL maintainer="Ronaldo Costa"
 
