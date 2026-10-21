@@ -1,6 +1,5 @@
 # Pastas pesadas de dependências e builds locais
 node_modules
-public/build
 public/hot
 public/storage
 vendor
