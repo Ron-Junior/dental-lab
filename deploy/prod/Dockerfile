@@ -24,15 +24,16 @@ RUN composer dump-autoload --classmap-authoritative --no-scripts
 # ==========================================
 FROM node:22-alpine AS frontend
 WORKDIR /app
-COPY package*.json ./
+COPY package*.json package-lock.json ./
 RUN npm ci
 
-# Copia o código e a pasta vendor gerada no estágio anterior
+# Copia o código fonte necessário para o build
 COPY . .
 COPY --from=vendor /app/vendor /app/vendor
 
+# Executa o build de produção do Vite (Gera public/build)
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-RUN npm run build
+RUN npm run build && npm cache clean --force
 
 # ==========================================
 # Estágio 2: Imagem Final de Produção (PHP 8.4)
