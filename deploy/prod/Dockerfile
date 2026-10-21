@@ -47,8 +47,18 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 
 # 2. Instalação das extensões dividida em blocos para otimizar cache e performance
 RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions pdo_pgsql pgsql redis-stable bcmath pcntl && \
-    install-php-extensions zip intl gd
+    install-php-extensions pdo_pgsql pgsql bcmath pcntl zip intl gd && \
+    install-php-extensions @composer
+
+RUN curl -L -o /tmp/redis.tar.gz https://github.com/phpredis/phpredis/archive/refs/heads/develop.tar.gz && \
+    tar xfz /tmp/redis.tar.gz -C /tmp && \
+    cd /tmp/phpredis-develop && \
+    phpize && \
+    ./configure && \
+    make -j$(nproc) && \
+    make install && \
+    docker-php-ext-enable redis && \
+    rm -rf /tmp/redis.tar.gz /tmp/phpredis-develop
 
 # 3. Configurar o OPcache nativo e limites de performance do PHP
 RUN { \
