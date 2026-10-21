@@ -47,7 +47,7 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 
 # 2. Instalação das extensões dividida em blocos para otimizar cache e performance
 RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions pdo_pgsql pgsql redis bcmath pcntl && \
+    install-php-extensions pdo_pgsql pgsql redis-stable bcmath pcntl && \
     install-php-extensions zip intl gd
 
 # 3. Configurar o OPcache nativo e limites de performance do PHP
