@@ -41,20 +41,11 @@ FROM php:8.4-apache AS production
 
 LABEL maintainer="Ronaldo Costa"
 
-# 1. Instalar dependências do sistema e extensões essenciais (PostgreSQL / Supabase)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
-    libzip-dev \
-    libicu-dev \
-    libfreetype6-dev \
-    libjpeg62-turbo-dev \
-    libpng-dev \
-    libxml2-dev \
-    unzip \
-    git \
-    curl \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
+# 1. Baixa o instalador oficial de extensões PHP (Instala binários prontos em segundos)
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/install-php-extensions && \
+    install-php-extensions \
     pdo_pgsql \
     pgsql \
     zip \
@@ -62,9 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gd \
     bcmath \
     pcntl \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* \
-    && pecl install redis \
-    && docker-php-ext-enable redis
+    redis
 
 # 2. Configurar o OPcache nativo e limites de performance do PHP
 RUN { \
