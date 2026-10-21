@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: ../../
-      dockerfile: deploy/prod/Dockerfile
+    image: ${IMAGE}
     container_name: laravel_app_prod
     restart: always
     ports:
