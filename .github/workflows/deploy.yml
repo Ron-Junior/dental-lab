@@ -53,7 +53,7 @@ jobs:
             
             cd deploy/prod
 
-            ./sync-env.sh
+            ./scripts/sync-env.sh
              
             # Puxa a imagem pronta e otimizada do Docker Hub usando a variável IMAGE
             docker compose pull
