@@ -54,6 +54,15 @@ jobs:
             exit 1
           fi
 
+      - name: Copy .env to Remote VPS
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ".env"
+          target: "/var/www/prod-protho/"
+        
       - name: Deploy to Oracle VPS via SSH
         env:
           HOST: ${{ secrets.SSH_HOST }}
