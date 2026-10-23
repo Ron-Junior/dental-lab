@@ -43,7 +43,6 @@ services:
              php artisan queue:work redis --sleep=3 --tries=3 --max-jobs=100 --memory=128"
     depends_on:
       - redis
-      - postgres
     networks:
       - prod-network
 
