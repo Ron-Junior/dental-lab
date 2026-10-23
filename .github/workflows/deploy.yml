@@ -47,7 +47,7 @@ jobs:
           
           export BW_SESSION="$(bw login --apikey --raw && bw unlock "${BW_PASSWORD}" --raw)"
           
-          bw get item "protho-prod-env" | jq -r '.notes' > .env
+          bw get item "producao-env" | jq -r '.notes' > .env
           
           if [ ! -s .env ]; then
             echo "Erro: O arquivo .env veio vazio do Bitwarden!"
