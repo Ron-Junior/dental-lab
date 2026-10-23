@@ -37,6 +37,23 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+      - name: Install Bitwarden CLI & Fetch .env
+        env:
+          BW_CLIENTID: ${{ secrets.BW_CLIENTID }}
+          BW_CLIENTSECRET: ${{ secrets.BW_CLIENTSECRET }}
+          BW_PASSWORD: ${{ secrets.BW_PASSWORD }}
+        run: |
+          npm install -g @bitwarden/cli
+          
+          export BW_SESSION="$(bw login --apikey --raw && bw unlock "${BW_PASSWORD}" --raw)"
+          
+          bw get item "protho-prod-env" | jq -r '.notes' > .env
+          
+          if [ ! -s .env ]; then
+            echo "Erro: O arquivo .env veio vazio do Bitwarden!"
+            exit 1
+          fi
+
       - name: Deploy to Oracle VPS via SSH
         env:
           HOST: ${{ secrets.SSH_HOST }}
@@ -52,8 +69,6 @@ jobs:
             git pull origin master
             
             cd deploy/prod
-
-            ./scripts/sync-env.sh
              
             # Puxa a imagem pronta e otimizada do Docker Hub usando a variável IMAGE
             docker compose pull
