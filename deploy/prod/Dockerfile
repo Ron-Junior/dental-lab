@@ -85,7 +85,21 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/prod-protho/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-RUN a2enmod rewrite headers
+RUN a2enmod rewrite headers ssl socache_shmcb
+
+RUN echo '<VirtualHost *:443>' > /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    ServerAdmin webmaster@localhost' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    DocumentRoot /var/www/prod-protho/public' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    SSLEngine on' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    SSLCertificateFile /etc/ssl/certs/server.crt' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    SSLCertificateKeyFile /etc/ssl/private/server.key' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    <Directory /var/www/prod-protho/public>' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '        AllowOverride All' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '        Require all granted' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '    </Directory>' >> /etc/apache2/sites-available/default-ssl.conf && \
+    echo '</VirtualHost>' >> /etc/apache2/sites-available/default-ssl.conf
+
+RUN a2ensite default-ssl
 
 WORKDIR /var/www/prod-protho
 
@@ -98,6 +112,6 @@ COPY --chown=www-data:www-data --from=frontend /app/public/build /var/www/prod-p
 RUN chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
-EXPOSE 80
+EXPOSE 80 443
 
 CMD ["apache2-foreground"]

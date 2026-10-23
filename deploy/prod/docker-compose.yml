@@ -5,6 +5,7 @@ services:
     restart: always
     ports:
       - "80:80"
+      - "443:443"
     env_file:
       - ../../.env
     environment:
@@ -13,6 +14,8 @@ services:
       - LETSENCRYPT_HOST=163.176.25.186
     volumes:
       - ../../storage:/var/www/prod-protho/storage
+      - /var/www/prod-protho/deploy/prod/certs/origin.pem:/etc/ssl/certs/server.crt
+      - /var/www/prod-protho/deploy/prod/certs/origin.key:/etc/ssl/private/server.key
     networks:
       - prod-network
 

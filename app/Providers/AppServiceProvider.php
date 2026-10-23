@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         if ($this->app->environment('production', 'sandbox')) {
-            URL::forceScheme('http');
+            URL::forceScheme('https');
         }
         Livewire::setUpdateRoute(function ($handle) {
             return Route::post('/livewire/update', $handle)
