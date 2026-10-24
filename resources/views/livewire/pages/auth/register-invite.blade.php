@@ -2,6 +2,7 @@
 
 use App\Models\CentralUser;
 use Flux\Flux;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Validate;
@@ -27,7 +28,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         CentralUser::where('email', $this->email)->update([
             'name' => $fields['name'],
-            'password' => $fields['password'],
+            'password' => Hash::make($fields['password']),
         ]);
 
         Flux::toast(text: 'Cadastro completado com sucesso!', variant: "success");
