@@ -9,6 +9,9 @@ use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
@@ -27,6 +30,8 @@ new class extends Component
         ],
     ];
 
+    public array $uploadedFiles = [];
+
     public string $searchDentist = '';
 
     public string $searchService = '';
@@ -38,6 +43,9 @@ new class extends Component
             'services.*.service_id' => 'required|exists:services,id',
             'services.*.unit_price' => 'required',
             'services.*.quantity' => 'required|integer|min:1|max:1000000',
+            'uploadedFiles' => 'array',
+            'uploadedFiles.*.name' => 'required|string',
+            'uploadedFiles.*.path' => 'required|string',
         ];
     }
 
@@ -103,8 +111,75 @@ new class extends Component
         unset($this->services[$index]);
     }
 
+    public function getPreSignedUploadUrl(string $filename, string $contentType = '', ?int $fileSize = null): array
+    {
+        $this->authorize('create', DentistRequest::class);
+
+        $cleanName = strtolower($filename);
+        $isZip = str_ends_with($cleanName, '.zip');
+
+        if ($isZip) {
+            $withoutZip = substr($cleanName, 0, -4);
+            $innerExt = pathinfo($withoutZip, PATHINFO_EXTENSION);
+            $extension = in_array($innerExt, ['stl', 'ply', 'obj', 'dcm', 'dicom'], true) ? $innerExt : 'zip';
+        } else {
+            $extension = pathinfo($cleanName, PATHINFO_EXTENSION);
+        }
+
+        $allowedExtensions = ['stl', 'ply', 'obj', 'dcm', 'dicom', 'zip'];
+
+        if (! in_array($extension, $allowedExtensions, true)) {
+            throw ValidationException::withMessages([
+                'uploadedFiles' => 'Formato não permitido. Formatos aceitos: STL, PLY, OBJ e DICOM (DCM).',
+            ]);
+        }
+
+        $tenantId = tenant('id') ?? 'default';
+        $safeFilename = Str::slug(pathinfo($filename, PATHINFO_FILENAME));
+        $uniqueId = (string) Str::ulid();
+        $targetExtension = $isZip ? 'zip' : $extension;
+        $path = sprintf('requests/%s/%s_%s.%s', $tenantId, $uniqueId, $safeFilename ?: 'scan', $targetExtension);
+
+        $diskName = config('filesystems.default', 's3');
+        $disk = Storage::disk($diskName);
+
+        $upload = $disk->temporaryUploadUrl(
+            $path,
+            now()->addMinutes(30)
+        );
+
+        return [
+            'url' => $upload['url'],
+            'headers' => $upload['headers'] ?? [],
+            'path' => $path,
+            'disk' => $diskName,
+        ];
+    }
+
+    public function removeFile(int $index): void
+    {
+        if (isset($this->uploadedFiles[$index])) {
+            $file = $this->uploadedFiles[$index];
+            $disk = Storage::disk($file['disk'] ?? config('filesystems.default', 's3'));
+            if ($disk->exists($file['path'])) {
+                $disk->delete($file['path']);
+            }
+            unset($this->uploadedFiles[$index]);
+            $this->uploadedFiles = array_values($this->uploadedFiles);
+        }
+    }
+
     public function cancel(): void
     {
+        foreach ($this->uploadedFiles as $file) {
+            if (! empty($file['path'])) {
+                $disk = Storage::disk($file['disk'] ?? config('filesystems.default', 's3'));
+                if ($disk->exists($file['path'])) {
+                    $disk->delete($file['path']);
+                }
+            }
+        }
+
         $this->reset();
         $this->resetValidation();
     }
@@ -130,6 +205,18 @@ new class extends Component
                     'service_id' => $service['service_id'],
                     'unit_price' => str($service['unit_price'])->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
                     'quantity' => $service['quantity'],
+                ]);
+            }
+
+            foreach ($this->uploadedFiles as $fileData) {
+                $dentistRequest->files()->create([
+                    'name' => $fileData['name'],
+                    'path' => $fileData['path'],
+                    'disk' => $fileData['disk'] ?? config('filesystems.default', 's3'),
+                    'size' => $fileData['size'] ?? null,
+                    'original_size' => $fileData['original_size'] ?? null,
+                    'extension' => $fileData['extension'] ?? null,
+                    'mime_type' => $fileData['mime_type'] ?? 'application/zip',
                 ]);
             }
         });
@@ -184,6 +271,19 @@ new class extends Component
             @endforeach
 
             <flux:button class="w-full" icon="plus" variant="outline" wire:click="addService">Adicionar Serviço</flux:button>
+
+            <flux:separator />
+
+            <div class="space-y-2">
+                <flux:heading size="lg">Arquivos 3D e Tomografias</flux:heading>
+                <flux:subheading>Envie escaneamentos intraorais (STL, PLY, OBJ) ou exames tomográficos (DICOM).</flux:subheading>
+
+                <x-form.s3-file-upload wire:model="uploadedFiles" />
+
+                @error('uploadedFiles')
+                    <flux:text variant="error">{{ $message }}</flux:text>
+                @enderror
+            </div>
 
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>

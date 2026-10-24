@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Symfony\Component\Uid\Ulid;
 
 #[Fillable('dentist_id', 'code', 'completed_at')]
@@ -45,5 +46,10 @@ class DentistRequest extends Model
     public function partnerDemands(): HasManyThrough
     {
         return $this->hasManyThrough(PartnerDemand::class, RequestService::class);
+    }
+
+    public function files(): MorphMany
+    {
+        return $this->morphMany(File::class, 'fileable');
     }
 }
