@@ -58,7 +58,27 @@ class DentistRequestFileUploadTest extends TestCase
         $component->instance()->getPreSignedUploadUrl('document.pdf', 'application/pdf');
     }
 
-    public function test_saving_request_persists_uploaded_files_polymorphically(): void
+    public function test_saving_request_creates_it_without_files(): void
+    {
+        $dentistUser = $this->userWithRule(Rules::Dentist);
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $service = Service::factory()->create();
+
+        Livewire::actingAs($dentistUser)
+            ->test('service.requesting')
+            ->set('dentistId', $dentist->id)
+            ->set('services.0.service_id', $service->id)
+            ->set('services.0.unit_price', '150,00')
+            ->set('services.0.quantity', 1)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $dentistRequest = DentistRequest::where('dentist_id', $dentist->id)->first();
+        $this->assertNotNull($dentistRequest);
+        $this->assertCount(0, $dentistRequest->files);
+    }
+
+    public function test_add_files_to_request_persists_files_polymorphically(): void
     {
         Storage::fake('s3');
         config(['filesystems.default' => 's3']);
@@ -67,13 +87,15 @@ class DentistRequestFileUploadTest extends TestCase
         $dentist = Dentist::factory()->for($dentistUser)->create();
         $service = Service::factory()->create();
 
+        $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
+
         $uploadedFiles = [
             [
                 'name' => 'arcada_superior.stl',
                 'zip_name' => 'arcada_superior.stl.zip',
                 'path' => 'requests/tenant-1/test-ulid_arcada_superior.zip',
-                'size' => 3145728, // 3MB compressed
-                'original_size' => 10485760, // 10MB original
+                'size' => 3145728,
+                'original_size' => 10485760,
                 'extension' => 'stl',
                 'disk' => 's3',
                 'mime_type' => 'application/zip',
@@ -82,8 +104,8 @@ class DentistRequestFileUploadTest extends TestCase
                 'name' => 'tomografia.dcm',
                 'zip_name' => 'tomografia.dcm.zip',
                 'path' => 'requests/tenant-1/test-ulid_tomografia.zip',
-                'size' => 15728640, // 15MB compressed
-                'original_size' => 52428800, // 50MB original
+                'size' => 15728640,
+                'original_size' => 52428800,
                 'extension' => 'dcm',
                 'disk' => 's3',
                 'mime_type' => 'application/zip',
@@ -92,18 +114,10 @@ class DentistRequestFileUploadTest extends TestCase
 
         Livewire::actingAs($dentistUser)
             ->test('service.requesting')
-            ->set('dentistId', $dentist->id)
-            ->set('services.0.service_id', $service->id)
-            ->set('services.0.unit_price', '150,00')
-            ->set('services.0.quantity', 1)
-            ->set('uploadedFiles', $uploadedFiles)
-            ->call('save')
+            ->call('addFilesToRequest', $dentistRequest->id, $uploadedFiles)
             ->assertHasNoErrors();
 
-        $dentistRequest = DentistRequest::where('dentist_id', $dentist->id)->first();
-        $this->assertNotNull($dentistRequest);
-
-        $this->assertCount(2, $dentistRequest->files);
+        $this->assertCount(2, $dentistRequest->fresh()->files);
 
         $this->assertDatabaseHas('files', [
             'fileable_type' => DentistRequest::class,
@@ -123,37 +137,27 @@ class DentistRequestFileUploadTest extends TestCase
             'original_size' => 52428800,
         ]);
 
-        $fileModel = $dentistRequest->files()->first();
+        $fileModel = $dentistRequest->fresh()->files()->first();
         $this->assertEquals('3,00 MB', $fileModel->formatted_size);
         $this->assertEquals('10,00 MB', $fileModel->formatted_original_size);
     }
 
-    public function test_removing_uploaded_file_deletes_from_storage(): void
+    public function test_save_sets_created_request_id_for_upload_modal(): void
     {
-        Storage::fake('s3');
-        config(['filesystems.default' => 's3']);
-
         $dentistUser = $this->userWithRule(Rules::Dentist);
-        Dentist::factory()->for($dentistUser)->create();
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $service = Service::factory()->create();
 
-        $filePath = 'requests/tenant-1/scan_to_delete.stl';
-        Storage::disk('s3')->put($filePath, 'dummy content');
-        $this->assertTrue(Storage::disk('s3')->exists($filePath));
-
-        Livewire::actingAs($dentistUser)
+        $component = Livewire::actingAs($dentistUser)
             ->test('service.requesting')
-            ->set('uploadedFiles', [
-                [
-                    'name' => 'scan_to_delete.stl',
-                    'path' => $filePath,
-                    'disk' => 's3',
-                    'size' => 100,
-                    'extension' => 'stl',
-                ],
-            ])
-            ->call('removeFile', 0)
-            ->assertSet('uploadedFiles', []);
+            ->set('dentistId', $dentist->id)
+            ->set('services.0.service_id', $service->id)
+            ->set('services.0.unit_price', '150,00')
+            ->set('services.0.quantity', 1)
+            ->call('save')
+            ->assertHasNoErrors();
 
-        $this->assertFalse(Storage::disk('s3')->exists($filePath));
+        $dentistRequest = DentistRequest::where('dentist_id', $dentist->id)->first();
+        $component->assertSet('createdRequestId', $dentistRequest->id);
     }
 }

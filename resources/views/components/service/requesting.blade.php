@@ -3,6 +3,7 @@
 use App\Enums\Rules;
 use App\Models\Dentist;
 use App\Models\DentistRequest;
+use App\Models\File;
 use App\Models\RequestService;
 use App\Models\Service;
 use Flux\Flux;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -22,6 +24,7 @@ new class extends Component
     #[Validate(['required', 'exists:dentists,id'])]
     public ?int $dentistId = null;
 
+    public array $uploadedFiles = [];
     public array $services = [
         [
             'service_id' => '',
@@ -30,11 +33,13 @@ new class extends Component
         ],
     ];
 
-    public array $uploadedFiles = [];
-
     public string $searchDentist = '';
 
     public string $searchService = '';
+
+    /** ID da request recém-criada, para exibir o modal de upload após salvar. */
+    #[Locked]
+    public ?int $createdRequestId = null;
 
     public function rules(): array
     {
@@ -43,9 +48,6 @@ new class extends Component
             'services.*.service_id' => 'required|exists:services,id',
             'services.*.unit_price' => 'required',
             'services.*.quantity' => 'required|integer|min:1|max:1000000',
-            'uploadedFiles' => 'array',
-            'uploadedFiles.*.name' => 'required|string',
-            'uploadedFiles.*.path' => 'required|string',
         ];
     }
 
@@ -65,7 +67,7 @@ new class extends Component
     public function mount()
     {
         if (Auth::user()->can('viewAny', \App\Models\Dentist::class)) {
-            return ;
+            return;
         }
 
         $this->authorize('create', DentistRequest::class);
@@ -73,10 +75,25 @@ new class extends Component
         $this->dentistId = Auth::user()->dentist?->id;
     }
 
+    #[On('remove-s3-file')]
+    public function removeS3File($requestId, $path)
+    {
+    
+        Storage::disk('s3')->delete($path);
+
+        File::where('fileable_id', $requestId)
+            ->where('fileable_type', DentistRequest::class)
+            ->where('path', $path)
+            ->first()
+            ->delete();
+
+        Flux::toast(text: 'Arquivo removido!', variant: 'success');
+    }
+
     #[Computed(true)]
     public function dentists(): Collection
     {
-        return Dentist::with('user')->whereRelation('user', 'name', 'like', '%' . $this->searchDentist . '%')->get();
+        return Dentist::with('user')->whereRelation('user', 'name', 'like', '%'.$this->searchDentist.'%')->get();
     }
 
     #[Computed(true)]
@@ -92,7 +109,7 @@ new class extends Component
         if ($field === 'unit_price' || $field === 'quantity') {
             return;
         }
-        
+
         $selectedService = $this->offerServices->firstWhere('id', $value);
         $this->services[$index]['unit_price'] = number_format($selectedService?->price, 2, ',', '.') ?? 0;
     }
@@ -104,7 +121,7 @@ new class extends Component
             'unit_price' => '',
             'quantity' => '',
         ];
-    }    
+    }
 
     public function removeService(int $index): void
     {
@@ -156,32 +173,40 @@ new class extends Component
         ];
     }
 
-    public function removeFile(int $index): void
+    /**
+     * Persiste os arquivos já enviados ao S3 na request recém-criada.
+     * Chamado pelo uploader após o upload direto ao S3 com sucesso.
+     */
+    public function addFilesToRequest(int $requestId, array $files): void
     {
-        if (isset($this->uploadedFiles[$index])) {
-            $file = $this->uploadedFiles[$index];
-            $disk = Storage::disk($file['disk'] ?? config('filesystems.default', 's3'));
-            if ($disk->exists($file['path'])) {
-                $disk->delete($file['path']);
-            }
-            unset($this->uploadedFiles[$index]);
-            $this->uploadedFiles = array_values($this->uploadedFiles);
+        $this->authorize('create', DentistRequest::class);
+
+        $dentistRequest = DentistRequest::findOrFail($requestId);
+
+        foreach ($files as $fileData) {
+            $dentistRequest->files()->create([
+                'name' => $fileData['name'],
+                'path' => $fileData['path'],
+                'disk' => $fileData['disk'] ?? config('filesystems.default', 's3'),
+                'size' => $fileData['size'] ?? null,
+                'original_size' => $fileData['original_size'] ?? null,
+                'extension' => $fileData['extension'] ?? null,
+                'mime_type' => $fileData['mime_type'] ?? 'application/zip',
+            ]);
         }
     }
 
     public function cancel(): void
     {
-        foreach ($this->uploadedFiles as $file) {
-            if (! empty($file['path'])) {
-                $disk = Storage::disk($file['disk'] ?? config('filesystems.default', 's3'));
-                if ($disk->exists($file['path'])) {
-                    $disk->delete($file['path']);
-                }
-            }
-        }
-
         $this->reset();
         $this->resetValidation();
+    }
+
+    public function closeUploadModal(): void
+    {
+        $this->createdRequestId = null;
+        Flux::toast(variant: 'success', text: "Arquivos adicionados!");
+        $this->dispatch('requests::refresh');
     }
     
     public function save(): void
@@ -208,31 +233,21 @@ new class extends Component
                 ]);
             }
 
-            foreach ($this->uploadedFiles as $fileData) {
-                $dentistRequest->files()->create([
-                    'name' => $fileData['name'],
-                    'path' => $fileData['path'],
-                    'disk' => $fileData['disk'] ?? config('filesystems.default', 's3'),
-                    'size' => $fileData['size'] ?? null,
-                    'original_size' => $fileData['original_size'] ?? null,
-                    'extension' => $fileData['extension'] ?? null,
-                    'mime_type' => $fileData['mime_type'] ?? 'application/zip',
-                ]);
-            }
+            $this->createdRequestId = $dentistRequest->id;
         });
 
         Flux::modal('store-service-modal')->close();
-        Flux::toast(variant: "success", heading: 'Sucesso!', text: "Pedido criado com sucesso!");
-        $this->reset();
+        Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Pedido criado com sucesso!');
+        $this->reset(['services', 'dentistId', 'searchDentist', 'searchService']);
         $this->resetValidation();
-        $this->dispatch('requests::refresh');
+        Flux::modal('upload-files-modal')->show();
     }
 };
 
 ?>
 <div>
     <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" flyout variant="floating" name="store-service-modal" @cancel="cancel">
-        <form wire:submit.prevent="save" class="space-y-6" wire:key="store-service-modal">
+        <form wire:submit="save" class="space-y-6" wire:key="store-service-modal">
             <flux:heading size="lg">Nova Solicitação</flux:heading>
             <flux:subheading>Adicione uma nova solicitação de serviço.</flux:subheading>
 
@@ -272,19 +287,6 @@ new class extends Component
 
             <flux:button class="w-full" icon="plus" variant="outline" wire:click="addService">Adicionar Serviço</flux:button>
 
-            <flux:separator />
-
-            <div class="space-y-2">
-                <flux:heading size="lg">Arquivos 3D e Tomografias</flux:heading>
-                <flux:subheading>Envie escaneamentos intraorais (STL, PLY, OBJ) ou exames tomográficos (DICOM).</flux:subheading>
-
-                <x-form.s3-file-upload wire:model="uploadedFiles" />
-
-                @error('uploadedFiles')
-                    <flux:text variant="error">{{ $message }}</flux:text>
-                @enderror
-            </div>
-
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancelar</flux:button>
@@ -293,4 +295,32 @@ new class extends Component
             </div>
         </form>
     </flux:modal>
+
+    @if ($createdRequestId)
+        <flux:modal
+            class="backdrop:backdrop-blur-sm md:w-lg z-10"
+            flyout
+            variant="floating"
+            name="upload-files-modal"
+            @cancel="$wire.closeUploadModal()"
+        >
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Adicionar Arquivos 3D</flux:heading>
+                    <flux:subheading>Envie os escaneamentos (STL, PLY, OBJ) ou tomografias (DICOM) da solicitação. O upload é feito automaticamente ao selecionar os arquivos.</flux:subheading>
+                </div>
+
+                <x-form.s3-file-upload
+                    :request-id="$createdRequestId"
+                    auto-upload
+                />
+
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <flux:modal.close @click="$wire.closeUploadModal()">
+                        <flux:button>Concluir</flux:button>
+                    </flux:modal.close>
+                </div>
+            </div>
+        </flux:modal>
+    @endif
 </div>

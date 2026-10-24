@@ -16,20 +16,12 @@ function calculateCrc32(bytes) {
     return (crc ^ (-1)) >>> 0;
 }
 
-/**
- * Compresses a File object into a standard ZIP Blob using the browser's native CompressionStream.
- * Produces a standard PKZIP archive compatible with Windows, Mac, Linux, exocad, 3Shape, etc.
- *
- * @param {File} file
- * @returns {Promise<{ blob: Blob, zipName: string, originalSize: number, compressedSize: number }>}
- */
 async function compressFileToZip(file) {
     const originalBytes = new Uint8Array(await file.arrayBuffer());
     const originalSize = originalBytes.byteLength;
     const filenameBytes = new TextEncoder().encode(file.name);
     const crc = calculateCrc32(originalBytes);
 
-    // Compress using native deflate-raw stream
     const cs = new CompressionStream('deflate-raw');
     const writer = cs.writable.getWriter();
     writer.write(originalBytes);
@@ -51,18 +43,16 @@ async function compressFileToZip(file) {
         offset += chunk.byteLength;
     }
 
-    // DOS Date & Time
     const now = new Date();
     const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
     const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
 
-    // 1. Local File Header (30 bytes)
     const localHeader = new Uint8Array(30);
     const localView = new DataView(localHeader.buffer);
     localView.setUint32(0, 0x04034b50, true);
     localView.setUint16(4, 20, true);
-    localView.setUint16(6, 0x0800, true); // UTF-8 filename flag
-    localView.setUint16(8, 8, true); // Deflate
+    localView.setUint16(6, 0x0800, true);
+    localView.setUint16(8, 8, true);
     localView.setUint16(10, dosTime, true);
     localView.setUint16(12, dosDate, true);
     localView.setUint32(14, crc, true);
@@ -71,7 +61,6 @@ async function compressFileToZip(file) {
     localView.setUint16(26, filenameBytes.byteLength, true);
     localView.setUint16(28, 0, true);
 
-    // 2. Central Directory Header (46 bytes)
     const cdHeader = new Uint8Array(46);
     const cdView = new DataView(cdHeader.buffer);
     cdView.setUint32(0, 0x02014b50, true);
@@ -85,17 +74,16 @@ async function compressFileToZip(file) {
     cdView.setUint32(20, compressedBytes.byteLength, true);
     cdView.setUint32(24, originalSize, true);
     cdView.setUint16(28, filenameBytes.byteLength, true);
-    cdView.setUint16(30, 0, true);
+    cdView.setUint32(30, 0, true);
     cdView.setUint16(32, 0, true);
     cdView.setUint16(34, 0, true);
     cdView.setUint16(36, 0, true);
     cdView.setUint32(38, 0, true);
-    cdView.setUint32(42, 0, true); // Offset 0
+    cdView.setUint32(42, 0, true);
 
     const localRecordLength = 30 + filenameBytes.byteLength + compressedBytes.byteLength;
     const cdLength = 46 + filenameBytes.byteLength;
 
-    // 3. End of Central Directory Record (22 bytes)
     const eocd = new Uint8Array(22);
     const eocdView = new DataView(eocd.buffer);
     eocdView.setUint32(0, 0x06054b50, true);
@@ -133,6 +121,8 @@ export function registerS3DirectUploader() {
                 files: [],
                 allowedExtensions: ['stl', 'ply', 'obj', 'dcm', 'dicom'],
                 modelName: config.modelName || 'uploadedFiles',
+                autoUpload: config.autoUpload || false,
+                requestId: config.requestId || null,
 
                 init() {
                     const currentFiles = this.$wire.get(this.modelName) || [];
@@ -156,6 +146,11 @@ export function registerS3DirectUploader() {
                             errorMessage: ''
                         }));
                     }
+
+                    // Expõe método para ser acionado pelo formulário no submit (modo manual)
+                    this.$el.__uploadFiles = async () => {
+                        return await this.uploadAllReadyFiles();
+                    };
 
                     this.$watch('$wire.' + this.modelName, (newVal) => {
                         if (!newVal || newVal.length === 0) {
@@ -230,33 +225,64 @@ export function registerS3DirectUploader() {
                             progress: 0,
                             path: null,
                             disk: 's3',
-                            errorMessage: '',
-                            xhr: null
+                            errorMessage: ''
                         };
 
                         this.files.push(fileItem);
-                        this.compressAndUpload(fileItem);
+                        this.compressFile(fileItem);
                     });
                 },
 
-                async compressAndUpload(fileItem) {
-                    this.updateProcessingState();
+                async compressFile(fileItem) {
                     try {
                         fileItem.status = 'compressing';
                         fileItem.errorMessage = '';
+                        this.updateProcessingState();
 
-                        // 1. Compress to ZIP in the browser
                         const zipResult = await compressFileToZip(fileItem.file);
-                        fileItem.zipBlob = zipResult.blob;
-                        fileItem.zipName = zipResult.zipName;
-                        fileItem.compressedSize = zipResult.compressedSize;
-                        fileItem.formattedSize = this.formatBytes(zipResult.compressedSize);
-                        fileItem.compressionRatio = fileItem.originalSize > zipResult.compressedSize
-                            ? Math.round((1 - (zipResult.compressedSize / fileItem.originalSize)) * 100)
-                            : 0;
 
-                        // 2. Request Presigned Upload URL from Livewire
+                        const index = this.files.findIndex(f => f.id === fileItem.id);
+                        if (index !== -1) {
+                            this.files[index] = {
+                                ...this.files[index],
+                                zipBlob: zipResult.blob,
+                                zipName: zipResult.zipName,
+                                compressedSize: zipResult.compressedSize,
+                                formattedSize: this.formatBytes(zipResult.compressedSize),
+                                compressionRatio: fileItem.originalSize > zipResult.compressedSize
+                                    ? Math.round((1 - (zipResult.compressedSize / fileItem.originalSize)) * 100)
+                                    : 0,
+                                status: 'ready',
+                                progress: 0
+                            };
+
+                            // Em modo autoUpload, inicia o upload imediatamente após comprimir
+                            if (this.autoUpload) {
+                                this.uploadAndPersist(this.files[index]);
+                            }
+                        }
+                    } catch (error) {
+                        const index = this.files.findIndex(f => f.id === fileItem.id);
+                        if (index !== -1) {
+                            this.files[index] = {
+                                ...this.files[index],
+                                status: 'error',
+                                errorMessage: error.message || 'Erro ao compactar arquivo.'
+                            };
+                        }
+                    } finally {
+                        this.updateProcessingState();
+                    }
+                },
+
+                /**
+                 * Modo autoUpload: faz upload de um arquivo e persiste via Livewire após o S3.
+                 */
+                async uploadAndPersist(fileItem) {
+                    try {
                         fileItem.status = 'getting_url';
+                        this.updateProcessingState();
+
                         const presignedData = await this.$wire.getPreSignedUploadUrl(
                             fileItem.zipName,
                             'application/zip',
@@ -271,7 +297,69 @@ export function registerS3DirectUploader() {
                         fileItem.disk = presignedData.disk || 's3';
                         fileItem.status = 'uploading';
 
-                        // 3. Upload the compressed ZIP Blob directly to S3
+                        await this.uploadToS3(fileItem, presignedData);
+                        fileItem.status = 'completed';
+                        fileItem.progress = 100;
+
+                        // Persiste no BD via Livewire
+                        await this.$wire.addFilesToRequest(this.requestId, [{
+                            name: fileItem.name,
+                            zip_name: fileItem.zipName,
+                            path: fileItem.path,
+                            size: fileItem.compressedSize,
+                            original_size: fileItem.originalSize,
+                            extension: fileItem.extension ? fileItem.extension.toLowerCase() : '',
+                            disk: fileItem.disk,
+                            mime_type: 'application/zip'
+                        }]);
+                    } catch (error) {
+                        fileItem.status = 'error';
+                        fileItem.errorMessage = error.message || 'Erro no upload.';
+                    } finally {
+                        this.updateProcessingState();
+                    }
+                },
+
+                /**
+                 * Modo manual (submit do form): envia todos os arquivos 'ready' e sincroniza com Livewire.
+                 */
+                async uploadAllReadyFiles() {
+                    const readyFiles = this.files.filter(f => f.status === 'ready' && f.zipBlob);
+
+                    for (const fileItem of readyFiles) {
+                        try {
+                            fileItem.status = 'getting_url';
+                            const presignedData = await this.$wire.getPreSignedUploadUrl(
+                                fileItem.zipName,
+                                'application/zip',
+                                fileItem.compressedSize
+                            );
+
+                            if (!presignedData || !presignedData.url) {
+                                throw new Error('Não foi possível gerar a URL pré-assinada.');
+                            }
+
+                            fileItem.path = presignedData.path;
+                            fileItem.disk = presignedData.disk || 's3';
+                            fileItem.status = 'uploading';
+
+                            await this.uploadToS3(fileItem, presignedData);
+                            fileItem.status = 'completed';
+                        } catch (error) {
+                            fileItem.status = 'error';
+                            fileItem.errorMessage = error.message || 'Erro no upload.';
+                            this.updateProcessingState();
+                            throw error;
+                        }
+                    }
+
+                    this.syncWithLivewire();
+                    this.updateProcessingState();
+                    return true;
+                },
+
+                uploadToS3(fileItem, presignedData) {
+                    return new Promise((resolve, reject) => {
                         const xhr = new XMLHttpRequest();
                         fileItem.xhr = xhr;
 
@@ -297,47 +385,37 @@ export function registerS3DirectUploader() {
 
                         xhr.onload = () => {
                             if (xhr.status >= 200 && xhr.status < 300) {
-                                fileItem.status = 'completed';
-                                fileItem.progress = 100;
                                 fileItem.xhr = null;
-                                this.syncWithLivewire();
+                                resolve();
                             } else {
-                                fileItem.status = 'error';
-                                fileItem.errorMessage = `Falha no envio (HTTP ${xhr.status})`;
-                                fileItem.xhr = null;
+                                reject(new Error(`Falha no envio (HTTP ${xhr.status})`));
                             }
-                            this.updateProcessingState();
                         };
 
-                        xhr.onerror = () => {
-                            fileItem.status = 'error';
-                            fileItem.errorMessage = 'Erro de rede durante o upload.';
-                            fileItem.xhr = null;
-                            this.updateProcessingState();
-                        };
-
-                        xhr.onabort = () => {
-                            fileItem.status = 'canceled';
-                            this.updateProcessingState();
-                        };
+                        xhr.onerror = () => reject(new Error('Erro de rede durante o upload.'));
+                        xhr.onabort = () => reject(new Error('Upload cancelado.'));
 
                         xhr.send(fileItem.zipBlob);
-                    } catch (error) {
-                        fileItem.status = 'error';
-                        fileItem.errorMessage = error.message || 'Erro ao compactar ou preparar upload.';
-                        this.updateProcessingState();
-                    }
+                    });
                 },
 
                 retryUpload(fileItem) {
-                    if (fileItem.file) {
-                        this.compressAndUpload(fileItem);
+                    if (fileItem.file && fileItem.status === 'error') {
+                        fileItem.status = 'compressing';
+                        this.compressFile(fileItem);
                     }
                 },
 
-                removeFile(fileItem) {
+                async removeFile(fileItem) {
                     if (fileItem.xhr) {
                         fileItem.xhr.abort();
+                    }
+
+                    if (fileItem.path && this.requestId) {
+                        this.$dispatch('remove-s3-file', {
+                            requestId: this.requestId,
+                            path: fileItem.path
+                        });
                     }
 
                     const index = this.files.findIndex(f => f.id === fileItem.id);
@@ -351,7 +429,7 @@ export function registerS3DirectUploader() {
 
                 syncWithLivewire() {
                     const completed = this.files
-                        .filter(f => f.status === 'completed' && f.path)
+                        .filter(f => (f.status === 'completed' || f.status === 'ready') && f.path)
                         .map(f => ({
                             name: f.name,
                             zip_name: f.zipName,
@@ -367,9 +445,9 @@ export function registerS3DirectUploader() {
                 },
 
                 updateProcessingState() {
-                    this.isProcessing = this.files.some(f => 
-                        f.status === 'compressing' || 
-                        f.status === 'getting_url' || 
+                    this.isProcessing = this.files.some(f =>
+                        f.status === 'compressing' ||
+                        f.status === 'getting_url' ||
                         f.status === 'uploading'
                     );
                 }

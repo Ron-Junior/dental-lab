@@ -5,6 +5,8 @@
     'description' => 'Arquivos STL, PLY, OBJ ou DICOM (.dcm) compactados em ZIP automaticamente',
     'accept' => '.stl,.ply,.obj,.dcm,.dicom',
     'multiple' => true,
+    'autoUpload' => false,
+    'requestId' => null,
 ])
 
 @php
@@ -14,9 +16,11 @@
 
 <div 
     x-data="s3DirectUploader({
-        modelName: '{{ $wireModelName }}'
+        modelName: '{{ $wireModelName }}',
+        autoUpload: {{ $autoUpload ? 'true' : 'false' }},
+        requestId: {{ $requestId ?? 'null' }}
     })"
-    {{ $attributes->whereDoesntStartWith('wire:model') }}
+    {{ $attributes->whereDoesntStartWith(['wire:model', 'auto-upload', 'request-id']) }}
     class="w-full space-y-3"
 >
     <!-- Label -->
@@ -24,12 +28,15 @@
         <label for="{{ $id }}" class="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
             {{ $label }}
         </label>
-        <span class="text-xs text-zinc-400 dark:text-zinc-500">
-            Compactação ZIP no navegador &bull; Envio direto à nuvem
+        <span class="text-xs text-zinc-400 dark:text-zinc-500" x-show="!autoUpload">
+            Compactação ZIP local &bull; Envio ao salvar
+        </span>
+        <span class="text-xs text-zinc-400 dark:text-zinc-500" x-show="autoUpload">
+            Compactação ZIP local &bull; Envio automático
         </span>
     </div>
 
-    <!-- Zona de Dropzone (Flux UI Style) -->
+    <!-- Dropzone -->
     <div 
         @dragover.prevent="isDragging = true"
         @dragleave.prevent="isDragging = false"
@@ -51,7 +58,6 @@
             class="hidden"
         >
 
-        <!-- Ícone de Upload 3D / Arquivo -->
         <div class="p-3 mb-2 rounded-full bg-white dark:bg-zinc-800 shadow-xs border border-zinc-200 dark:border-zinc-700 group-hover:scale-105 transition-transform text-indigo-600 dark:text-indigo-400">
             <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
@@ -69,14 +75,12 @@
             {{ $description }}
         </p>
 
-        <!-- Formatos Suportados -->
         <div class="flex items-center gap-1.5 mt-3">
             <span class="px-2 py-0.5 text-[11px] font-semibold tracking-wider rounded-md bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700">STL</span>
             <span class="px-2 py-0.5 text-[11px] font-semibold tracking-wider rounded-md bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700">PLY</span>
             <span class="px-2 py-0.5 text-[11px] font-semibold tracking-wider rounded-md bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700">OBJ</span>
             <span class="px-2 py-0.5 text-[11px] font-semibold tracking-wider rounded-md bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-700">DICOM</span>
             <span class="px-2 py-0.5 text-[11px] font-semibold tracking-wider rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
-                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                 Auto ZIP
             </span>
         </div>
@@ -92,7 +96,7 @@
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Processando arquivos...
+                    Compactando arquivos...
                 </span>
             </div>
 
@@ -100,7 +104,6 @@
                 <div class="relative overflow-hidden p-3 border border-zinc-200 dark:border-zinc-700/80 bg-white dark:bg-zinc-800/80 rounded-xl shadow-xs space-y-2">
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex items-center gap-3 min-w-0">
-                            <!-- Ícone do tipo de arquivo -->
                             <div 
                                 class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs"
                                 :class="{
@@ -115,7 +118,6 @@
                             <div class="min-w-0 flex-1">
                                 <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate" x-text="item.name"></p>
                                 <div class="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs text-zinc-400 dark:text-zinc-500">
-                                    <!-- Informações de Tamanho e Redução -->
                                     <template x-if="item.formattedSize">
                                         <div class="flex items-center gap-1.5">
                                             <span class="font-medium text-zinc-700 dark:text-zinc-300" x-text="item.formattedSize"></span>
@@ -138,7 +140,13 @@
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            Compactando em ZIP...
+                                            Compactando...
+                                        </span>
+                                    </template>
+
+                                    <template x-if="item.status === 'ready'">
+                                        <span class="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400">
+                                            Aguardando envio...
                                         </span>
                                     </template>
 
@@ -148,12 +156,16 @@
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                             </svg>
-                                            Obtendo assinatura...
+                                            Preparando...
                                         </span>
                                     </template>
 
                                     <template x-if="item.status === 'uploading'">
                                         <span class="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                                            <svg class="w-3 h-3 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
                                             Enviando <span x-text="item.progress + '%'"></span>
                                         </span>
                                     </template>
@@ -174,7 +186,6 @@
                             </div>
                         </div>
 
-                        <!-- Botão Remover / Retentar -->
                         <div class="flex items-center gap-1 shrink-0">
                             <template x-if="item.status === 'error' && item.file">
                                 <button 
@@ -202,7 +213,6 @@
                         </div>
                     </div>
 
-                    <!-- Barra de Progresso quando estiver enviando -->
                     <template x-if="item.status === 'uploading'">
                         <div class="w-full bg-zinc-100 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
                             <div 
