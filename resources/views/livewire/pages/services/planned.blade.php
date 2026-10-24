@@ -189,6 +189,13 @@ new class extends Component
                                                     Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}
                                                 </flux:menu.item>
                                                 <flux:menu.item
+                                                    icon="eye"
+                                                    icon:variant="outline"
+                                                    wire:click="dispatch('service-request::files::open', '{{ $requestService->id }}')"
+                                                >
+                                                    Ver Arquivos
+                                                </flux:menu.item>
+                                                <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
                                                     icon="no-symbol"
                                                     variant="danger"
@@ -296,6 +303,7 @@ new class extends Component
     </div>
 
     <livewire:service.update />
+    <livewire:service.request-files />
     <livewire:service.requesting />
     <livewire:service.progress />
 </div>
