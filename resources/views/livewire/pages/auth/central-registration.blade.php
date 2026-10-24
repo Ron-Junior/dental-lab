@@ -88,19 +88,10 @@ new #[Layout('layouts.guest')] class extends Component
         $centralConnection = config('tenancy.database.central_connection');
 
         $tenant = DB::connection($centralConnection)->transaction(function () use ($data): Tenant {
-            if (! Hash::check($data['password'], $owner->password)) {
-                throw ValidationException::withMessages([
-                    'email' => 'Já existe uma conta com este e-mail. Informe a senha dessa conta.',
-                ]);
-            }
-
             $tenant = Tenant::query()->create([
                 'id' => $data['slug'],
                 'name' => $data['laboratory_name'],
                 'status' => TenantStatus::Provisioning,
-                'owner_name' => $data['admin_name'],
-                'owner_email' => $data['email'],
-                'owner_password' => $data['password'],
             ]);
 
             $tenant->domains()->create([

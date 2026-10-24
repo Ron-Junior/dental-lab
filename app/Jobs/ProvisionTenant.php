@@ -61,7 +61,7 @@ class ProvisionTenant implements ShouldQueue
         ]);
 
         $tenant->run(function (): void {
-            $ownerRule = Rule::query()
+            $labRule = Rule::query()
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
 
@@ -71,7 +71,7 @@ class ProvisionTenant implements ShouldQueue
                     'name' => $this->userData['name'],
                     'email' => $this->userData['email'],
                     'password' => $this->userData['password'],
-                    'rule_id' => $ownerRule->id,
+                    'rule_id' => $labRule->id,
                 ],
             );
         });

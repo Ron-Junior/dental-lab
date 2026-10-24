@@ -189,7 +189,7 @@ new class extends Component
                                                     Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}
                                                 </flux:menu.item>
                                                 <flux:menu.item
-                                                    icon="eye"
+                                                    icon="document-text"
                                                     icon:variant="outline"
                                                     wire:click="dispatch('service-request::files::open', '{{ $requestService->id }}')"
                                                 >
@@ -263,6 +263,15 @@ new class extends Component
                                             variant="ghost"
                                             wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
                                         >Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}</flux:button>
+                                        
+                                        <flux:button
+                                            size="xs"
+                                            icon="document-text"
+                                            icon:variant="outline"
+                                            variant="ghost"
+                                            wire:click="dispatch('service-request::files::open', '{{ $requestService->id }}')"
+                                        >Ver Arquivos</flux:button>
+
                                         <flux:button
                                             :disabled="$requestService->completed_at"
                                             size="xs"

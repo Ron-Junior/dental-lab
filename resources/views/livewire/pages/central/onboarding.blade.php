@@ -21,10 +21,6 @@ new #[Layout('layouts.guest')] class extends Component
     public function refreshStatus(): void
     {
         $this->tenant->refresh();
-
-        if ($this->tenant->status === TenantStatus::Active) {
-            $this->redirectRoute('login', ['tenant' => $this->tenant->id], navigate: true);
-        }
     }
 }; ?>
 
