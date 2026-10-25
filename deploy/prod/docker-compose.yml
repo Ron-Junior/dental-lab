@@ -31,18 +31,17 @@ services:
       - prod-network
 
   queue_worker:
-    image: node:22-alpine
+    image: ${IMAGE}
     container_name: laravel_queue_worker
     restart: unless-stopped
-    working_dir: /var/www
-    volumes:
-      - .:/var/www
-    entrypoint: >
-      sh -c "apk add --no-cache php83 php83-cli php83-phar php83-openssl php83-mbstring php83-tokenizer php83-xml php83-simplexml php83-iconv php83-xmlwriter php83-session php83-pdo php83-pdo_pgsql php83-pgsql php83-curl php83-fileinfo php83-pecl-redis && 
-             ln -sf /usr/bin/php83 /usr/bin/php && 
-             php artisan queue:work redis --sleep=3 --tries=3 --max-jobs=100 --memory=128"
+    env_file:
+      - ../../.env
+    environment:
+      - APP_ENV=production
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-jobs=100 --memory=128
     depends_on:
       - redis
+      - app
     networks:
       - prod-network
 
