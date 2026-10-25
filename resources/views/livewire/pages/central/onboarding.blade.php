@@ -42,6 +42,7 @@ new #[Layout('layouts.guest')] class extends Component
                 Não foi possível concluir a configuração. Entre em contato com o suporte para continuar.
             @else
                 Configurando banco de dados, produtos iniciais e acesso do administrador...
+                <flux:icon.loading class="mt-4 justify-self-center"/>
             @endif
         </p>
     </section>
