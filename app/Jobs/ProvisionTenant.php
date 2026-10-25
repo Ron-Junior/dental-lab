@@ -15,6 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Stancl\Tenancy\Jobs\CreateDatabase;
 use Throwable;
@@ -39,6 +40,11 @@ class ProvisionTenant implements ShouldQueue
 
     public function handle(): void
     {
+        Log::info('Provisionando tenant', [
+            'tenantId' => $this->tenantId,
+            'userData' => $this->userData,
+        ]);
+
         $tenant = Tenant::query()->findOrFail($this->tenantId);
 
         if ($tenant->status === TenantStatus::Active) {
@@ -50,16 +56,22 @@ class ProvisionTenant implements ShouldQueue
             CreateDatabase::dispatchSync($tenant);
         }
 
-        $this->runTenantCommand('tenants:migrate', [
-            '--tenants' => [$tenant->id],
+        Log::info('Provisionando tenant - migrate', [
+            'databaseName' => $databaseName,
         ]);
-        $this->runTenantCommand('tenants:seed', [
-            '--tenants' => [$tenant->id],
-            '--class' => TenantProvisioningSeeder::class,
-            '--force' => true,
-        ]);
+        
+        $tenant->run(function () use ($tenant): void {
+            $this->runTenantCommand('tenants:migrate', [
+                '--tenants' => [$tenant->id],
+            ]);
+            $this->runTenantCommand('tenants:seed', [
+                '--tenants' => [$tenant->id],
+                '--class' => TenantProvisioningSeeder::class,
+                '--force' => true,
+            ]);
 
-        $tenant->run(function (): void {
+            Log::info('Provisionando tenant - user');
+            
             $labRule = Rule::query()
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
