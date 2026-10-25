@@ -37,7 +37,7 @@ class ProvisionTenant implements ShouldQueue
      */
     public function __construct(public string $tenantId, public array $userData) {}
 
-    public function handle(): void
+   public function handle(): void
     {
         $tenant = Tenant::query()->findOrFail($this->tenantId);
 
@@ -46,21 +46,31 @@ class ProvisionTenant implements ShouldQueue
         }
 
         $databaseName = $tenant->database()->getName();
-
         if (! $tenant->database()->manager()->databaseExists($databaseName)) {
             CreateDatabase::dispatchSync($tenant);
         }
 
-        $this->runTenantCommand('tenants:migrate', [
-            '--tenants' => [$tenant->id],
-        ]);
-        $this->runTenantCommand('tenants:seed', [
-            '--tenants' => [$tenant->id],
-            '--class' => TenantProvisioningSeeder::class,
-            '--force' => true,
-        ]);
+        $tenant->run(function () {
+            $exitCode = Artisan::call('migrate', [
+                '--path' => 'database/migrations/tenant',
+                '--force' => true,
+            ]);
 
-        $tenant->run(function (): void {
+            if ($exitCode !== 0) {
+                throw new \RuntimeException(trim(Artisan::output()) ?: "Tenant migration failed.");
+            }
+
+            // 2. Roda o seeder dentro do schema do tenant
+            $exitCodeSeeder = Artisan::call('db:seed', [
+                '--class' => TenantProvisioningSeeder::class,
+                '--force' => true,
+            ]);
+
+            if ($exitCodeSeeder !== 0) {
+                throw new \RuntimeException(trim(Artisan::output()) ?: "Tenant seeding failed.");
+            }
+
+            // 3. Cria o usuário administrador (que já estava no seu código original)
             $labRule = Rule::query()
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
