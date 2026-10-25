@@ -4,6 +4,7 @@ use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenant;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Stancl\Tenancy\Jobs\CreateDatabase;
 
 new #[Layout('layouts.guest')] class extends Component
 {
@@ -101,7 +103,10 @@ new #[Layout('layouts.guest')] class extends Component
             return $tenant;
         });
 
-        ProvisionTenant::dispatch($tenant->id, $userData)->afterCommit();
+        Bus::chain([
+            new CreateDatabase($tenant),
+            new ProvisionTenant($tenant->id, $userData),
+        ])->dispatch();
 
         $this->redirectRoute('onboarding.show', ['tenant' => $tenant->id], navigate: true);
     }
