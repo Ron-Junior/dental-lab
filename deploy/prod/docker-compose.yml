@@ -49,6 +49,7 @@ services:
 networks:
   prod-network:
     driver: bridge
+    enable_ipv6: true
 
 volumes:
   redis_data_prod:
