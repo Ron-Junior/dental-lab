@@ -60,7 +60,6 @@ class ProvisionTenant implements ShouldQueue
                 throw new \RuntimeException(trim(Artisan::output()) ?: "Tenant migration failed.");
             }
 
-            // 2. Roda o seeder dentro do schema do tenant
             $exitCodeSeeder = Artisan::call('db:seed', [
                 '--class' => TenantProvisioningSeeder::class,
                 '--force' => true,
@@ -70,7 +69,6 @@ class ProvisionTenant implements ShouldQueue
                 throw new \RuntimeException(trim(Artisan::output()) ?: "Tenant seeding failed.");
             }
 
-            // 3. Cria o usuário administrador (que já estava no seu código original)
             $labRule = Rule::query()
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
