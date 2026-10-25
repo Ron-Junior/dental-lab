@@ -59,16 +59,17 @@ class ProvisionTenant implements ShouldQueue
         Log::info('Provisionando tenant - migrate', [
             'databaseName' => $databaseName,
         ]);
-        
-        $tenant->run(function () use ($tenant): void {
-            $this->runTenantCommand('tenants:migrate', [
-                '--tenants' => [$tenant->id],
-            ]);
-            $this->runTenantCommand('tenants:seed', [
-                '--tenants' => [$tenant->id],
-                '--class' => TenantProvisioningSeeder::class,
-                '--force' => true,
-            ]);
+
+        $this->runTenantCommand('tenants:migrate', [
+            '--tenants' => [$tenant->id],
+        ]);
+        $this->runTenantCommand('tenants:seed', [
+            '--tenants' => [$tenant->id],
+            '--class' => TenantProvisioningSeeder::class,
+            '--force' => true,
+        ]);
+
+        $tenant->run(function (): void {
 
             Log::info('Provisionando tenant - user');
             
