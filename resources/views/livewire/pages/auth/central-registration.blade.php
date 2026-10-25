@@ -147,7 +147,6 @@ new #[Layout('layouts.guest')] class extends Component
                 name="laboratory_name"
                 required
             />
-            <flux:error name="laboratory_name" />
 
             <flux:input
                 label="Nome do administrador"
@@ -155,7 +154,6 @@ new #[Layout('layouts.guest')] class extends Component
                 name="admin_name"
                 required
             />
-            <flux:error name="admin_name" />
 
             <flux:input
                 label="E-mail"
@@ -165,7 +163,6 @@ new #[Layout('layouts.guest')] class extends Component
                 autocomplete="email"
                 required
             />
-            <flux:error name="email" />
 
             <flux:field>
                 <flux:label for="slug">Endereço do laboratório</flux:label>
@@ -192,7 +189,6 @@ new #[Layout('layouts.guest')] class extends Component
                 autocomplete="new-password"
                 required
             />
-            <flux:error name="password" />
 
             <flux:input
                 label="Confirme a senha"
