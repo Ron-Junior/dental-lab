@@ -538,8 +538,13 @@ new class extends Component
                 <flux:table.rows>
                     @if ($this->orders->isEmpty())
                         <flux:table.row>
-                            <flux:table.cell colspan="8" class="text-center text-zinc-500">
-                                Nenhum pedido encontrado para os filtros selecionados.
+                            <flux:table.cell colspan="8">
+                                <x-empty-state
+                                    inset
+                                    icon="document-chart-bar"
+                                    title="Nenhum pedido encontrado"
+                                    description="Nenhum pedido encontrado para os filtros selecionados."
+                                />
                             </flux:table.cell>
                         </flux:table.row>
                     @else
@@ -621,8 +626,13 @@ new class extends Component
                 <flux:table.rows>
                     @if ($this->activeRevenueRows()->isEmpty())
                         <flux:table.row>
-                            <flux:table.cell colspan="4" class="text-center text-zinc-500">
-                                Nenhum faturamento encontrado para os filtros selecionados.
+                            <flux:table.cell colspan="4">
+                                <x-empty-state
+                                    inset
+                                    icon="banknotes"
+                                    title="Nenhum faturamento encontrado"
+                                    description="Nenhum faturamento encontrado para os filtros selecionados."
+                                />
                             </flux:table.cell>
                         </flux:table.row>
                     @else
@@ -686,8 +696,13 @@ new class extends Component
                 <flux:table.rows>
                     @if ($this->partnerCommissionsByPartner->isEmpty())
                         <flux:table.row>
-                            <flux:table.cell colspan="3" class="text-center text-zinc-500">
-                                Nenhuma comissão de parceiro encontrada para os filtros selecionados.
+                            <flux:table.cell colspan="3">
+                                <x-empty-state
+                                    inset
+                                    icon="user-group"
+                                    title="Nenhuma comissão de parceiro encontrada"
+                                    description="Nenhuma comissão de parceiro encontrada para os filtros selecionados."
+                                />
                             </flux:table.cell>
                         </flux:table.row>
                     @else
@@ -719,8 +734,13 @@ new class extends Component
                 <flux:table.rows>
                     @if ($this->partnerCommissionDetails->isEmpty())
                         <flux:table.row>
-                            <flux:table.cell colspan="6" class="text-center text-zinc-500">
-                                Nenhuma demanda concluída encontrada para os filtros selecionados.
+                            <flux:table.cell colspan="6">
+                                <x-empty-state
+                                    inset
+                                    icon="clipboard-document-check"
+                                    title="Nenhuma demanda concluída encontrada"
+                                    description="Nenhuma demanda concluída encontrada para os filtros selecionados."
+                                />
                             </flux:table.cell>
                         </flux:table.row>
                     @else

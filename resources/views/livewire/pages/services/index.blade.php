@@ -96,11 +96,11 @@ new  class extends Component
                 </div>
             </div>
         @empty
-            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
-                <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="inbox" />
-                <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhum serviço cadastrado</p>
-                <p class="text-xs text-zinc-400">Cadastre os serviços oferecidos pelo laboratório de próteses.</p>
-            </div>
+            <x-empty-state
+                icon="inbox"
+                title="Nenhum serviço cadastrado"
+                description="Cadastre os serviços oferecidos pelo laboratório de próteses."
+            />
         @endforelse
 
         @if ($this->services->hasPages())

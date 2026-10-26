@@ -96,11 +96,11 @@ new  class extends Component
                 </div>
             </div>
         @empty
-            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
-                <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="user-group" />
-                <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhum parceiro encontrado</p>
-                <p class="text-xs text-zinc-400">Cadastre parceiros para vincular a execução de etapas.</p>
-            </div>
+            <x-empty-state
+                icon="user-group"
+                title="Nenhum parceiro encontrado"
+                description="Cadastre parceiros para vincular a execução de etapas."
+            />
         @endforelse
 
         @if ($this->partners->hasPages())

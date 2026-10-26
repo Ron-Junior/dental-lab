@@ -230,9 +230,11 @@ new class extends Component
                         @endif
                     </flux:card>
                 @empty
-                    <div class="text-center py-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg">
-                        <flux:text class="text-zinc-500 text-sm">Nenhuma etapa registrada para este serviço.</flux:text>
-                    </div>
+                    <x-empty-state
+                        icon="queue-list"
+                        title="Nenhuma etapa registrada"
+                        description="Nenhuma etapa registrada para este serviço."
+                    />
                 @endforelse
             </div>
 

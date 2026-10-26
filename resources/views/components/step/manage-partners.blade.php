@@ -137,7 +137,11 @@ new class extends Component
                         <flux:button class="w-full" wire:click="removePartner({{ $index }})">Remover</flux:button>
                     </flux:card>
                 @empty
-                    <flux:card class="text-center">Nenhum parceiro selecionado</flux:card>
+                    <x-empty-state
+                        icon="user-group"
+                        title="Nenhum parceiro selecionado"
+                        description="Adicione parceiros para vincular a esta etapa."
+                    />
                 @endforelse
                 <flux:button class="w-full mt-4" wire:click="addPartner">Adicionar Parceiro</flux:button>
             </div>

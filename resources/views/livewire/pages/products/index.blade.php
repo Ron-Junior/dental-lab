@@ -182,11 +182,11 @@ new class extends Component
                 </div>
             </div>
         @empty
-            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
-                <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="rectangle-stack" />
-                <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhum produto encontrado</p>
-                <p class="text-xs text-zinc-400">Verifique os filtros ou cadastre um novo produto.</p>
-            </div>
+            <x-empty-state
+                icon="rectangle-stack"
+                title="Nenhum produto encontrado"
+                description="Verifique os filtros ou cadastre um novo produto."
+            />
         @endforelse
 
         @if ($this->products->hasPages())

@@ -297,10 +297,11 @@ new class extends Component
                     </div>
                 </flux:card>
             @empty
-                <flux:card class="text-center py-12">
-                    <flux:heading size="lg">Nenhuma solicitação encontrada</flux:heading>
-                    <flux:text class="mt-2 text-zinc-500">Não há solicitações de serviços registradas no momento.</flux:text>
-                </flux:card>
+                <x-empty-state
+                    icon="clipboard-document-list"
+                    title="Nenhuma solicitação encontrada"
+                    description="Não há solicitações de serviços registradas no momento."
+                />
             @endforelse
         </div>
 

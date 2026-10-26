@@ -112,9 +112,11 @@ new class extends Component {
                                 </div>
                             </div>
                         @empty
-                            <div class="p-8 text-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
-                                <p class="text-sm text-zinc-500 dark:text-zinc-400">Nenhum arquivo anexado a esta solicitação.</p>
-                            </div>
+                            <x-empty-state
+                                icon="paper-clip"
+                                title="Nenhum arquivo anexado"
+                                description="Nenhum arquivo anexado a esta solicitação."
+                            />
                         @endforelse
                     </div>
                 </div>

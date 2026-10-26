@@ -391,12 +391,13 @@ new class extends Component
                         </flux:table.row>
                     @empty
                         <flux:table.row>
-                            <flux:table.cell colspan="9" class="py-12 text-center text-zinc-500 dark:text-zinc-400">
-                                <div class="flex flex-col items-center justify-center space-y-2">
-                                    <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600" name="arrows-up-down" />
-                                    <p class="font-medium text-base">Nenhuma movimentação de estoque encontrada</p>
-                                    <p class="text-xs text-zinc-400">Registre novas entradas, saídas ou ajustes para começar a rastrear o estoque.</p>
-                                </div>
+                            <flux:table.cell colspan="9">
+                                <x-empty-state
+                                    inset
+                                    icon="arrows-up-down"
+                                    title="Nenhuma movimentação de estoque encontrada"
+                                    description="Registre novas entradas, saídas ou ajustes para começar a rastrear o estoque."
+                                />
                             </flux:table.cell>
                         </flux:table.row>
                     @endforelse
@@ -469,11 +470,11 @@ new class extends Component
                     </div>
                 </div>
             @empty
-                <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
-                    <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="arrows-up-down" />
-                    <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhuma movimentação encontrada</p>
-                    <p class="text-xs text-zinc-400">Registre novas entradas, saídas ou ajustes no estoque.</p>
-                </div>
+                <x-empty-state
+                    icon="arrows-up-down"
+                    title="Nenhuma movimentação encontrada"
+                    description="Registre novas entradas, saídas ou ajustes no estoque."
+                />
             @endforelse
 
             @if ($this->stockMovements->hasPages())
@@ -577,12 +578,13 @@ new class extends Component
                             </flux:table.row>
                         @empty
                             <flux:table.row>
-                                <flux:table.cell colspan="7" class="py-12 text-center text-zinc-500 dark:text-zinc-400">
-                                    <div class="flex flex-col items-center justify-center space-y-2">
-                                        <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600" name="archive-box" />
-                                        <p class="font-medium text-base">Nenhum lote cadastrado</p>
-                                        <p class="text-xs text-zinc-400">Lotes são gerados automaticamente nas movimentações de entrada para produtos com controle de lote.</p>
-                                    </div>
+                                <flux:table.cell colspan="7">
+                                    <x-empty-state
+                                        inset
+                                        icon="archive-box"
+                                        title="Nenhum lote cadastrado"
+                                        description="Lotes são gerados automaticamente nas movimentações de entrada para produtos com controle de lote."
+                                    />
                                 </flux:table.cell>
                             </flux:table.row>
                         @endforelse
@@ -652,11 +654,11 @@ new class extends Component
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center space-y-2">
-                        <flux:icon class="size-8 text-zinc-300 dark:text-zinc-600 mx-auto" name="archive-box" />
-                        <p class="font-medium text-zinc-700 dark:text-zinc-300">Nenhum lote cadastrado</p>
-                        <p class="text-xs text-zinc-400">Lotes são criados automaticamente nas entradas com rastreamento.</p>
-                    </div>
+                    <x-empty-state
+                        icon="archive-box"
+                        title="Nenhum lote cadastrado"
+                        description="Lotes são criados automaticamente nas entradas com rastreamento."
+                    />
                 @endforelse
 
                 @if ($this->stockBatches->hasPages())

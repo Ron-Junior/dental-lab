@@ -213,25 +213,23 @@ new #[Layout('layouts.central')] class extends Component
                     @endforeach
                 </div>
             @elseif ($search !== '')
-                <flux:card class="flex flex-col items-center gap-3 py-12 text-center">
-                    <flux:icon name="magnifying-glass" class="size-9 text-zinc-400" />
-                    <flux:heading size="base">Nenhum laboratório encontrado</flux:heading>
-                    <flux:text>Tente buscar por outro nome ou endereço.</flux:text>
+                <x-empty-state
+                    icon="magnifying-glass"
+                    title="Nenhum laboratório encontrado"
+                    description="Tente buscar por outro nome ou endereço."
+                >
                     <flux:button wire:click="$set('search', '')" variant="ghost">Limpar busca</flux:button>
-                </flux:card>
+                </x-empty-state>
             @else
-                <flux:card class="flex flex-col items-center gap-4 py-12 text-center">
-                    <span class="flex size-14 items-center justify-center rounded-full bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
-                        <flux:icon name="building-office-2" class="size-7" />
-                    </span>
-                    <div class="flex flex-col gap-1">
-                        <flux:heading size="base">Sua conta ainda não tem laboratórios</flux:heading>
-                        <flux:text>Cadastre seu primeiro laboratório para começar.</flux:text>
-                    </div>
+                <x-empty-state
+                    icon="building-office-2"
+                    title="Sua conta ainda não tem laboratórios"
+                    description="Cadastre seu primeiro laboratório para começar."
+                >
                     <flux:button href="{{ route('onboarding.create') }}" variant="primary" icon="plus">
                         Cadastrar laboratório
                     </flux:button>
-                </flux:card>
+                </x-empty-state>
             @endif
         </section>
     </main>
