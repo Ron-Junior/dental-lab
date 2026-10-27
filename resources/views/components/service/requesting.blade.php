@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\PlanResource;
 use App\Enums\Rules;
+use App\Livewire\Concerns\EnforcesPlanLimits;
 use App\Models\Dentist;
 use App\Models\DentistRequest;
 use App\Models\File;
@@ -21,6 +23,8 @@ use Livewire\Component;
 
 new class extends Component
 {
+    use EnforcesPlanLimits;
+
     #[Validate(['required', 'exists:dentists,id'])]
     public ?int $dentistId = null;
 
@@ -132,6 +136,12 @@ new class extends Component
     {
         $this->authorize('create', DentistRequest::class);
 
+        if (! $this->guardPlanLimit(PlanResource::Storage, 0)) {
+            throw ValidationException::withMessages([
+                'uploadedFiles' => 'Não foi possível enviar arquivos no momento. Entre em contato com o laboratório.',
+            ]);
+        }
+
         $cleanName = strtolower($filename);
         $isZip = str_ends_with($cleanName, '.zip');
 
@@ -181,6 +191,10 @@ new class extends Component
     {
         $this->authorize('create', DentistRequest::class);
 
+        if (! $this->guardPlanLimit(PlanResource::Storage, 0)) {
+            return;
+        }
+
         $dentistRequest = DentistRequest::findOrFail($requestId);
 
         foreach ($files as $fileData) {
@@ -218,6 +232,10 @@ new class extends Component
         }
 
         $this->validate();
+
+        if (! $this->guardPlanLimit(PlanResource::MonthlyItems, count($this->services))) {
+            return;
+        }
 
         DB::transaction(function () {
             $dentistRequest = DentistRequest::create([

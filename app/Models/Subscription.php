@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Stancl\Tenancy\Database\Concerns\CentralConnection;
 
 #[Fillable([
     'tenant_id',
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class Subscription extends Model
 {
+    use CentralConnection;
     use HasUuids;
 
     protected function casts(): array

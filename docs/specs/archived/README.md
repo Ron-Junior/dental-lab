@@ -9,6 +9,7 @@ Este diretório contém especificações de funcionalidades que já foram totalm
 - [2026-09-multitenant-architecture.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-09-multitenant-architecture.md): Base arquitetural multi-tenant com PostgreSQL schemas via `stancl/tenancy`, ambientes e isolamento de rotas.
 - [2026-10-lab-manager-step1.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-lab-manager-step1.md): Estrutura de planos, assinaturas, pagamentos e persistência monetária em centavos inteiros no banco central.
 - [2026-10-lab-manager-step2.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-lab-manager-step2.md): Fluxo de webhook de pagamento idempotente e provisionamento assíncrono de tenant (`ProvisionTenant`).
+- [2026-10-plan-limits.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-plan-limits.md): Verificação de limites de consumo, alertas em níveis (warning, critical, exceeded) e bloqueio de criação.
 
 ---
 

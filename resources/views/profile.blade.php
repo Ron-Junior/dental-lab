@@ -7,6 +7,8 @@
             <flux:text>Gerencie suas informações pessoais, senha e conta.</flux:text>
         </header>
 
+        <livewire:profile.plan-usage />
+
         <div class="grid gap-6 lg:grid-cols-2">
             <flux:card class="space-y-6">
                 <livewire:profile.update-profile-information-form />

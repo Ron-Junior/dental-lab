@@ -1,7 +1,9 @@
 <?php
 
 use App\Actions\SendInvitation;
+use App\Enums\PlanResource;
 use App\Enums\Rules;
+use App\Livewire\Concerns\EnforcesPlanLimits;
 use App\Models\Partner;
 use App\Models\Rule;
 use App\Models\User;
@@ -13,6 +15,8 @@ use Livewire\Component;
 
 new class extends Component
 {
+    use EnforcesPlanLimits;
+
     public ?Partner $partner = null;
 
     #[Validate('required|string|min:3|max:255')]
@@ -38,6 +42,10 @@ new class extends Component
     public function save(): void
     {
         $this->validate();
+
+        if (! $this->partner && ! $this->guardPlanLimit(PlanResource::Users)) {
+            return;
+        }
 
         DB::transaction(function () {
             $rule = Rule::where('name', Rules::LabPartner->value)->first();

@@ -52,7 +52,13 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 
 ---
 
-## 5. Regras
+## 5. Limites do Plano
+
+`Plan.limits` (JSON) define `users_limit`, `storage_gb_limit` e `monthly_exams_limit` (itens `RequestService` no mês). Chave ausente = ilimitado. Níveis: `normal` (<80%), `warning` (≥80%), `critical` (≥95%), `exceeded` (≥100%). Em `exceeded` apenas a criação é bloqueada (HTTP 403 / toast). Detalhes em [spec](../specs/active/2026-10-plan-limits.md).
+
+---
+
+## 6. Regras
 
 - Valores sempre em centavos inteiros (ver [Convenções de Dados](../architecture/data-conventions.md)).
 - Mudanças de status via webhook são idempotentes (ver spec arquivada `2026-10-lab-manager-step2`).
