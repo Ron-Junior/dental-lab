@@ -5,6 +5,7 @@ use App\Models\DentistRequest;
 use App\Models\ServiceServiceStep;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
+use Stancl\Tenancy\Database\Models\ImpersonationToken;
 use Stancl\Tenancy\Features\UserImpersonation;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -18,9 +19,23 @@ Route::domain('{tenant}.'.config('tenancy.central_domain'))
     ->group(function () {
         Route::get('/', fn () => redirect()->route('dashboard'));
 
-        Route::get('/impersonate/{token}', function (string $token) {
-            return UserImpersonation::makeResponse($token);
+        Route::get('/impersonate/{token}', function (string $tenant, string $token) {
+            $tokenModel = ImpersonationToken::findOrFail($token);
+            session()->put('impersonated_by_central', true);
+
+            return UserImpersonation::makeResponse($tokenModel);
         })->name('tenant.impersonate');
+
+        Route::get('/impersonate/leave', function () {
+            session()->forget('impersonated_by_central');
+            auth()->guard('web')->logout();
+
+            $scheme = request()->getScheme();
+            $centralDomain = config('tenancy.central_domain');
+            $returnUrl = "{$scheme}://{$centralDomain}/laboratorios";
+
+            return redirect()->away($returnUrl);
+        })->name('tenant.impersonate.leave');
 
         require __DIR__.'/auth.php';
 

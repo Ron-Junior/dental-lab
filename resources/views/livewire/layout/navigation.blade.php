@@ -25,6 +25,21 @@ new class extends Component
 }; ?>
 
 <div class="w-full">
+    @if (session('impersonated_by_central'))
+        <div class="bg-amber-500 text-amber-950 px-4 py-2 text-sm font-medium flex items-center justify-between shadow-sm sticky top-0 z-50">
+            <div class="flex items-center gap-2">
+                <flux:icon icon="shield-exclamation" class="size-5 shrink-0 text-amber-950" />
+                <span>Modo de Suporte: Você está navegando como administrador central.</span>
+            </div>
+            <a
+                href="{{ route('tenant.impersonate.leave') }}"
+                class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-950 hover:bg-black text-amber-50 rounded-md text-xs font-semibold tracking-wide transition shadow-sm"
+            >
+                <flux:icon icon="arrow-right-start-on-rectangle" class="size-3.5" />
+                Sair da impersonação
+            </a>
+        </div>
+    @endif
     <flux:sidebar sticky collapsible class="bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700">
         <flux:sidebar.header>
                 <flux:sidebar.brand href="#" name="PROTHO">
@@ -133,6 +148,9 @@ new class extends Component
         <flux:dropdown position="top" align="start" class="max-lg:hidden">
             <flux:sidebar.profile :avatar="auth()->user()->profile_photo_url" :name="auth()->user()?->name" />
             <flux:menu>
+                @if (session('impersonated_by_central'))
+                    <flux:menu.item icon="arrow-right-start-on-rectangle" href="{{ route('tenant.impersonate.leave') }}">Sair da impersonação</flux:menu.item>
+                @endif
                 <flux:menu.item icon:variant="outline" icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
             </flux:menu>
@@ -144,6 +162,9 @@ new class extends Component
         <flux:dropdown position="top" align="start">
             <flux:profile :avatar="auth()->user()->profile_photo_url" />
             <flux:menu>
+                @if (session('impersonated_by_central'))
+                    <flux:menu.item icon="arrow-right-start-on-rectangle" href="{{ route('tenant.impersonate.leave') }}">Sair da impersonação</flux:menu.item>
+                @endif
                 <flux:menu.item icon="user-circle" wire:navigate href="{{ route('profile') }}">Perfil</flux:menu.item>
                 <flux:menu.item icon="arrow-right-start-on-rectangle" wire:click="logout">Logout</flux:menu.item>
             </flux:menu>
