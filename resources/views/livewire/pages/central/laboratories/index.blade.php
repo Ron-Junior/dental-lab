@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Services\ApplyDiscountService;
 use App\Services\ExemptionService;
 use App\Services\ImpersonateTenantService;
+use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -34,20 +35,23 @@ new #[Layout('layouts.central')] class extends Component
 
     // Discount modal state
     public bool $showDiscountModal = false;
+
     public string $selectedTenantId = '';
+
     public string $discountType = 'fixed_amount';
+
     public string $discountValue = '';
+
     public ?string $discountExpiresAt = null;
 
     // Exemption modal state
     public bool $showExemptionModal = false;
-    public string $exemptionStartsAt = '';
-    public string $exemptionEndsAt = '';
-    public string $exemptionReason = '';
 
-    // Feedback messages
-    public ?string $feedbackMessage = null;
-    public ?string $errorMessage = null;
+    public string $exemptionStartsAt = '';
+
+    public string $exemptionEndsAt = '';
+
+    public string $exemptionReason = '';
 
     public function logout(): void
     {
@@ -184,7 +188,8 @@ new #[Layout('layouts.central')] class extends Component
 
         $rateKey = 'impersonate-central:'.$user->id;
         if (RateLimiter::tooManyAttempts($rateKey, 10)) {
-            $this->errorMessage = 'Muitas tentativas de impersonação. Aguarde um minuto.';
+            Flux::toast(text: 'Muitas tentativas de impersonação. Aguarde um minuto.', variant: 'danger');
+
             return null;
         }
         RateLimiter::hit($rateKey, 60);
@@ -199,7 +204,8 @@ new #[Layout('layouts.central')] class extends Component
 
             return redirect()->away($result['redirect_url']);
         } catch (\Throwable $e) {
-            $this->errorMessage = $e->getMessage();
+            Flux::toast(text: $e->getMessage(), variant: 'danger');
+
             return null;
         }
     }
@@ -209,12 +215,14 @@ new #[Layout('layouts.central')] class extends Component
         $this->resetDiscountForm();
         $this->selectedTenantId = $tenantId;
         $this->showDiscountModal = true;
+        Flux::modal('discount-modal')->show();
     }
 
     public function closeDiscountModal(): void
     {
         $this->showDiscountModal = false;
         $this->resetDiscountForm();
+        Flux::modal('discount-modal')->close();
     }
 
     public function saveDiscount(ApplyDiscountService $service): void
@@ -237,6 +245,7 @@ new #[Layout('layouts.central')] class extends Component
             $parsedExpiry = Carbon::parse($this->discountExpiresAt)->endOfMonth();
             if ($parsedExpiry->isPast()) {
                 $this->addError('discountExpiresAt', 'O mês de expiração deve ser no presente ou futuro.');
+
                 return;
             }
         }
@@ -247,6 +256,7 @@ new #[Layout('layouts.central')] class extends Component
             $pct = (int) $this->discountValue;
             if ($pct > 100) {
                 $this->addError('discountValue', 'O percentual não pode ser maior que 100%.');
+
                 return;
             }
             $valueInCents = $pct;
@@ -264,10 +274,13 @@ new #[Layout('layouts.central')] class extends Component
 
             $service->apply($discount);
 
-            $this->feedbackMessage = "Desconto aplicado com sucesso ao próximo pagamento de [{$tenant->name}].";
+            Flux::toast(
+                text: "Desconto aplicado com sucesso ao próximo pagamento de [{$tenant->name}].",
+                variant: 'success',
+            );
             $this->closeDiscountModal();
         } catch (\Throwable $e) {
-            $this->errorMessage = $e->getMessage();
+            Flux::toast(text: $e->getMessage(), variant: 'danger');
         }
     }
 
@@ -278,12 +291,14 @@ new #[Layout('layouts.central')] class extends Component
         $this->exemptionStartsAt = Carbon::now()->format('Y-m');
         $this->exemptionEndsAt = Carbon::now()->addMonth()->format('Y-m');
         $this->showExemptionModal = true;
+        Flux::modal('exemption-modal')->show();
     }
 
     public function closeExemptionModal(): void
     {
         $this->showExemptionModal = false;
         $this->resetExemptionForm();
+        Flux::modal('exemption-modal')->close();
     }
 
     public function saveExemption(ExemptionService $service): void
@@ -314,10 +329,14 @@ new #[Layout('layouts.central')] class extends Component
                 request()->userAgent()
             );
 
-            $this->feedbackMessage = "Isenção concedida com sucesso para [{$tenant->name}].";
             $this->closeExemptionModal();
+
+            Flux::toast(
+                text: "Isenção concedida com sucesso para [{$tenant->name}].",
+                variant: 'success',
+            );
         } catch (\Throwable $e) {
-            $this->errorMessage = $e->getMessage();
+            Flux::toast(text: $e->getMessage(), variant: 'danger');
         }
     }
 
@@ -358,24 +377,6 @@ new #[Layout('layouts.central')] class extends Component
                 </flux:button>
             </div>
         </header>
-
-        @if ($feedbackMessage)
-            <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
-                <div class="flex items-center justify-between">
-                    <span>{{ $feedbackMessage }}</span>
-                    <button wire:click="$set('feedbackMessage', null)" class="text-emerald-700 hover:text-emerald-900 dark:text-emerald-300">✕</button>
-                </div>
-            </div>
-        @endif
-
-        @if ($errorMessage)
-            <div class="rounded-xl border border-rose-300 bg-rose-50 p-4 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200">
-                <div class="flex items-center justify-between">
-                    <span>{{ $errorMessage }}</span>
-                    <button wire:click="$set('errorMessage', null)" class="text-rose-700 hover:text-rose-900 dark:text-rose-300">✕</button>
-                </div>
-            </div>
-        @endif
 
         <section class="flex flex-col gap-2">
             <flux:heading size="lg">Gerencie seus espaços de trabalho</flux:heading>
@@ -597,85 +598,85 @@ new #[Layout('layouts.central')] class extends Component
         </section>
 
         {{-- Modal de Desconto --}}
-        @if ($showDiscountModal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
-                    <div class="mb-4">
-                        <flux:heading size="lg">Conceder Desconto Comercial</flux:heading>
-                        <flux:text class="text-sm">O abatimento será aplicado ao próximo pagamento pendente do tenant.</flux:text>
-                    </div>
-
-                    <form wire:submit="saveDiscount" class="space-y-4">
-                        <flux:field>
-                            <flux:label>Tipo de Desconto</flux:label>
-                            <flux:select wire:model.live="discountType">
-                                <option value="fixed_amount">Valor Fixo (R$)</option>
-                                <option value="percentage">Percentual (%)</option>
-                            </flux:select>
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>{{ $discountType === 'percentage' ? 'Percentual (1 a 100)' : 'Valor (Ex: 50,00)' }}</flux:label>
-                            <flux:input
-                                wire:model="discountValue"
-                                placeholder="{{ $discountType === 'percentage' ? '10' : '50,00' }}"
-                                required
-                            />
-                            <flux:error name="discountValue" />
-                        </flux:field>
-
-                        <flux:field>
-                            <flux:label>Expira em (Mês/Ano - Opcional)</flux:label>
-                            <flux:input wire:model="discountExpiresAt" type="month" />
-                            <flux:error name="discountExpiresAt" />
-                        </flux:field>
-
-                        <div class="mt-6 flex justify-end gap-3">
-                            <flux:button wire:click="closeDiscountModal" type="button" variant="ghost">Cancelar</flux:button>
-                            <flux:button type="submit" variant="primary">Aplicar Desconto</flux:button>
-                        </div>
-                    </form>
+        <flux:modal name="discount-modal" class="backdrop:backdrop-blur-sm md:w-md" @close="closeDiscountModal">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">Conceder Desconto Comercial</flux:heading>
+                    <flux:subheading>O abatimento será aplicado ao próximo pagamento pendente do tenant.</flux:subheading>
                 </div>
+
+                <form wire:submit="saveDiscount" class="space-y-4">
+                    <flux:field>
+                        <flux:label>Tipo de Desconto</flux:label>
+                        <flux:select wire:model.live="discountType">
+                            <option value="fixed_amount">Valor Fixo (R$)</option>
+                            <option value="percentage">Percentual (%)</option>
+                        </flux:select>
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>{{ $discountType === 'percentage' ? 'Percentual (1 a 100)' : 'Valor (Ex: 50,00)' }}</flux:label>
+                        <flux:input
+                            wire:model="discountValue"
+                            placeholder="{{ $discountType === 'percentage' ? '10' : '50,00' }}"
+                            required
+                        />
+                        <flux:error name="discountValue" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Expira em (Mês/Ano - Opcional)</flux:label>
+                        <flux:input wire:model="discountExpiresAt" type="month" />
+                        <flux:error name="discountExpiresAt" />
+                    </flux:field>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <flux:modal.close>
+                            <flux:button type="button" variant="ghost" wire:click="closeDiscountModal">Cancelar</flux:button>
+                        </flux:modal.close>
+                        <flux:button type="submit" variant="primary">Aplicar Desconto</flux:button>
+                    </div>
+                </form>
             </div>
-        @endif
+        </flux:modal>
 
         {{-- Modal de Isenção --}}
-        @if ($showExemptionModal)
-            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
-                    <div class="mb-4">
-                        <flux:heading size="lg">Conceder Período de Isenção</flux:heading>
-                        <flux:text class="text-sm">O laboratório ficará isento de cobranças durante o período especificado.</flux:text>
-                    </div>
+        <flux:modal name="exemption-modal" class="backdrop:backdrop-blur-sm md:w-md" @close="closeExemptionModal">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">Conceder Período de Isenção</flux:heading>
+                    <flux:subheading>O laboratório ficará isento de cobranças durante o período especificado.</flux:subheading>
+                </div>
 
-                    <form wire:submit="saveExemption" class="space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <flux:field>
-                                <flux:label>Mês Inicial</flux:label>
-                                <flux:input wire:model="exemptionStartsAt" type="month" required />
-                                <flux:error name="exemptionStartsAt" />
-                            </flux:field>
-
-                            <flux:field>
-                                <flux:label>Mês Final</flux:label>
-                                <flux:input wire:model="exemptionEndsAt" type="month" required />
-                                <flux:error name="exemptionEndsAt" />
-                            </flux:field>
-                        </div>
-
+                <form wire:submit="saveExemption" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
                         <flux:field>
-                            <flux:label>Motivo da Isenção</flux:label>
-                            <flux:input wire:model="exemptionReason" placeholder="Parceria comercial / teste estendido" required />
-                            <flux:error name="exemptionReason" />
+                            <flux:label>Mês Inicial</flux:label>
+                            <flux:input wire:model="exemptionStartsAt" type="month" required />
+                            <flux:error name="exemptionStartsAt" />
                         </flux:field>
 
-                        <div class="mt-6 flex justify-end gap-3">
-                            <flux:button wire:click="closeExemptionModal" type="button" variant="ghost">Cancelar</flux:button>
-                            <flux:button type="submit" variant="primary">Conceder Isenção</flux:button>
-                        </div>
-                    </form>
-                </div>
+                        <flux:field>
+                            <flux:label>Mês Final</flux:label>
+                            <flux:input wire:model="exemptionEndsAt" type="month" required />
+                            <flux:error name="exemptionEndsAt" />
+                        </flux:field>
+                    </div>
+
+                    <flux:field>
+                        <flux:label>Motivo da Isenção</flux:label>
+                        <flux:input wire:model="exemptionReason" placeholder="Parceria comercial / teste estendido" required />
+                        <flux:error name="exemptionReason" />
+                    </flux:field>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <flux:modal.close>
+                            <flux:button type="button" variant="ghost" wire:click="closeExemptionModal">Cancelar</flux:button>
+                        </flux:modal.close>
+                        <flux:button type="submit" variant="primary">Conceder Isenção</flux:button>
+                    </div>
+                </form>
             </div>
-        @endif
+        </flux:modal>
     </main>
 </div>
