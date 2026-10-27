@@ -440,8 +440,8 @@ class SuperAdminPanelTest extends TestCase
             ->set('password_confirmation', 'safe-password-123')
             ->set('plan_id', (string) $plan->id)
             ->set('has_exemption', true)
-            ->set('exemption_starts_at', Carbon::now()->format('Y-m-d\TH:i'))
-            ->set('exemption_ends_at', Carbon::now()->addMonths(6)->format('Y-m-d\TH:i'))
+            ->set('exemption_starts_at', Carbon::now()->format('Y-m'))
+            ->set('exemption_ends_at', Carbon::now()->addMonths(6)->format('Y-m'))
             ->set('exemption_reason', 'Cortesia 6 meses')
             ->call('register')
             ->assertHasNoErrors()
@@ -591,5 +591,61 @@ class SuperAdminPanelTest extends TestCase
             'ip_address' => '192.168.1.100',
             'user_agent' => 'AntigravityBrowser/1.0',
         ]);
+    }
+
+    public function test_grant_discount_with_year_month_expiry_modal(): void
+    {
+        $admin = $this->createCentralUser();
+        $tenant = $this->createTenant('t-discount-ym', 'Lab Desconto YM', TenantStatus::Active);
+
+        // Create pending payment for discount
+        $tenant->payments()->create([
+            'amount_in_cents' => 10000,
+            'due_date' => Carbon::now()->addDays(5),
+            'status' => PaymentStatus::Pending,
+        ]);
+
+        $this->actingAs($admin, 'central');
+
+        Volt::test('pages.central.laboratories.index')
+            ->call('openDiscountModal', $tenant->id)
+            ->set('discountType', 'fixed_amount')
+            ->set('discountValue', '20')
+            ->set('discountExpiresAt', Carbon::now()->addMonth()->format('Y-m'))
+            ->call('saveDiscount')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('discounts', [
+            'tenant_id' => $tenant->id,
+            'value_in_cents' => 2000,
+        ]);
+    }
+
+    public function test_grant_exemption_with_year_month_dates_modal(): void
+    {
+        $admin = $this->createCentralUser();
+        $tenant = $this->createTenant('t-exemption-ym', 'Lab Isenção YM', TenantStatus::Active);
+
+        $this->actingAs($admin, 'central');
+
+        $startMonth = Carbon::now()->format('Y-m');
+        $endMonth = Carbon::now()->addMonths(2)->format('Y-m');
+
+        Volt::test('pages.central.laboratories.index')
+            ->call('openExemptionModal', $tenant->id)
+            ->set('exemptionStartsAt', $startMonth)
+            ->set('exemptionEndsAt', $endMonth)
+            ->set('exemptionReason', 'Isenção Teste Ano-Mês')
+            ->call('saveExemption')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('exemptions', [
+            'tenant_id' => $tenant->id,
+            'reason' => 'Isenção Teste Ano-Mês',
+        ]);
+
+        $exemption = Exemption::query()->where('tenant_id', $tenant->id)->firstOrFail();
+        $this->assertSame(Carbon::parse($startMonth)->startOfMonth()->toDateTimeString(), $exemption->starts_at->toDateTimeString());
+        $this->assertSame(Carbon::parse($endMonth)->endOfMonth()->toDateTimeString(), $exemption->ends_at->toDateTimeString());
     }
 }

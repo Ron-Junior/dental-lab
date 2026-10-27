@@ -35,8 +35,8 @@ new #[Layout('layouts.central')] class extends Component
             $this->plan_id = (string) $defaultPlan->id;
         }
 
-        $this->exemption_starts_at = Carbon::now()->format('Y-m-d\TH:i');
-        $this->exemption_ends_at = Carbon::now()->addMonths(3)->format('Y-m-d\TH:i');
+        $this->exemption_starts_at = Carbon::now()->format('Y-m');
+        $this->exemption_ends_at = Carbon::now()->addMonths(3)->format('Y-m');
     }
 
     #[Computed]
@@ -64,7 +64,7 @@ new #[Layout('layouts.central')] class extends Component
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'plan_id' => ['required', 'exists:plans,id'],
             'exemption_starts_at' => [Rule::requiredIf($this->has_exemption), 'nullable', 'date'],
-            'exemption_ends_at' => [Rule::requiredIf($this->has_exemption), 'nullable', 'date', 'after:exemption_starts_at'],
+            'exemption_ends_at' => [Rule::requiredIf($this->has_exemption), 'nullable', 'date', 'after_or_equal:exemption_starts_at'],
             'exemption_reason' => [Rule::requiredIf($this->has_exemption), 'nullable', 'string', 'max:255'],
         ];
     }
@@ -82,7 +82,7 @@ new #[Layout('layouts.central')] class extends Component
             'password.min' => 'A senha deve ter pelo menos 8 caracteres.',
             'password.confirmed' => 'A confirmação da senha não corresponde.',
             'plan_id.required' => 'Selecione um plano.',
-            'exemption_ends_at.after' => 'A data final da isenção deve ser posterior à inicial.',
+            'exemption_ends_at.after_or_equal' => 'O mês final da isenção deve ser igual ou posterior ao mês inicial.',
             'exemption_reason.required' => 'Informe o motivo da isenção.',
         ];
     }
@@ -97,8 +97,8 @@ new #[Layout('layouts.central')] class extends Component
         $exemptionData = null;
         if ($this->has_exemption) {
             $exemptionData = [
-                'starts_at' => Carbon::parse($this->exemption_starts_at),
-                'ends_at' => Carbon::parse($this->exemption_ends_at),
+                'starts_at' => Carbon::parse($this->exemption_starts_at)->startOfMonth(),
+                'ends_at' => Carbon::parse($this->exemption_ends_at)->endOfMonth(),
                 'reason' => $this->exemption_reason,
             ];
         }
@@ -236,14 +236,14 @@ new #[Layout('layouts.central')] class extends Component
                     @if ($has_exemption)
                         <div class="mt-4 grid gap-4 sm:grid-cols-2">
                             <flux:field>
-                                <flux:label>Início da isenção</flux:label>
-                                <flux:input wire:model="exemption_starts_at" type="datetime-local" required />
+                                <flux:label>Mês inicial da isenção</flux:label>
+                                <flux:input wire:model="exemption_starts_at" type="month" required />
                                 <flux:error name="exemption_starts_at" />
                             </flux:field>
 
                             <flux:field>
-                                <flux:label>Fim da isenção</flux:label>
-                                <flux:input wire:model="exemption_ends_at" type="datetime-local" required />
+                                <flux:label>Mês final da isenção</flux:label>
+                                <flux:input wire:model="exemption_ends_at" type="month" required />
                                 <flux:error name="exemption_ends_at" />
                             </flux:field>
 

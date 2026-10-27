@@ -227,12 +227,19 @@ new #[Layout('layouts.central')] class extends Component
             'selectedTenantId' => ['required', 'exists:tenants,id'],
             'discountType' => ['required', 'in:percentage,fixed_amount'],
             'discountValue' => ['required', 'numeric', 'min:1'],
-            'discountExpiresAt' => ['nullable', 'date', 'after:now'],
+            'discountExpiresAt' => ['nullable', 'date'],
         ], [
             'discountValue.required' => 'Informe o valor do desconto.',
             'discountValue.min' => 'O valor deve ser maior que zero.',
-            'discountExpiresAt.after' => 'A data de expiração deve ser no futuro.',
         ]);
+
+        if ($this->discountExpiresAt) {
+            $parsedExpiry = Carbon::parse($this->discountExpiresAt)->endOfMonth();
+            if ($parsedExpiry->isPast()) {
+                $this->addError('discountExpiresAt', 'O mês de expiração deve ser no presente ou futuro.');
+                return;
+            }
+        }
 
         $tenant = Tenant::query()->findOrFail($this->selectedTenantId);
 
@@ -252,7 +259,7 @@ new #[Layout('layouts.central')] class extends Component
                 'tenant_id' => $tenant->id,
                 'type' => DiscountType::from($this->discountType),
                 'value_in_cents' => $valueInCents,
-                'expires_at' => $this->discountExpiresAt ? Carbon::parse($this->discountExpiresAt) : null,
+                'expires_at' => $this->discountExpiresAt ? Carbon::parse($this->discountExpiresAt)->endOfMonth() : null,
             ]);
 
             $service->apply($discount);
@@ -268,8 +275,8 @@ new #[Layout('layouts.central')] class extends Component
     {
         $this->resetExemptionForm();
         $this->selectedTenantId = $tenantId;
-        $this->exemptionStartsAt = Carbon::now()->format('Y-m-d\TH:i');
-        $this->exemptionEndsAt = Carbon::now()->addMonth()->format('Y-m-d\TH:i');
+        $this->exemptionStartsAt = Carbon::now()->format('Y-m');
+        $this->exemptionEndsAt = Carbon::now()->addMonth()->format('Y-m');
         $this->showExemptionModal = true;
     }
 
@@ -287,10 +294,10 @@ new #[Layout('layouts.central')] class extends Component
         $this->validate([
             'selectedTenantId' => ['required', 'exists:tenants,id'],
             'exemptionStartsAt' => ['required', 'date'],
-            'exemptionEndsAt' => ['required', 'date', 'after:exemptionStartsAt'],
+            'exemptionEndsAt' => ['required', 'date', 'after_or_equal:exemptionStartsAt'],
             'exemptionReason' => ['required', 'string', 'max:255'],
         ], [
-            'exemptionEndsAt.after' => 'A data final deve ser posterior à data inicial.',
+            'exemptionEndsAt.after_or_equal' => 'O mês final deve ser igual ou posterior ao mês inicial.',
             'exemptionReason.required' => 'Informe o motivo da isenção.',
         ]);
 
@@ -299,8 +306,8 @@ new #[Layout('layouts.central')] class extends Component
         try {
             $service->grant(
                 $tenant,
-                Carbon::parse($this->exemptionStartsAt),
-                Carbon::parse($this->exemptionEndsAt),
+                Carbon::parse($this->exemptionStartsAt)->startOfMonth(),
+                Carbon::parse($this->exemptionEndsAt)->endOfMonth(),
                 $this->exemptionReason,
                 $user,
                 request()->ip(),
@@ -618,8 +625,8 @@ new #[Layout('layouts.central')] class extends Component
                         </flux:field>
 
                         <flux:field>
-                            <flux:label>Expira em (Opcional)</flux:label>
-                            <flux:input wire:model="discountExpiresAt" type="datetime-local" />
+                            <flux:label>Expira em (Mês/Ano - Opcional)</flux:label>
+                            <flux:input wire:model="discountExpiresAt" type="month" />
                             <flux:error name="discountExpiresAt" />
                         </flux:field>
 
@@ -642,17 +649,19 @@ new #[Layout('layouts.central')] class extends Component
                     </div>
 
                     <form wire:submit="saveExemption" class="space-y-4">
-                        <flux:field>
-                            <flux:label>Data de Início</flux:label>
-                            <flux:input wire:model="exemptionStartsAt" type="datetime-local" required />
-                            <flux:error name="exemptionStartsAt" />
-                        </flux:field>
+                        <div class="grid grid-cols-2 gap-4">
+                            <flux:field>
+                                <flux:label>Mês Inicial</flux:label>
+                                <flux:input wire:model="exemptionStartsAt" type="month" required />
+                                <flux:error name="exemptionStartsAt" />
+                            </flux:field>
 
-                        <flux:field>
-                            <flux:label>Data de Término</flux:label>
-                            <flux:input wire:model="exemptionEndsAt" type="datetime-local" required />
-                            <flux:error name="exemptionEndsAt" />
-                        </flux:field>
+                            <flux:field>
+                                <flux:label>Mês Final</flux:label>
+                                <flux:input wire:model="exemptionEndsAt" type="month" required />
+                                <flux:error name="exemptionEndsAt" />
+                            </flux:field>
+                        </div>
 
                         <flux:field>
                             <flux:label>Motivo da Isenção</flux:label>
