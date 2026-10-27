@@ -28,4 +28,3 @@ class CentralUserInviteNotification extends Notification
             ->line('Se você não esperava por este convite, pode ignorar este e-mail.');
     }
 }
-

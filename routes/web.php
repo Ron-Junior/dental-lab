@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -18,4 +19,7 @@ Route::domain(config('tenancy.central_domain'))->group(function () {
     Volt::route('/cadastro', 'pages.auth.central-registration')->name('onboarding.create');
     Volt::route('/bem-vindo/{tenant}', 'pages.central.onboarding')
         ->name('onboarding.show');
+
+    Route::post('/webhook/payment', [PaymentWebhookController::class, 'handle'])
+        ->name('webhook.payment');
 });

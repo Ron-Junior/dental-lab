@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->preventRequestForgery(except: [
+            'webhook/*',
+        ]);
+
         $middleware->redirectGuestsTo(
             fn (Request $request): string => $request->routeIs('central.*')
                 ? route('central.login')

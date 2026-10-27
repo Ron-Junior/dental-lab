@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('plans', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('name');
-            $table->bigInteger('price');
+            $table->bigInteger('price_in_cents');
             $table->string('billing_cycle');
             $table->jsonb('limits')->nullable();
             $table->boolean('is_active')->default(true);

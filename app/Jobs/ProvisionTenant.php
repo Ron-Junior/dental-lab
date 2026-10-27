@@ -33,56 +33,85 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * @param  string  $tenantId  Central tenant identifier.
-     * @param  array $userData  User data to create the owner user for the tenant.
-     * @return void
+     * @param  array{name?: string, email: string, password: string}  $userData  User data containing email and password to create the owner user for the tenant.
      */
-    public function __construct(public string $tenantId, public array $userData) {}
+    public function __construct(
+        public string $tenantId,
+        public array $userData = [],
+    ) {}
 
     public function handle(): void
     {
-        Log::info('Provisionando tenant', [
-            'tenantId' => $this->tenantId,
-            'userData' => $this->userData,
-        ]);
-
         $tenant = Tenant::query()->findOrFail($this->tenantId);
 
-        if ($tenant->status === TenantStatus::Active) {
-            return;
+        Log::info('Provisionando tenant', [
+            'tenantId' => $tenant->id,
+            'userData' => array_diff_key($this->userData, ['password' => '']),
+        ]);
+
+        if (empty($this->userData['email'])) {
+            throw new \InvalidArgumentException("O e-mail do usuário administrador ('email') é obrigatório para provisionar o tenant [{$this->tenantId}].");
         }
 
+        if (empty($this->userData['password'])) {
+            throw new \InvalidArgumentException("A senha do usuário administrador ('password') é obrigatória para provisionar o tenant [{$this->tenantId}].");
+        }
+
+        // Gerar e configurar o nome do banco/schema do tenant se necessário
         $databaseName = $tenant->database()->getName();
+        if (empty($databaseName)) {
+            $prefix = config('tenancy.database.prefix', 'tenant_');
+            $databaseName = $prefix.$tenant->id;
+            $tenant->setAttribute('tenancy_db_name', $databaseName);
+            $tenant->save();
+        }
+
+        // Criar o schema no PostgreSQL usando stancl/tenancy se não existir
         if (! $tenant->database()->manager()->databaseExists($databaseName)) {
+            Log::info('Criando banco/schema para o tenant', [
+                'tenantId' => $tenant->id,
+                'databaseName' => $databaseName,
+            ]);
             CreateDatabase::dispatchSync($tenant);
         }
 
-        Log::info('Provisionando tenant - migrate', [
+        Log::info('Provisionando tenant - executando migrations tenant', [
+            'tenantId' => $tenant->id,
             'databaseName' => $databaseName,
         ]);
 
+        // Rodar e validar migrações específicas do tenant
         $this->runTenantCommand('tenants:migrate', [
             '--tenants' => [$tenant->id],
         ]);
+
+        // Rodar seeds do tenant
         $this->runTenantCommand('tenants:seed', [
             '--tenants' => [$tenant->id],
             '--class' => TenantProvisioningSeeder::class,
             '--force' => true,
         ]);
 
-        $tenant->run(function (): void {
+        // Dados do usuário
+        $userName = $this->userData['name'] ?? $tenant->name;
+        $userEmail = $this->userData['email'];
+        $userPassword = $this->userData['password'];
 
-            Log::info('Provisionando tenant - user');
-            
+        $tenant->run(function () use ($userName, $userEmail, $userPassword): void {
+            Log::info('Provisionando tenant - criando usuário no schema do tenant', [
+                'email' => $userEmail,
+            ]);
+
             $labRule = Rule::query()
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
 
             User::query()->firstOrCreate(
-                ['email' => $this->userData['email']],
+                ['email' => $userEmail],
                 [
-                    'name' => $this->userData['name'],
-                    'email' => $this->userData['email'],
-                    'password' => $this->userData['password'],
+                    'name' => $userName,
+                    'email' => $userEmail,
+                    'password' => $userPassword,
                     'rule_id' => $labRule->id,
                 ],
             );
@@ -91,11 +120,15 @@ class ProvisionTenant implements ShouldQueue
         $tenant->status = TenantStatus::Active;
         $tenant->save();
 
-        Notification::route('mail', $tenant->owner_email)
+        Notification::route('mail', $userEmail)
             ->notify(new TenantWelcomeNotification(
                 $tenant->name,
                 route('login', ['tenant' => $tenant->id]),
             ));
+
+        Log::info('Provisionamento do tenant concluído com sucesso', [
+            'tenantId' => $tenant->id,
+        ]);
     }
 
     public function failed(?Throwable $exception): void
@@ -120,7 +153,13 @@ class ProvisionTenant implements ShouldQueue
         $exitCode = Artisan::call($command, $arguments);
 
         if ($exitCode !== 0) {
-            throw new \RuntimeException(trim(Artisan::output()) ?: "Tenant command [{$command}] failed.");
+            $output = trim(Artisan::output());
+            Log::error("Comando [{$command}] falhou na execução para o tenant", [
+                'exitCode' => $exitCode,
+                'output' => $output,
+            ]);
+
+            throw new \RuntimeException($output ?: "Tenant command [{$command}] failed.");
         }
     }
 }

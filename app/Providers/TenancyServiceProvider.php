@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Stancl\JobPipeline\JobPipeline;
 use Stancl\Tenancy\Events;
@@ -59,7 +61,7 @@ class TenancyServiceProvider extends ServiceProvider
             Events\TenancyInitialized::class => [
                 Listeners\BootstrapTenancy::class,
                 function (Events\TenancyInitialized $event): void {
-                    \Illuminate\Support\Facades\URL::defaults([
+                    URL::defaults([
                         'tenant' => $event->tenancy->tenant->getTenantKey(),
                     ]);
                 },
@@ -69,7 +71,7 @@ class TenancyServiceProvider extends ServiceProvider
             Events\TenancyEnded::class => [
                 Listeners\RevertToCentralContext::class,
                 function (): void {
-                    \Illuminate\Support\Facades\URL::defaults([]);
+                    URL::defaults([]);
                 },
             ],
 
@@ -138,7 +140,7 @@ class TenancyServiceProvider extends ServiceProvider
         ];
 
         foreach (array_reverse($tenancyMiddleware) as $middleware) {
-            $this->app[\Illuminate\Contracts\Http\Kernel::class]->prependToMiddlewarePriority($middleware);
+            $this->app[Kernel::class]->prependToMiddlewarePriority($middleware);
         }
     }
 }

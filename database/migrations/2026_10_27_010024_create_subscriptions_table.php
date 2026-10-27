@@ -10,12 +10,14 @@ return new class extends Migration
     {
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('plan_id')->constrained()->cascadeOnDelete();
+            $table->string('tenant_id');
+            $table->foreignUuid('plan_id')->constrained('plans')->cascadeOnDelete();
             $table->string('status')->default('trial');
             $table->timestamp('current_period_start')->nullable();
             $table->timestamp('current_period_end')->nullable();
             $table->timestamps();
+
+            $table->foreign('tenant_id')->references('id')->on('tenants')->cascadeOnUpdate()->cascadeOnDelete();
         });
     }
 
