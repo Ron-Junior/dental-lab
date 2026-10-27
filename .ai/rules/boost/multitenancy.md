@@ -17,6 +17,8 @@
 ## Onboarding
 
 - O cadastro central deve validar o slug e persistir o estado inicial do tenant antes de enfileirar o provisionamento.
+- **Criação e Onboarding via Actions**: A criação de laboratórios (criação de tenant, subscrição, faturas/isenções e disparo de provisionamento) é centralizada na Action `App\Actions\CreateLaboratory`. Isso permite que o mesmo fluxo orquestrado seja reutilizado tanto pelo onboarding público do laboratório quanto pelo painel administrativo do sócio.
+- **Privilégios Centrais Exclusivos**: Isenção de pagamento (`exemptions`) e concessão de descontos comerciais (`discounts`) são prerrogativas restritas a `CentralUser` autenticados. Qualquer criação de conta fora do contexto de um sócio não permite isenção de pagamento nem aplicação manual de descontos.
 - Provisionamento permanece assíncrono: criar o banco/schema, executar migrações e seeders tenant, criar o administrador, marcar o tenant como ativo e notificar o responsável.
 - Mantenha o job idempotente e trate falha terminal atualizando o estado do tenant. Não mova provisionamento para a requisição HTTP nem marque como ativo antes de concluir as etapas necessárias.
 - Segredos do responsável usados temporariamente no provisionamento devem permanecer protegidos e ser removidos assim que deixarem de ser necessários.

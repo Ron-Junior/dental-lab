@@ -5,6 +5,7 @@ use App\Models\DentistRequest;
 use App\Models\ServiceServiceStep;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
+use Stancl\Tenancy\Features\UserImpersonation;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 
@@ -16,6 +17,10 @@ Route::domain('{tenant}.'.config('tenancy.central_domain'))
     ])
     ->group(function () {
         Route::get('/', fn () => redirect()->route('dashboard'));
+
+        Route::get('/impersonate/{token}', function (string $token) {
+            return UserImpersonation::makeResponse($token);
+        })->name('tenant.impersonate');
 
         require __DIR__.'/auth.php';
 

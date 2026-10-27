@@ -1,18 +1,9 @@
 <?php
 
-use App\Enums\TenantStatus;
-use App\Jobs\ProvisionTenant;
-use App\Models\Tenant;
-use App\Models\User;
-use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
-use Stancl\Tenancy\Jobs\CreateDatabase;
 
 new #[Layout('layouts.guest')] class extends Component
 {
@@ -80,33 +71,15 @@ new #[Layout('layouts.guest')] class extends Component
 
         RateLimiter::hit($rateLimitKey, 60);
 
-        $userData = [
-            'name' => $this->admin_name,
-            'email' => $this->email,
-            'password' => $this->password,
-        ];
-
         $data = $this->validate();
-        $centralConnection = config('tenancy.database.central_connection');
 
-        $tenant = DB::connection($centralConnection)->transaction(function () use ($data): Tenant {
-            $tenant = Tenant::query()->create([
-                'id' => $data['slug'],
-                'name' => $data['laboratory_name'],
-                'status' => TenantStatus::Provisioning,
-            ]);
-
-            $tenant->domains()->create([
-                'domain' => $data['slug'].'.'.config('tenancy.central_domain'),
-            ]);
-
-            return $tenant;
-        });
-
-        Bus::chain([
-            new CreateDatabase($tenant),
-            new ProvisionTenant($tenant->id, $userData),
-        ])->dispatch();
+        $tenant = app(\App\Actions\CreateLaboratory::class)->handle(
+            data: $data,
+            exemptionData: null,
+            creator: null,
+            ipAddress: request()->ip(),
+            userAgent: request()->userAgent(),
+        );
 
         $this->redirectRoute('onboarding.show', ['tenant' => $tenant->id], navigate: true);
     }

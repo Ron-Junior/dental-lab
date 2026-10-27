@@ -3,6 +3,7 @@
 - A interface interativa existente usa Livewire 4, Volt e Flux UI. Confirme as versões instaladas em `composer.json`/`composer.lock` antes de depender de APIs específicas.
 - Componentes Volt existentes ficam em `resources/views/livewire/`. Antes de criar um, confira componentes irmãos e mantenha o estilo funcional ou baseado em classe que a área já utiliza.
 - Registre páginas tenant no grupo apropriado de `routes/tenant.php`; mantenha lógica de estado e validação no componente/servidor, não apenas na interface.
+- **Regras de Negócio e Reutilização (Actions e Services)**: Componentes Livewire e Volt devem ser enxutos e focar no estado da interface do usuário e validação de entrada. A lógica de negócio (criação de entidades, transações, integrações e orquestração) deve ser organizada em **Actions** (`app/Actions/**`) ou **Services** (`app/Services/**`) reutilizáveis, de modo que possam ser acionadas tanto por fluxos do painel administrativo quanto pelo onboarding público ou comandos CLI.
 - Reutilize componentes existentes e componentes Flux antes de introduzir controles novos. Preserve acessibilidade, estados de carregamento e validação visível ao usuário.
 - Textos da interface devem seguir o português brasileiro usado pelo produto; nomes de classes, métodos, variáveis, rotas e identificadores continuam em inglês.
 - Ative as skills de Livewire, Volt, Flux UI ou Tailwind quando a alteração envolver esses domínios. Consulte documentação atual do Boost para APIs sensíveis à versão.
