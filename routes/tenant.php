@@ -19,13 +19,6 @@ Route::domain('{tenant}.'.config('tenancy.central_domain'))
     ->group(function () {
         Route::get('/', fn () => redirect()->route('dashboard'));
 
-        Route::get('/impersonate/{token}', function (string $tenant, string $token) {
-            $tokenModel = ImpersonationToken::findOrFail($token);
-            session()->put('impersonated_by_central', true);
-
-            return UserImpersonation::makeResponse($tokenModel);
-        })->name('tenant.impersonate');
-
         Route::get('/impersonate/leave', function () {
             session()->forget('impersonated_by_central');
             auth()->guard('web')->logout();
@@ -36,6 +29,13 @@ Route::domain('{tenant}.'.config('tenancy.central_domain'))
 
             return redirect()->away($returnUrl);
         })->name('tenant.impersonate.leave');
+
+        Route::get('/impersonate/{token}', function (string $tenant, string $token) {
+            $tokenModel = ImpersonationToken::findOrFail($token);
+            session()->put('impersonated_by_central', true);
+
+            return UserImpersonation::makeResponse($tokenModel);
+        })->name('tenant.impersonate');
 
         require __DIR__.'/auth.php';
 
