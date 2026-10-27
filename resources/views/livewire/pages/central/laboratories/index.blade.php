@@ -6,6 +6,7 @@ use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Models\CentralUser;
 use App\Models\Discount;
+use App\Models\Exemption;
 use App\Models\Payment;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -38,20 +39,34 @@ new #[Layout('layouts.central')] class extends Component
 
     public string $selectedTenantId = '';
 
+    public ?string $editingDiscountId = null;
+
     public string $discountType = 'fixed_amount';
 
     public string $discountValue = '';
 
     public ?string $discountExpiresAt = null;
 
+    // Remove discount modal state
+    public bool $showRemoveDiscountModal = false;
+
+    public ?string $removingDiscountId = null;
+
     // Exemption modal state
     public bool $showExemptionModal = false;
+
+    public ?string $editingExemptionId = null;
 
     public string $exemptionStartsAt = '';
 
     public string $exemptionEndsAt = '';
 
     public string $exemptionReason = '';
+
+    // Revoke exemption modal state
+    public bool $showRevokeExemptionModal = false;
+
+    public ?string $revokingExemptionId = null;
 
     public function logout(): void
     {
@@ -113,7 +128,7 @@ new #[Layout('layouts.central')] class extends Component
         $now = Carbon::now();
 
         $query = Tenant::query()
-            ->with(['domains', 'exemptions', 'subscriptions', 'payments'])
+            ->with(['domains', 'exemptions', 'subscriptions', 'payments', 'discounts.appliedPayment'])
             ->when($search !== '', function ($query) use ($search): void {
                 $tenantName = Str::lower($search);
 
@@ -214,6 +229,24 @@ new #[Layout('layouts.central')] class extends Component
     {
         $this->resetDiscountForm();
         $this->selectedTenantId = $tenantId;
+        $this->editingDiscountId = null;
+        $this->showDiscountModal = true;
+        Flux::modal('discount-modal')->show();
+    }
+
+    public function openEditDiscountModal(string $discountId): void
+    {
+        $this->resetDiscountForm();
+        $discount = Discount::query()->findOrFail($discountId);
+        $this->selectedTenantId = $discount->tenant_id;
+        $this->editingDiscountId = $discount->id;
+        $this->discountType = $discount->type->value;
+        if ($discount->type === DiscountType::Percentage) {
+            $this->discountValue = (string) $discount->value_in_cents;
+        } else {
+            $this->discountValue = (string) ($discount->value_in_cents / 100);
+        }
+        $this->discountExpiresAt = $discount->expires_at?->format('Y-m');
         $this->showDiscountModal = true;
         Flux::modal('discount-modal')->show();
     }
@@ -223,6 +256,50 @@ new #[Layout('layouts.central')] class extends Component
         $this->showDiscountModal = false;
         $this->resetDiscountForm();
         Flux::modal('discount-modal')->close();
+    }
+
+    public function confirmRemoveDiscount(string $discountId): void
+    {
+        $this->removingDiscountId = $discountId;
+        $this->showRemoveDiscountModal = true;
+        Flux::modal('remove-discount-modal')->show();
+    }
+
+    public function closeRemoveDiscountModal(): void
+    {
+        $this->showRemoveDiscountModal = false;
+        $this->removingDiscountId = null;
+        Flux::modal('remove-discount-modal')->close();
+    }
+
+    public function removeDiscount(ApplyDiscountService $service): void
+    {
+        $user = Auth::guard('central')->user();
+        abort_unless($user instanceof CentralUser, 403);
+        Gate::authorize('manageDiscounts', Tenant::class);
+
+        if (! $this->removingDiscountId) {
+            return;
+        }
+
+        try {
+            $discount = Discount::query()->findOrFail($this->removingDiscountId);
+            $service->remove(
+                $discount,
+                $user,
+                request()->ip(),
+                request()->userAgent()
+            );
+
+            $this->closeRemoveDiscountModal();
+
+            Flux::toast(
+                text: 'Desconto removido com sucesso e valor da fatura restaurado.',
+                variant: 'success',
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(text: $e->getMessage(), variant: 'danger');
+        }
     }
 
     public function saveDiscount(ApplyDiscountService $service): void
@@ -264,20 +341,41 @@ new #[Layout('layouts.central')] class extends Component
             $valueInCents = currency_to_int($this->discountValue);
         }
 
+        $expiresAt = $this->discountExpiresAt ? Carbon::parse($this->discountExpiresAt)->endOfMonth() : null;
+
         try {
-            $discount = Discount::query()->create([
-                'tenant_id' => $tenant->id,
-                'type' => DiscountType::from($this->discountType),
-                'value_in_cents' => $valueInCents,
-                'expires_at' => $this->discountExpiresAt ? Carbon::parse($this->discountExpiresAt)->endOfMonth() : null,
-            ]);
+            if ($this->editingDiscountId) {
+                $discount = Discount::query()->findOrFail($this->editingDiscountId);
+                $service->update(
+                    $discount,
+                    DiscountType::from($this->discountType),
+                    $valueInCents,
+                    $expiresAt,
+                    $user,
+                    request()->ip(),
+                    request()->userAgent()
+                );
 
-            $service->apply($discount);
+                Flux::toast(
+                    text: "Desconto atualizado com sucesso para [{$tenant->name}].",
+                    variant: 'success',
+                );
+            } else {
+                $discount = Discount::query()->create([
+                    'tenant_id' => $tenant->id,
+                    'type' => DiscountType::from($this->discountType),
+                    'value_in_cents' => $valueInCents,
+                    'expires_at' => $expiresAt,
+                ]);
 
-            Flux::toast(
-                text: "Desconto aplicado com sucesso ao próximo pagamento de [{$tenant->name}].",
-                variant: 'success',
-            );
+                $service->apply($discount);
+
+                Flux::toast(
+                    text: "Desconto aplicado com sucesso ao próximo pagamento de [{$tenant->name}].",
+                    variant: 'success',
+                );
+            }
+
             $this->closeDiscountModal();
         } catch (\Throwable $e) {
             Flux::toast(text: $e->getMessage(), variant: 'danger');
@@ -288,8 +386,22 @@ new #[Layout('layouts.central')] class extends Component
     {
         $this->resetExemptionForm();
         $this->selectedTenantId = $tenantId;
+        $this->editingExemptionId = null;
         $this->exemptionStartsAt = Carbon::now()->format('Y-m');
         $this->exemptionEndsAt = Carbon::now()->addMonth()->format('Y-m');
+        $this->showExemptionModal = true;
+        Flux::modal('exemption-modal')->show();
+    }
+
+    public function openEditExemptionModal(string $exemptionId): void
+    {
+        $this->resetExemptionForm();
+        $exemption = Exemption::query()->findOrFail($exemptionId);
+        $this->selectedTenantId = $exemption->tenant_id;
+        $this->editingExemptionId = $exemption->id;
+        $this->exemptionStartsAt = $exemption->starts_at->format('Y-m');
+        $this->exemptionEndsAt = $exemption->ends_at->format('Y-m');
+        $this->exemptionReason = $exemption->reason;
         $this->showExemptionModal = true;
         Flux::modal('exemption-modal')->show();
     }
@@ -299,6 +411,49 @@ new #[Layout('layouts.central')] class extends Component
         $this->showExemptionModal = false;
         $this->resetExemptionForm();
         Flux::modal('exemption-modal')->close();
+    }
+
+    public function confirmRevokeExemption(string $exemptionId): void
+    {
+        $this->revokingExemptionId = $exemptionId;
+        $this->showRevokeExemptionModal = true;
+        Flux::modal('revoke-exemption-modal')->show();
+    }
+
+    public function closeRevokeExemptionModal(): void
+    {
+        $this->showRevokeExemptionModal = false;
+        $this->revokingExemptionId = null;
+        Flux::modal('revoke-exemption-modal')->close();
+    }
+
+    public function revokeExemption(ExemptionService $service): void
+    {
+        $user = Auth::guard('central')->user();
+        abort_unless($user instanceof CentralUser, 403);
+
+        if (! $this->revokingExemptionId) {
+            return;
+        }
+
+        try {
+            $exemption = Exemption::query()->findOrFail($this->revokingExemptionId);
+            $service->revoke(
+                $exemption,
+                $user,
+                request()->ip(),
+                request()->userAgent()
+            );
+
+            $this->closeRevokeExemptionModal();
+
+            Flux::toast(
+                text: 'Isenção revogada com sucesso. O laboratório retornou ao ciclo de faturamento.',
+                variant: 'success',
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(text: $e->getMessage(), variant: 'danger');
+        }
     }
 
     public function saveExemption(ExemptionService $service): void
@@ -318,23 +473,44 @@ new #[Layout('layouts.central')] class extends Component
 
         $tenant = Tenant::query()->findOrFail($this->selectedTenantId);
 
+        $startsAt = Carbon::parse($this->exemptionStartsAt)->startOfMonth();
+        $endsAt = Carbon::parse($this->exemptionEndsAt)->endOfMonth();
+
         try {
-            $service->grant(
-                $tenant,
-                Carbon::parse($this->exemptionStartsAt)->startOfMonth(),
-                Carbon::parse($this->exemptionEndsAt)->endOfMonth(),
-                $this->exemptionReason,
-                $user,
-                request()->ip(),
-                request()->userAgent()
-            );
+            if ($this->editingExemptionId) {
+                $exemption = Exemption::query()->findOrFail($this->editingExemptionId);
+                $service->update(
+                    $exemption,
+                    $startsAt,
+                    $endsAt,
+                    $this->exemptionReason,
+                    $user,
+                    request()->ip(),
+                    request()->userAgent()
+                );
+
+                Flux::toast(
+                    text: "Período de isenção atualizado com sucesso para [{$tenant->name}].",
+                    variant: 'success',
+                );
+            } else {
+                $service->grant(
+                    $tenant,
+                    $startsAt,
+                    $endsAt,
+                    $this->exemptionReason,
+                    $user,
+                    request()->ip(),
+                    request()->userAgent()
+                );
+
+                Flux::toast(
+                    text: "Isenção concedida com sucesso para [{$tenant->name}].",
+                    variant: 'success',
+                );
+            }
 
             $this->closeExemptionModal();
-
-            Flux::toast(
-                text: "Isenção concedida com sucesso para [{$tenant->name}].",
-                variant: 'success',
-            );
         } catch (\Throwable $e) {
             Flux::toast(text: $e->getMessage(), variant: 'danger');
         }
@@ -342,6 +518,7 @@ new #[Layout('layouts.central')] class extends Component
 
     private function resetDiscountForm(): void
     {
+        $this->editingDiscountId = null;
         $this->discountType = 'fixed_amount';
         $this->discountValue = '';
         $this->discountExpiresAt = null;
@@ -350,6 +527,7 @@ new #[Layout('layouts.central')] class extends Component
 
     private function resetExemptionForm(): void
     {
+        $this->editingExemptionId = null;
         $this->exemptionStartsAt = '';
         $this->exemptionEndsAt = '';
         $this->exemptionReason = '';
@@ -476,6 +654,9 @@ new #[Layout('layouts.central')] class extends Component
                             $isOverdue = $this->isTenantOverdue($tenant);
                             $overdueAmount = $isOverdue ? $this->getOverdueAmount($tenant) : 0;
                             $activeExemption = $tenant->exemptions->first(fn ($ex) => $ex->isActive());
+                            $activeDiscount = $tenant->discounts->first(
+                                fn ($d) => $d->appliedPayment && $d->appliedPayment->status === \App\Enums\PaymentStatus::Pending
+                            );
                         @endphp
 
                         <flux:card wire:key="laboratory-{{ $tenant->id }}" class="flex flex-col gap-5 {{ $isOverdue ? 'border-rose-300 dark:border-rose-900/60' : '' }}">
@@ -496,6 +677,12 @@ new #[Layout('layouts.central')] class extends Component
                                     @if ($activeExemption)
                                         <flux:badge color="amber" icon="gift">
                                             Isento até {{ $activeExemption->ends_at->format('d/m/Y') }}
+                                        </flux:badge>
+                                    @endif
+
+                                    @if ($activeDiscount)
+                                        <flux:badge color="indigo" icon="receipt-percent">
+                                            Desconto: {{ $activeDiscount->type === \App\Enums\DiscountType::Percentage ? $activeDiscount->value_in_cents . '%' : 'R$ ' . number_format($activeDiscount->value_in_cents / 100, 2, ',', '.') }}
                                         </flux:badge>
                                     @endif
 
@@ -521,25 +708,85 @@ new #[Layout('layouts.central')] class extends Component
                                 </flux:text>
 
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <flux:button
-                                        wire:click="openDiscountModal('{{ $tenant->id }}')"
-                                        size="sm"
-                                        variant="outline"
-                                        icon="receipt-percent"
-                                        title="Conceder desconto no próximo pagamento"
-                                    >
-                                        Desconto
-                                    </flux:button>
+                                    @if ($activeDiscount)
+                                        <flux:dropdown position="bottom" align="end">
+                                            <flux:button
+                                                size="sm"
+                                                variant="outline"
+                                                icon="receipt-percent"
+                                                icon:trailing="chevron-down"
+                                                title="Opções de desconto do laboratório"
+                                            >
+                                                Desconto
+                                            </flux:button>
 
-                                    <flux:button
-                                        wire:click="openExemptionModal('{{ $tenant->id }}')"
-                                        size="sm"
-                                        variant="outline"
-                                        icon="gift"
-                                        title="Conceder período de isenção"
-                                    >
-                                        Isenção
-                                    </flux:button>
+                                            <flux:menu>
+                                                <flux:menu.item
+                                                    icon="pencil-square"
+                                                    wire:click="openEditDiscountModal('{{ $activeDiscount->id }}')"
+                                                >
+                                                    Editar desconto
+                                                </flux:menu.item>
+                                                <flux:menu.item
+                                                    icon="trash"
+                                                    variant="danger"
+                                                    wire:click="confirmRemoveDiscount('{{ $activeDiscount->id }}')"
+                                                >
+                                                    Remover desconto
+                                                </flux:menu.item>
+                                            </flux:menu>
+                                        </flux:dropdown>
+                                    @else
+                                        <flux:button
+                                            wire:click="openDiscountModal('{{ $tenant->id }}')"
+                                            size="sm"
+                                            variant="outline"
+                                            icon="receipt-percent"
+                                            title="Conceder desconto no próximo pagamento"
+                                        >
+                                            Desconto
+                                        </flux:button>
+                                    @endif
+
+                                    @if ($activeExemption)
+                                        <flux:dropdown position="bottom" align="end">
+                                            <flux:button
+                                                size="sm"
+                                                variant="outline"
+                                                icon="gift"
+                                                icon:trailing="chevron-down"
+                                                title="Opções de isenção do laboratório"
+                                            >
+                                                Isenção
+                                            </flux:button>
+
+                                            <flux:menu>
+                                                <flux:menu.item
+                                                    icon="pencil-square"
+                                                    wire:click="openEditExemptionModal('{{ $activeExemption->id }}')"
+                                                >
+                                                    Editar período
+                                                </flux:menu.item>
+                                                <flux:menu.item
+                                                    icon="no-symbol"
+                                                    variant="danger"
+                                                    wire:click="confirmRevokeExemption('{{ $activeExemption->id }}')"
+                                                >
+                                                    Revogar isenção
+                                                </flux:menu.item>
+                                            </flux:menu>
+                                        </flux:dropdown>
+                                    @else
+                                        <flux:button
+                                            wire:click="openExemptionModal('{{ $tenant->id }}')"
+                                            size="sm"
+                                            variant="outline"
+                                            icon="gift"
+                                            title="Conceder período de isenção"
+                                        >
+                                            Isenção
+                                        </flux:button>
+                                    @endif
 
                                     @if ($tenant->status->value === 'active')
                                         <flux:button
@@ -601,8 +848,8 @@ new #[Layout('layouts.central')] class extends Component
         <flux:modal name="discount-modal" class="backdrop:backdrop-blur-sm md:w-md" @close="closeDiscountModal">
             <div class="space-y-6">
                 <div>
-                    <flux:heading size="lg">Conceder Desconto Comercial</flux:heading>
-                    <flux:subheading>O abatimento será aplicado ao próximo pagamento pendente do tenant.</flux:subheading>
+                    <flux:heading size="lg">{{ $editingDiscountId ? 'Editar Desconto Comercial' : 'Conceder Desconto Comercial' }}</flux:heading>
+                    <flux:subheading>{{ $editingDiscountId ? 'Altere os parâmetros do desconto aplicado à fatura pendente.' : 'O abatimento será aplicado ao próximo pagamento pendente do tenant.' }}</flux:subheading>
                 </div>
 
                 <form wire:submit="saveDiscount" class="space-y-4">
@@ -634,9 +881,28 @@ new #[Layout('layouts.central')] class extends Component
                         <flux:modal.close>
                             <flux:button type="button" variant="ghost" wire:click="closeDiscountModal">Cancelar</flux:button>
                         </flux:modal.close>
-                        <flux:button type="submit" variant="primary">Aplicar Desconto</flux:button>
+                        <flux:button type="submit" variant="primary">{{ $editingDiscountId ? 'Salvar Alterações' : 'Aplicar Desconto' }}</flux:button>
                     </div>
                 </form>
+            </div>
+        </flux:modal>
+
+        {{-- Modal de Confirmação para Remover Desconto --}}
+        <flux:modal name="remove-discount-modal" class="backdrop:backdrop-blur-sm md:w-md" @close="closeRemoveDiscountModal">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">Remover Desconto Comercial</flux:heading>
+                    <flux:subheading>
+                        Tem certeza que deseja remover este desconto? O valor original da fatura pendente será restaurado.
+                    </flux:subheading>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost" wire:click="closeRemoveDiscountModal">Cancelar</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="button" variant="danger" wire:click="removeDiscount">Remover Desconto</flux:button>
+                </div>
             </div>
         </flux:modal>
 
@@ -644,8 +910,8 @@ new #[Layout('layouts.central')] class extends Component
         <flux:modal name="exemption-modal" class="backdrop:backdrop-blur-sm md:w-md" @close="closeExemptionModal">
             <div class="space-y-6">
                 <div>
-                    <flux:heading size="lg">Conceder Período de Isenção</flux:heading>
-                    <flux:subheading>O laboratório ficará isento de cobranças durante o período especificado.</flux:subheading>
+                    <flux:heading size="lg">{{ $editingExemptionId ? 'Editar Período de Isenção' : 'Conceder Período de Isenção' }}</flux:heading>
+                    <flux:subheading>{{ $editingExemptionId ? 'Ajuste os meses do período ou o motivo da isenção.' : 'O laboratório ficará isento de cobranças durante o período especificado.' }}</flux:subheading>
                 </div>
 
                 <form wire:submit="saveExemption" class="space-y-4">
@@ -673,9 +939,28 @@ new #[Layout('layouts.central')] class extends Component
                         <flux:modal.close>
                             <flux:button type="button" variant="ghost" wire:click="closeExemptionModal">Cancelar</flux:button>
                         </flux:modal.close>
-                        <flux:button type="submit" variant="primary">Conceder Isenção</flux:button>
+                        <flux:button type="submit" variant="primary">{{ $editingExemptionId ? 'Salvar Alterações' : 'Conceder Isenção' }}</flux:button>
                     </div>
                 </form>
+            </div>
+        </flux:modal>
+
+        {{-- Modal de Confirmação para Revogar Isenção --}}
+        <flux:modal name="revoke-exemption-modal" class="backdrop:backdrop-blur-sm md:w-md" @close="closeRevokeExemptionModal">
+            <div class="space-y-6">
+                <div>
+                    <flux:heading size="lg">Revogar Isenção de Pagamento</flux:heading>
+                    <flux:subheading>
+                        Tem certeza que deseja revogar o período de isenção deste laboratório? O tenant retornará ao ciclo padrão de faturamento.
+                    </flux:subheading>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost" wire:click="closeRevokeExemptionModal">Cancelar</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="button" variant="danger" wire:click="revokeExemption">Revogar Isenção</flux:button>
+                </div>
             </div>
         </flux:modal>
     </main>

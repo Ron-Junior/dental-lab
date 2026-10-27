@@ -648,4 +648,128 @@ class SuperAdminPanelTest extends TestCase
         $this->assertSame(Carbon::parse($startMonth)->startOfMonth()->toDateTimeString(), $exemption->starts_at->toDateTimeString());
         $this->assertSame(Carbon::parse($endMonth)->endOfMonth()->toDateTimeString(), $exemption->ends_at->toDateTimeString());
     }
+
+    public function test_update_and_revoke_exemption_flow(): void
+    {
+        $admin = $this->createCentralUser();
+        $tenant = $this->createTenant('t-exemp-flow', 'Lab Fluxo Isenção', TenantStatus::Active);
+
+        $this->actingAs($admin, 'central');
+
+        $startMonth = Carbon::now()->format('Y-m');
+        $endMonth = Carbon::now()->addMonth()->format('Y-m');
+
+        // Grant exemption first
+        Volt::test('pages.central.laboratories.index')
+            ->call('openExemptionModal', $tenant->id)
+            ->set('exemptionStartsAt', $startMonth)
+            ->set('exemptionEndsAt', $endMonth)
+            ->set('exemptionReason', 'Isenção Inicial')
+            ->call('saveExemption')
+            ->assertHasNoErrors();
+
+        $exemption = Exemption::query()->where('tenant_id', $tenant->id)->whereNull('revoked_at')->firstOrFail();
+
+        $newEndMonth = Carbon::now()->addMonths(3)->format('Y-m');
+
+        // Edit exemption
+        Volt::test('pages.central.laboratories.index')
+            ->call('openEditExemptionModal', $exemption->id)
+            ->assertSet('editingExemptionId', $exemption->id)
+            ->assertSet('exemptionReason', 'Isenção Inicial')
+            ->set('exemptionEndsAt', $newEndMonth)
+            ->set('exemptionReason', 'Isenção Ajustada')
+            ->call('saveExemption')
+            ->assertHasNoErrors();
+
+        $exemption->refresh();
+        $this->assertSame('Isenção Ajustada', $exemption->reason);
+        $this->assertSame(Carbon::parse($newEndMonth)->endOfMonth()->toDateTimeString(), $exemption->ends_at->toDateTimeString());
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'tenant.exemption.updated',
+        ]);
+
+        // Revoke exemption
+        Volt::test('pages.central.laboratories.index')
+            ->call('confirmRevokeExemption', $exemption->id)
+            ->assertSet('revokingExemptionId', $exemption->id)
+            ->call('revokeExemption')
+            ->assertHasNoErrors();
+
+        $exemption->refresh();
+        $this->assertNotNull($exemption->revoked_at);
+        $this->assertFalse($tenant->fresh()->isExempt());
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'tenant.exemption.revoked',
+        ]);
+    }
+
+    public function test_update_and_remove_discount_flow(): void
+    {
+        $admin = $this->createCentralUser();
+        $tenant = $this->createTenant('t-disc-flow', 'Lab Fluxo Desconto', TenantStatus::Active);
+
+        /** @var Payment $payment */
+        $payment = $tenant->payments()->create([
+            'amount_in_cents' => 10000,
+            'due_date' => Carbon::now()->addDays(5),
+            'status' => PaymentStatus::Pending,
+        ]);
+
+        $this->actingAs($admin, 'central');
+
+        // Grant initial discount of R$ 20.00
+        Volt::test('pages.central.laboratories.index')
+            ->call('openDiscountModal', $tenant->id)
+            ->set('discountType', 'fixed_amount')
+            ->set('discountValue', '20')
+            ->call('saveDiscount')
+            ->assertHasNoErrors();
+
+        $discount = Discount::query()->where('tenant_id', $tenant->id)->firstOrFail();
+        $payment->refresh();
+        $this->assertSame(8000, $payment->amount_in_cents);
+
+        // Edit discount to R$ 35.00
+        Volt::test('pages.central.laboratories.index')
+            ->call('openEditDiscountModal', $discount->id)
+            ->assertSet('editingDiscountId', $discount->id)
+            ->set('discountValue', '35')
+            ->call('saveDiscount')
+            ->assertHasNoErrors();
+
+        $discount->refresh();
+        $payment->refresh();
+        $this->assertSame(3500, $discount->value_in_cents);
+        $this->assertSame(6500, $payment->amount_in_cents);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'tenant.discount.updated',
+        ]);
+
+        // Remove discount
+        Volt::test('pages.central.laboratories.index')
+            ->call('confirmRemoveDiscount', $discount->id)
+            ->assertSet('removingDiscountId', $discount->id)
+            ->call('removeDiscount')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('discounts', [
+            'id' => $discount->id,
+        ]);
+
+        $payment->refresh();
+        $this->assertSame(10000, $payment->amount_in_cents);
+        $this->assertArrayNotHasKey('discount', $payment->metadata ?? []);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'tenant_id' => $tenant->id,
+            'action' => 'tenant.discount.removed',
+        ]);
+    }
 }
