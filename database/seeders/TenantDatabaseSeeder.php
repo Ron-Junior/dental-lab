@@ -12,7 +12,6 @@ class TenantDatabaseSeeder extends Seeder
             DentistSeeder::class,
             PartnerSeeder::class,
             ServiceSeeder::class,
-            PartnerSeeder::class,
             DentistRequestSeeder::class,
         ]);
     }

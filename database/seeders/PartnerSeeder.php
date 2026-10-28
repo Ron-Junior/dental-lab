@@ -24,7 +24,7 @@ class PartnerSeeder extends Seeder
             'commission_type' => CommissionTypes::Percentage->value,
         ])->toArray();
 
-        Partner::factory(10)
+        Partner::factory(3)
             ->has(User::factory()->forRule($rule))
             ->hasAttached($allowedSteps, $pivotValues)
             ->create();
