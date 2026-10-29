@@ -48,12 +48,20 @@ class PaymentWebhookController extends Controller
         }
 
         $data = $payload['data'] ?? [];
-        $paymentId = $data['payment_id'] ?? $payload['payment_id'] ?? null;
-        $transactionId = $data['transaction_id'] ?? $data['id'] ?? $payload['transaction_id'] ?? null;
-        $tenantId = $data['tenant_id'] ?? $payload['tenant_id'] ?? null;
-        $planId = $data['plan_id'] ?? $payload['plan_id'] ?? null;
-        $amountInCents = $data['amount_in_cents'] ?? $data['amount'] ?? $payload['amount'] ?? null;
+        $stripeObject = $data['object'] ?? [];
+
+        $paymentId = $data['payment_id'] ?? $payload['payment_id'] ?? $stripeObject['payment_id'] ?? null;
+        $transactionId = $data['transaction_id'] ?? $data['id'] ?? $payload['transaction_id'] ?? $stripeObject['id'] ?? null;
+        $tenantId = $data['tenant_id'] ?? $payload['tenant_id'] ?? $stripeObject['metadata']['tenant_id'] ?? null;
+        $planId = $data['plan_id'] ?? $payload['plan_id'] ?? $stripeObject['metadata']['plan_id'] ?? null;
+        $amountInCents = $data['amount_in_cents'] ?? $data['amount'] ?? $payload['amount'] ?? $stripeObject['amount_paid'] ?? $stripeObject['amount'] ?? null;
         $userData = $data['user'] ?? $payload['user'] ?? [];
+
+        // Se tenantId não foi passado diretamente, tentar localizar por stripe_customer_id
+        $stripeCustomerId = $stripeObject['customer'] ?? $payload['customer'] ?? null;
+        if ($tenantId === null && $stripeCustomerId !== null) {
+            $tenantId = Tenant::query()->where('stripe_customer_id', $stripeCustomerId)->value('id');
+        }
 
         // 1. Localizar o registro do pagamento
         $payment = null;

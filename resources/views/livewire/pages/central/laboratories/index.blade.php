@@ -516,6 +516,24 @@ new #[Layout('layouts.central')] class extends Component
         }
     }
 
+    public function resendFirstAccess(string $tenantId, \App\Actions\ResendFirstAccessLink $action): void
+    {
+        $user = Auth::guard('central')->user();
+        abort_unless($user instanceof CentralUser, 403);
+
+        $tenant = Tenant::query()->findOrFail($tenantId);
+
+        try {
+            $action->handle($tenant);
+            Flux::toast(
+                text: "Novo link de primeiro acesso enviado para [{$tenant->owner_email}].",
+                variant: 'success',
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(text: $e->getMessage(), variant: 'danger');
+        }
+    }
+
     private function resetDiscountForm(): void
     {
         $this->editingDiscountId = null;
@@ -694,6 +712,9 @@ new #[Layout('layouts.central')] class extends Component
 
                                     @if ($tenant->status->value === 'active')
                                         <flux:badge color="green" icon="check-circle">Ativo</flux:badge>
+                                        @if (! $tenant->isVerified())
+                                            <flux:badge color="amber" icon="envelope">1º Acesso Pendente</flux:badge>
+                                        @endif
                                     @elseif ($tenant->status->value === 'provisioning')
                                         <flux:badge color="blue" icon="clock">Configurando</flux:badge>
                                     @else
@@ -789,6 +810,18 @@ new #[Layout('layouts.central')] class extends Component
                                     @endif
 
                                     @if ($tenant->status->value === 'active')
+                                        @if (! $tenant->isVerified())
+                                            <flux:button
+                                                wire:click="resendFirstAccess('{{ $tenant->id }}')"
+                                                size="sm"
+                                                variant="outline"
+                                                icon="paper-airplane"
+                                                title="Reenviar link de primeiro acesso por e-mail"
+                                            >
+                                                Reenviar Acesso
+                                            </flux:button>
+                                        @endif
+
                                         <flux:button
                                             wire:click="impersonate('{{ $tenant->id }}')"
                                             size="sm"

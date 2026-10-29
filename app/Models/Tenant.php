@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Policies\TenantPolicy;
 use Carbon\CarbonInterface;
@@ -23,6 +24,7 @@ class Tenant extends BaseTenant implements TenantWithDatabase
     {
         return [
             'status' => TenantStatus::class,
+            'verified_at' => 'datetime',
         ];
     }
 
@@ -31,7 +33,23 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return [
             'id',
             'name',
+            'status',
+            'owner_email',
+            'verified_at',
+            'stripe_customer_id',
+            'card_brand',
+            'card_last_four',
         ];
+    }
+
+    public function isVerified(): bool
+    {
+        return $this->verified_at !== null;
+    }
+
+    public function markAsVerified(): void
+    {
+        $this->update(['verified_at' => now()]);
     }
 
     public function subscriptions(): HasMany
@@ -68,6 +86,24 @@ class Tenant extends BaseTenant implements TenantWithDatabase
             ->whereNull('revoked_at')
             ->where('starts_at', '<=', $now)
             ->where('ends_at', '>', $now)
+            ->exists();
+    }
+
+    public function hasActiveTrial(?CarbonInterface $at = null): bool
+    {
+        $now = $at ? Carbon::instance($at) : Carbon::now();
+
+        if ($this->relationLoaded('subscriptions')) {
+            return $this->subscriptions->contains(
+                fn (Subscription $sub): bool => $sub->status === SubscriptionStatus::Trial
+                    && $sub->current_period_end !== null
+                    && $sub->current_period_end->greaterThan($now)
+            );
+        }
+
+        return $this->subscriptions()
+            ->where('status', SubscriptionStatus::Trial)
+            ->where('current_period_end', '>', $now)
             ->exists();
     }
 }

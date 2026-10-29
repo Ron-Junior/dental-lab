@@ -20,6 +20,7 @@ Route::domain(config('tenancy.central_domain'))->group(function () {
     });
 
     Volt::route('/cadastro', 'pages.auth.central-registration')->name('onboarding.create');
+    Volt::route('/checkout/{tenant}', 'pages.central.checkout')->name('onboarding.checkout');
     Volt::route('/bem-vindo/{tenant}', 'pages.central.onboarding')
         ->name('onboarding.show');
 

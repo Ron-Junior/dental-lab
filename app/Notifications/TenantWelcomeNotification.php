@@ -27,9 +27,10 @@ class TenantWelcomeNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Seu laboratório já está pronto')
+            ->subject('Seu laboratório já está pronto - Primeiro Acesso')
             ->greeting('Bem-vindo, '.$this->laboratoryName.'!')
-            ->line('O ambiente do seu laboratório foi configurado e já pode ser acessado.')
-            ->action('Acessar laboratório', $this->loginUrl);
+            ->line('O ambiente do seu laboratório foi configurado com sucesso.')
+            ->line('Clique no botão abaixo para definir sua senha e realizar seu primeiro acesso.')
+            ->action('Definir Senha e Acessar', $this->loginUrl);
     }
 }

@@ -14,6 +14,7 @@ use Stancl\Tenancy\Database\Concerns\CentralConnection;
     'name',
     'price_in_cents',
     'billing_cycle',
+    'stripe_price_id',
     'limits',
     'is_active',
 ])]

@@ -8,6 +8,7 @@
         </header>
 
         <livewire:profile.plan-usage />
+        <livewire:profile.subscription-billing />
 
         <div class="grid gap-6 lg:grid-cols-2">
             <flux:card class="space-y-6">

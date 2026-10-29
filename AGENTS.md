@@ -157,9 +157,10 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 # Livewire
 
 - Livewire allows you to build dynamic, reactive interfaces in PHP without writing JavaScript.
-- You can use Alpine.js for client-side interactions instead of JavaScript frameworks.
 - Keep state server-side so the UI reflects it. Validate and authorize in actions as you would in HTTP requests.
 - Always use the `<flux:modal>` component for modals across the application. Never build manual modal structures with fixed backdrop divs or custom HTML/Alpine overlays when Flux UI is available.
+- Always prefer Alpine.js over raw HTML `<script>` tags for client-side interactions. Always prefer creating dedicated `.js` files (in `resources/js/alpine/`) registered via `Alpine.data(...)` in Vite (`resources/js/app.js`) instead of embedding inline Alpine code directly in HTML templates.
+- Always build 100% responsive interfaces designed strictly with a **Mobile-First** approach. Never hardcode restrictive fixed widths on global wrapper layouts (such as `sm:max-w-md`) that would constrain multi-element pages like checkout or onboarding. Base styling must target mobile viewports (`w-full`, `grid-cols-1`, `flex-col`, min 44px touch targets) and progressively scale using responsive breakpoints (`sm:`, `md:`, `lg:`).
 
 
 === volt/core rules ===

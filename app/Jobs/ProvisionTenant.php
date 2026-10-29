@@ -15,8 +15,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Stancl\Tenancy\Jobs\CreateDatabase;
 use Throwable;
 
@@ -33,7 +36,7 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * @param  string  $tenantId  Central tenant identifier.
-     * @param  array{name?: string, email: string, password: string}  $userData  User data containing email and password to create the owner user for the tenant.
+     * @param  array{name?: string, email?: string}  $userData  User data containing email and optional name to create the owner user for the tenant.
      */
     public function __construct(
         public string $tenantId,
@@ -44,18 +47,16 @@ class ProvisionTenant implements ShouldQueue
     {
         $tenant = Tenant::query()->findOrFail($this->tenantId);
 
+        $userEmail = ! empty($this->userData['email']) ? $this->userData['email'] : $tenant->owner_email;
+
+        if (empty($userEmail)) {
+            throw new \InvalidArgumentException("O e-mail do usuário administrador é obrigatório para provisionar o tenant [{$this->tenantId}].");
+        }
+
         Log::info('Provisionando tenant', [
             'tenantId' => $tenant->id,
-            'userData' => array_diff_key($this->userData, ['password' => '']),
+            'userEmail' => $userEmail,
         ]);
-
-        if (empty($this->userData['email'])) {
-            throw new \InvalidArgumentException("O e-mail do usuário administrador ('email') é obrigatório para provisionar o tenant [{$this->tenantId}].");
-        }
-
-        if (empty($this->userData['password'])) {
-            throw new \InvalidArgumentException("A senha do usuário administrador ('password') é obrigatória para provisionar o tenant [{$this->tenantId}].");
-        }
 
         // Gerar e configurar o nome do banco/schema do tenant se necessário
         $databaseName = $tenant->database()->getName();
@@ -94,10 +95,8 @@ class ProvisionTenant implements ShouldQueue
 
         // Dados do usuário
         $userName = $this->userData['name'] ?? $tenant->name;
-        $userEmail = $this->userData['email'];
-        $userPassword = $this->userData['password'];
 
-        $tenant->run(function () use ($userName, $userEmail, $userPassword): void {
+        $firstAccessUrl = $tenant->run(function () use ($userName, $userEmail, $tenant): string {
             Log::info('Provisionando tenant - criando usuário no schema do tenant', [
                 'email' => $userEmail,
             ]);
@@ -106,24 +105,46 @@ class ProvisionTenant implements ShouldQueue
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
 
-            User::query()->firstOrCreate(
+            $user = User::query()->firstOrCreate(
                 ['email' => $userEmail],
                 [
                     'name' => $userName,
                     'email' => $userEmail,
-                    'password' => $userPassword,
+                    'password' => Str::random(32),
                     'rule_id' => $labRule->id,
                 ],
             );
+
+            // Gerar token seguro de primeiro acesso
+            $user->invitationToken()->delete();
+            $token = Hash::make(uniqid());
+            $expiration = now()->addHours(48);
+
+            $user->invitationToken()->create([
+                'token' => $token,
+                'expires_at' => $expiration,
+            ]);
+
+            return URL::temporarySignedRoute(
+                'complete-signup.show',
+                $expiration,
+                [
+                    'tenant' => $tenant->id,
+                    'email' => $user->email,
+                    'token' => $token,
+                ]
+            );
         });
 
+        // Salvar a URL de primeiro acesso nos metadados do tenant para a tela de boas-vindas
+        $tenant->first_access_url = $firstAccessUrl;
         $tenant->status = TenantStatus::Active;
         $tenant->save();
 
         Notification::route('mail', $userEmail)
             ->notify(new TenantWelcomeNotification(
                 $tenant->name,
-                route('login', ['tenant' => $tenant->id]),
+                $firstAccessUrl,
             ));
 
         Log::info('Provisionamento do tenant concluído com sucesso', [

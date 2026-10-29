@@ -2,6 +2,7 @@
 
 use App\Enums\TenantStatus;
 use App\Models\Tenant;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -14,8 +15,14 @@ new #[Layout('layouts.guest')] class extends Component
         $this->tenant = $tenant;
 
         if ($this->tenant->status === TenantStatus::Active) {
-            $this->redirectRoute('login', ['tenant' => $this->tenant->id], navigate: true);
+            $this->redirect($this->firstAccessUrl);
         }
+    }
+
+    #[Computed]
+    public function firstAccessUrl(): string
+    {
+        return $this->tenant->first_access_url ?? $this->tenant->data['first_access_url'] ?? route('login', ['tenant' => $this->tenant->id]);
     }
 
     public function refreshStatus(): void
@@ -34,16 +41,26 @@ new #[Layout('layouts.guest')] class extends Component
             Estamos configurando o espaço de {{ $tenant->name }}. Esta página seguirá o andamento automaticamente.
         </flux:text>
 
-        <p aria-live="polite" class="font-medium text-zinc-800 dark:text-zinc-200">
+        <div aria-live="polite" class="mt-4 font-medium text-zinc-800 dark:text-zinc-200">
             @if ($tenant->status === TenantStatus::Active)
-                Seu laboratório está pronto.
-                <a class="underline" href="{{ route('login', ['tenant' => $tenant->id]) }}">Acessar agora</a>
+                <div class="flex flex-col items-center gap-4">
+                    <flux:badge color="green" size="lg" icon="check-circle">Configuração Concluída!</flux:badge>
+                    <flux:text class="text-sm">Seu ambiente está pronto. Clique no botão abaixo para criar sua senha e realizar seu primeiro acesso.</flux:text>
+                    <flux:button href="{{ $this->firstAccessUrl }}" variant="primary" icon:trailing="arrow-right">
+                        Acessar plataforma e criar senha
+                    </flux:button>
+                </div>
             @elseif ($tenant->status === TenantStatus::Failed)
-                Não foi possível concluir a configuração. Entre em contato com o suporte para continuar.
+                <div class="flex flex-col items-center gap-3 text-rose-600 dark:text-rose-400">
+                    <flux:badge color="red" size="lg" icon="exclamation-triangle">Falha na Configuração</flux:badge>
+                    <flux:text>Não foi possível concluir a configuração automática. Entre em contato com o suporte para continuar.</flux:text>
+                </div>
             @else
-                Configurando banco de dados, produtos iniciais e acesso do administrador...
-                <flux:icon.loading class="mt-4 justify-self-center"/>
+                <div class="flex flex-col items-center gap-3">
+                    <flux:text>Configurando banco de dados, produtos iniciais e acesso do administrador...</flux:text>
+                    <flux:icon.loading class="mt-2 justify-self-center"/>
+                </div>
             @endif
-        </p>
+        </div>
     </section>
 </div>

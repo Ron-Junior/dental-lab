@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\Plan;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -15,9 +17,21 @@ new #[Layout('layouts.guest')] class extends Component
 
     public string $slug = '';
 
-    public string $password = '';
+    public string $plan_id = '';
 
-    public string $password_confirmation = '';
+    public function mount(): void
+    {
+        $defaultPlan = Plan::query()->where('is_active', true)->first();
+        if ($defaultPlan) {
+            $this->plan_id = (string) $defaultPlan->id;
+        }
+    }
+
+    #[Computed]
+    public function plans()
+    {
+        return Plan::query()->where('is_active', true)->get();
+    }
 
     /**
      * @return array<string, array<int, mixed>>
@@ -38,7 +52,7 @@ new #[Layout('layouts.guest')] class extends Component
                 Rule::unique('domains', 'domain')
                     ->where('domain', $this->slug.'.'.config('tenancy.central_domain')),
             ],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'plan_id' => ['required', 'exists:plans,id'],
         ];
     }
 
@@ -55,9 +69,7 @@ new #[Layout('layouts.guest')] class extends Component
             'slug.regex' => 'O endereço deve conter apenas letras minúsculas, números e hífens.',
             'slug.not_in' => 'Este endereço está reservado e não pode ser utilizado.',
             'slug.unique' => 'Este endereço já está em uso.',
-            'password.required' => 'Informe uma senha.',
-            'password.min' => 'A senha deve ter pelo menos 8 caracteres.',
-            'password.confirmed' => 'A confirmação da senha não corresponde.',
+            'plan_id.required' => 'Selecione um plano.',
         ];
     }
 
@@ -81,7 +93,7 @@ new #[Layout('layouts.guest')] class extends Component
             userAgent: request()->userAgent(),
         );
 
-        $this->redirectRoute('onboarding.show', ['tenant' => $tenant->id], navigate: true);
+        $this->redirectRoute('onboarding.checkout', ['tenant' => $tenant->id], navigate: true);
     }
 
     /**
@@ -91,7 +103,7 @@ new #[Layout('layouts.guest')] class extends Component
     {
         $centralDomainLabels = array_map(
             static fn (string $domain): string => explode('.', $domain)[0],
-            config('tenancy.central_domains'),
+            config('tenancy.central_domains') ?? [config('tenancy.central_domain')],
         );
 
         return array_values(array_unique([
@@ -109,7 +121,7 @@ new #[Layout('layouts.guest')] class extends Component
     <div class="flex flex-col gap-6">
         <div class="text-center">
             <flux:heading size="xl">Crie o espaço do seu laboratório</flux:heading>
-            <flux:text class="mt-2">Seu ambiente será preparado automaticamente.</flux:text>
+            <flux:text class="mt-2">Preencha os dados da sua empresa. Sua senha de acesso será configurada com segurança no primeiro acesso.</flux:text>
         </div>
 
         <form class="flex flex-col gap-4" wire:submit="register">
@@ -129,7 +141,7 @@ new #[Layout('layouts.guest')] class extends Component
             />
 
             <flux:input
-                label="E-mail"
+                label="E-mail do administrador"
                 wire:model="email"
                 name="email"
                 type="email"
@@ -154,26 +166,20 @@ new #[Layout('layouts.guest')] class extends Component
                 <flux:error name="slug" />
             </flux:field>
 
-            <flux:input
-                label="Senha"
-                wire:model="password"
-                name="password"
-                type="password"
-                autocomplete="new-password"
-                required
-            />
+            <flux:field>
+                <flux:label>Plano de assinatura</flux:label>
+                <flux:select wire:model="plan_id" name="plan_id" required>
+                    @foreach ($this->plans as $plan)
+                        <option value="{{ $plan->id }}">
+                            {{ $plan->name }} — R$ {{ number_format($plan->price_in_cents / 100, 2, ',', '.') }} / {{ $plan->billing_cycle === 'annual' ? 'ano' : 'mês' }}
+                        </option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="plan_id" />
+            </flux:field>
 
-            <flux:input
-                label="Confirme a senha"
-                wire:model="password_confirmation"
-                name="password_confirmation"
-                type="password"
-                autocomplete="new-password"
-                required
-            />
-
-            <flux:button class="mt-2 w-full" type="submit" wire:loading.attr="disabled" wire:target="register">
-                Criar laboratório
+            <flux:button class="mt-2 w-full" type="submit" variant="primary" wire:loading.attr="disabled" wire:target="register">
+                Continuar para pagamento
             </flux:button>
         </form>
     </div>

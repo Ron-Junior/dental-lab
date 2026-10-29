@@ -12,6 +12,7 @@ use Stancl\Tenancy\Database\Concerns\CentralConnection;
 #[Fillable([
     'tenant_id',
     'plan_id',
+    'stripe_subscription_id',
     'status',
     'current_period_start',
     'current_period_end',
@@ -38,5 +39,19 @@ class Subscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function daysRemainingInTrial(): int
+    {
+        if ($this->status !== SubscriptionStatus::Trial || ! $this->current_period_end) {
+            return 0;
+        }
+
+        $now = now();
+        if ($now->greaterThanOrEqualTo($this->current_period_end)) {
+            return 0;
+        }
+
+        return max(0, (int) round($now->diffInDays($this->current_period_end, false)));
     }
 }
