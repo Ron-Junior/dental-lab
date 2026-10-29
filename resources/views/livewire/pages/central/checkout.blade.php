@@ -179,7 +179,6 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             @foreach ($this->plans as $plan)
                 @php
                     $isSelected = ($this->selectedPlanId === (string) $plan->id);
-                    $isPopular = str_contains(strtolower($plan->name), 'profissional');
                     $usersLimit = $plan->limits[App\Enums\PlanResource::Users->value] ?? null;
                     $storageLimit = $plan->limits[App\Enums\PlanResource::Storage->value] ?? null;
                     $monthlyItemsLimit = $plan->limits[App\Enums\PlanResource::MonthlyItems->value] ?? null;
@@ -192,7 +191,7 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
                             ? 'border-2 border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-950/20 dark:ring-indigo-400/20'
                             : 'border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700' }}"
                 >
-                    @if ($isPopular)
+                    @if ($loop->index === 1)
                         <div class="absolute -top-3 right-4">
                             <span class="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
                                 Mais Escolhido
