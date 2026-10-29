@@ -319,37 +319,94 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
                 </div>
 
                 @if ($isMockMode)
-                    <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                        <p class="font-medium">Modo de Simulação / Testes</p>
-                        <p class="mt-1 text-xs">As credenciais do Stripe estão configuradas em modo local. Você pode simular a confirmação imediata do cartão abaixo.</p>
+                    <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p class="font-semibold">Ambiente de Testes / Simulação</p>
+                            <p class="mt-0.5">Você pode preencher os campos abaixo ou simular a ativação imediata.</p>
+                        </div>
+                        <flux:button
+                            wire:click="confirmPaymentMethod('pm_mock_test_card')"
+                            variant="outline"
+                            size="sm"
+                            class="shrink-0"
+                            wire:loading.attr="disabled"
+                        >
+                            Simular Pagamento
+                        </flux:button>
+                    </div>
+                @endif
+
+                <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
+                    <!-- Nome impresso no cartão -->
+                    <div>
+                        <label for="cardholder-name" class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                            Nome impresso no cartão
+                        </label>
+                        <input
+                            id="cardholder-name"
+                            type="text"
+                            x-model="cardholderName"
+                            placeholder="Como impresso no cartão"
+                            class="w-full rounded-xl border border-zinc-300 p-3 text-sm text-zinc-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500 min-h-[46px]"
+                            required
+                        />
                     </div>
 
-                    <flux:button
-                        wire:click="confirmPaymentMethod('pm_mock_test_card')"
-                        variant="primary"
-                        class="w-full"
-                        wire:loading.attr="disabled"
-                    >
-                        Confirmar Pagamento e Ativar {{ $this->selectedPlan?->name ?? 'Laboratório' }}
-                    </flux:button>
-                @else
-                    <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
-                        <div wire:ignore x-ref="cardElement" class="rounded-lg border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px]">
-                            <!-- Stripe Card Element montado via Alpine -->
+                    <!-- Número do Cartão -->
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                            Número do cartão
+                        </label>
+                        <div
+                            wire:ignore
+                            x-ref="cardNumber"
+                            class="rounded-xl border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px] transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+                        >
+                            <!-- Stripe Card Number Element montado via Alpine -->
                         </div>
-                        <div x-show="errorMessage" x-text="errorMessage" role="alert" class="text-xs text-rose-600"></div>
+                    </div>
 
-                        <flux:button type="submit" variant="primary" class="w-full" x-bind:disabled="isProcessing">
-                            <span x-show="!isProcessing">
-                                Confirmar Pagamento e Ativar {{ $this->selectedPlan?->name ?? 'Laboratório' }}
-                            </span>
-                            <span x-show="isProcessing" class="inline-flex items-center gap-2">
-                                <flux:icon.loading class="size-4" />
-                                Processando Pagamento...
-                            </span>
-                        </flux:button>
-                    </form>
-                @endif
+                    <!-- Validade e CVC lado a lado -->
+                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                Validade (MM/AA)
+                            </label>
+                            <div
+                                wire:ignore
+                                x-ref="cardExpiry"
+                                class="rounded-xl border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px] transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+                            >
+                                <!-- Stripe Card Expiry Element montado via Alpine -->
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                CVC / CVV
+                            </label>
+                            <div
+                                wire:ignore
+                                x-ref="cardCvc"
+                                class="rounded-xl border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px] transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+                            >
+                                <!-- Stripe Card CVC Element montado via Alpine -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-show="errorMessage" x-text="errorMessage" role="alert" class="text-xs text-rose-600 font-medium"></div>
+
+                    <flux:button type="submit" variant="primary" class="w-full min-h-[44px] mt-1" x-bind:disabled="isProcessing">
+                        <span x-show="!isProcessing">
+                            Confirmar Pagamento e Ativar {{ $this->selectedPlan?->name ?? 'Laboratório' }}
+                        </span>
+                        <span x-show="isProcessing" class="inline-flex items-center gap-2">
+                            <flux:icon.loading class="size-4" />
+                            Processando Pagamento...
+                        </span>
+                    </flux:button>
+                </form>
             </flux:card>
         </div>
     </div>

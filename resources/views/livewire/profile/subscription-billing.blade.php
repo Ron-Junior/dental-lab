@@ -218,12 +218,67 @@ new class extends Component
                     </div>
                 @else
                     <form @submit.prevent="handleSubmit" class="space-y-4">
-                        <div x-ref="cardElement" class="rounded-lg border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-                            <!-- Stripe Card Element montado via Alpine -->
+                        <!-- Nome no Cartão -->
+                        <div>
+                            <label for="update-cardholder-name" class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                Nome impresso no cartão
+                            </label>
+                            <input
+                                id="update-cardholder-name"
+                                type="text"
+                                x-model="cardholderName"
+                                placeholder="Como impresso no cartão"
+                                class="w-full rounded-xl border border-zinc-300 p-3 text-sm text-zinc-900 bg-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500 min-h-[46px]"
+                                required
+                            />
                         </div>
-                        <div x-show="errorMessage" x-text="errorMessage" role="alert" class="text-xs text-rose-600"></div>
 
-                        <div class="flex justify-end gap-2">
+                        <!-- Número do Cartão -->
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                Número do cartão
+                            </label>
+                            <div
+                                wire:ignore
+                                x-ref="cardNumber"
+                                class="rounded-xl border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px] transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+                            >
+                                <!-- Stripe Card Number Element montado via Alpine -->
+                            </div>
+                        </div>
+
+                        <!-- Validade e CVC -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                    Validade (MM/AA)
+                                </label>
+                                <div
+                                    wire:ignore
+                                    x-ref="cardExpiry"
+                                    class="rounded-xl border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px] transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+                                >
+                                    <!-- Stripe Card Expiry Element montado via Alpine -->
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                                    CVC / CVV
+                                </label>
+                                <div
+                                    wire:ignore
+                                    x-ref="cardCvc"
+                                    class="rounded-xl border border-zinc-300 p-3 bg-white dark:border-zinc-700 dark:bg-zinc-900 min-h-[46px] transition focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+                                >
+                                    <!-- Stripe Card CVC Element montado via Alpine -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div x-show="errorMessage" x-text="errorMessage" role="alert" class="text-xs text-rose-600 font-medium"></div>
+
+                        <div class="flex justify-end gap-2 pt-2">
                             <flux:modal.close>
                                 <flux:button variant="ghost" x-bind:disabled="isProcessing">Cancelar</flux:button>
                             </flux:modal.close>
