@@ -5,6 +5,8 @@ namespace App\Services\PlanLimits;
 use App\Enums\PlanResource;
 use App\Enums\Rules;
 use App\Enums\SubscriptionStatus;
+use App\Enums\TenantStatus;
+use App\Enums\UsageLevel;
 use App\Models\File;
 use App\Models\RequestService;
 use App\Models\Subscription;
@@ -28,7 +30,7 @@ class TenantLimitChecker
         $usage = [];
 
         foreach (PlanResource::cases() as $resource) {
-            $usage[$resource->value] = $this->buildUsage($resource, $limits);
+            $usage[$resource->value] = $this->buildUsage($resource, $limits, $tenant);
         }
 
         return $usage;
@@ -38,7 +40,7 @@ class TenantLimitChecker
     {
         $tenant = $this->resolveTenant($tenant);
 
-        return $this->buildUsage($resource, $this->limitsFor($tenant));
+        return $this->buildUsage($resource, $this->limitsFor($tenant), $tenant);
     }
 
     /**
@@ -59,17 +61,117 @@ class TenantLimitChecker
     }
 
     /**
+     * Retorna o nível de alerta mais crítico entre os recursos consumidos.
+     *
+     * @param  array<string, ResourceUsage>  $usages
+     */
+    public function overallLevel(array $usages): UsageLevel
+    {
+        $orderedLevels = [
+            UsageLevel::Exceeded,
+            UsageLevel::Critical,
+            UsageLevel::Warning,
+            UsageLevel::Normal,
+        ];
+
+        foreach ($orderedLevels as $level) {
+            foreach ($usages as $usage) {
+                if (! $usage->isUnlimited() && $usage->level === $level) {
+                    return $level;
+                }
+            }
+        }
+
+        return UsageLevel::Normal;
+    }
+
+    /**
+     * Informa se algum recurso do tenant está próximo ou atingiu o limite (Warning, Critical ou Exceeded).
+     *
+     * @param  array<string, ResourceUsage>  $usages
+     */
+    public function isNearLimit(array $usages): bool
+    {
+        return $this->overallLevel($usages) !== UsageLevel::Normal;
+    }
+
+    /**
+     * Retorna a maior porcentagem de uso entre os recursos que possuem limite definido.
+     *
+     * @param  array<string, ResourceUsage>  $usages
+     */
+    public function maxPercentage(array $usages): float
+    {
+        $max = 0.0;
+
+        foreach ($usages as $usage) {
+            if (! $usage->isUnlimited() && $usage->percentage > $max) {
+                $max = $usage->percentage;
+            }
+        }
+
+        return $max;
+    }
+
+    /**
+     * Retorna true se todos os recursos forem ilimitados ou sem limites configurados.
+     *
+     * @param  array<string, ResourceUsage>  $usages
+     */
+    public function isAllUnlimited(array $usages): bool
+    {
+        if (empty($usages)) {
+            return true;
+        }
+
+        foreach ($usages as $usage) {
+            if (! $usage->isUnlimited()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * @param  array<string, mixed>  $limits
      */
-    private function buildUsage(PlanResource $resource, array $limits): ResourceUsage
+    private function buildUsage(PlanResource $resource, array $limits, Tenant $tenant): ResourceUsage
     {
         $limit = $limits[$resource->value] ?? null;
         $limit = is_numeric($limit) ? (int) $limit : null;
 
         // Sem limite definido não há necessidade de consultar o consumo.
-        $used = $limit === null ? 0.0 : $this->consumption($resource);
+        if ($limit === null) {
+            $used = 0.0;
+        } else {
+            $used = $this->resolveConsumption($resource, $tenant);
+        }
 
         return new ResourceUsage($resource, $used, $limit);
+    }
+
+    private function resolveConsumption(PlanResource $resource, Tenant $tenant): float
+    {
+        if (tenancy()->initialized && tenancy()->tenant?->getTenantKey() === $tenant->getTenantKey()) {
+            return $this->consumption($resource);
+        }
+
+        if ($tenant->status !== TenantStatus::Active) {
+            return 0.0;
+        }
+
+        try {
+            return (float) $tenant->run(fn () => $this->consumption($resource));
+        } catch (Throwable $exception) {
+            Log::warning('Falha ao calcular consumo do tenant no banco operacional.', [
+                'tenant_id' => $tenant->getTenantKey(),
+                'resource' => $resource->value,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return 0.0;
+        }
     }
 
     private function consumption(PlanResource $resource): float

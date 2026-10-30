@@ -57,6 +57,24 @@ class Tenant extends BaseTenant implements TenantWithDatabase
         return $this->hasMany(Subscription::class);
     }
 
+    public function currentSubscription(): ?Subscription
+    {
+        if ($this->relationLoaded('subscriptions')) {
+            return $this->subscriptions
+                ->whereIn('status', [SubscriptionStatus::Active, SubscriptionStatus::Trial, SubscriptionStatus::Overdue])
+                ->sortByDesc('current_period_start')
+                ->first()
+                ?? $this->subscriptions->sortByDesc('created_at')->first();
+        }
+
+        return $this->subscriptions()
+            ->with('plan')
+            ->whereIn('status', [SubscriptionStatus::Active, SubscriptionStatus::Trial, SubscriptionStatus::Overdue])
+            ->latest('current_period_start')
+            ->first()
+            ?? $this->subscriptions()->with('plan')->latest('created_at')->first();
+    }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
