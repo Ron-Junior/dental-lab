@@ -45,7 +45,7 @@ new  class extends Component
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
-                @foreach ($this->partners as $partner)
+                @forelse ($this->partners as $partner)
                     <flux:table.row :key="$partner->id">
                         <flux:table.cell class="flex items-center gap-3">
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $partner->user->name }}</span>
@@ -59,7 +59,18 @@ new  class extends Component
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
-                @endforeach
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="4">
+                            <x-empty-state
+                                inset
+                                icon="user-group"
+                                title="Nenhum parceiro encontrado"
+                                description="Cadastre parceiros para vincular a execução de etapas."
+                            />
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
             </flux:table.rows>
         </flux:table>
     </div>

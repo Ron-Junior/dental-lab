@@ -152,7 +152,7 @@ new class extends Component
     <flux:modal class="backdrop:backdrop-blur-sm md:w-lg space-y-4" flyout variant="floating" name="product-stock-out-modal" @close="closeModal">
         <form wire:submit="save" class="space-y-2">
             <flux:heading size="lg">Quais produtos você gostaria de retirar do estoque?</flux:heading>
-            @foreach ($selectedProducts as $index => $product)
+            @forelse ($selectedProducts as $index => $product)
                 <flux:card class="space-y-4">
                     <flux:select label="Produto" wire:model.live="selectedProducts.{{ $index }}.id">
                         <flux:select.option>Selecione um Produto</flux:select.option>
@@ -200,7 +200,14 @@ new class extends Component
                         </flux:button>
                     @endif
                 </flux:card>
-            @endforeach
+            @empty
+                <x-empty-state
+                    inset
+                    icon="arrows-up-down"
+                    title="Nenhum item selecionado"
+                    description="Adicione produtos para registrar a retirada de estoque."
+                />
+            @endforelse
             <flux:button class="w-full my-4" wire:key="{{ $index }}" icon="plus" wire:click="addProduct">
                 Adicionar Retirada
             </flux:button>

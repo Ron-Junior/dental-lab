@@ -194,7 +194,7 @@ new class extends Component
 
             <flux:heading size="md">Etapas do Serviço</flux:heading>
             <div class="relative space-y-4" wire:sort.defer="reorderSteps" >
-                @foreach ($steps as $index => $step)
+                @forelse ($steps as $index => $step)
                     <div wire:key="step-wrapper-{{ $index }}" wire:sort:item="{{ $index }}" class="relative pl-9 group">
                         @unless ($loop->last)
                             <span class="absolute left-3.25 top-7 -bottom-4 w-0.5 bg-zinc-200 dark:bg-zinc-700" aria-hidden="true"></span>
@@ -215,7 +215,14 @@ new class extends Component
                             <flux:button class="mt-2" icon="trash" variant="ghost" wire:click="removeStep({{ $index }})"></flux:button>
                         </flux:card>
                     </div>
-                @endforeach
+                @empty
+                    <x-empty-state
+                        inset
+                        icon="numbered-list"
+                        title="Nenhuma etapa vinculada"
+                        description="Adicione etapas para definir o fluxo de produção deste serviço."
+                    />
+                @endforelse
             </div>
 
             @error('steps')

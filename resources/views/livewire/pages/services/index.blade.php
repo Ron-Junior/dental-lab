@@ -43,7 +43,7 @@ new  class extends Component
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
-                @foreach ($this->services as $service)
+                @forelse ($this->services as $service)
                     <flux:table.row :key="$service->id">
                         <flux:table.cell class="flex items-center gap-3">
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $service->name }}</span>
@@ -59,7 +59,18 @@ new  class extends Component
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
-                @endforeach
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="4">
+                            <x-empty-state
+                                inset
+                                icon="inbox"
+                                title="Nenhum serviço cadastrado"
+                                description="Cadastre os serviços oferecidos pelo laboratório de próteses."
+                            />
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
             </flux:table.rows>
         </flux:table>
     </div>

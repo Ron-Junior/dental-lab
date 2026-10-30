@@ -38,7 +38,7 @@ new class extends Component
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
-                @foreach ($this->categories as $category)
+                @forelse ($this->categories as $category)
                     <flux:table.row :key="$category->id">
                         <flux:table.cell class="flex items-center gap-3">
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $category->name }}</span>
@@ -50,7 +50,18 @@ new class extends Component
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
-                @endforeach
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="2">
+                            <x-empty-state
+                                inset
+                                icon="tag"
+                                title="Nenhuma categoria encontrada"
+                                description="Cadastre uma nova categoria para organizar seus produtos."
+                            />
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
             </flux:table.rows>
         </flux:table>
     </div>

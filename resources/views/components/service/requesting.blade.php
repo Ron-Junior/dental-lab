@@ -262,7 +262,7 @@ new class extends Component
 
             <flux:heading size="lg">Serviços</flux:heading>
 
-            @foreach ($this->services as $index => $service)
+            @forelse ($this->services as $index => $service)
                 <flux:card>
                     <div class="space-y-4">
 
@@ -283,7 +283,14 @@ new class extends Component
                         @endif
                     </div>
                 </flux:card>
-            @endforeach
+            @empty
+                <x-empty-state
+                    inset
+                    icon="clipboard-document-list"
+                    title="Nenhum serviço adicionado"
+                    description="Adicione pelo menos um serviço a esta solicitação."
+                />
+            @endforelse
 
             <flux:button class="w-full" icon="plus" variant="outline" wire:click="addService">Adicionar Serviço</flux:button>
 

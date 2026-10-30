@@ -70,7 +70,7 @@ new class extends Component
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
-                @foreach ($this->products as $product)
+                @forelse ($this->products as $product)
                     <flux:table.row :key="$product->id">
                         <flux:table.cell>
                             <div class="flex items-center gap-2">
@@ -109,7 +109,18 @@ new class extends Component
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
-                @endforeach
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="5">
+                            <x-empty-state
+                                inset
+                                icon="rectangle-stack"
+                                title="Nenhum produto encontrado"
+                                description="Verifique os filtros ou cadastre um novo produto."
+                            />
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
             </flux:table.rows>
         </flux:table>
     </div>

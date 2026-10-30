@@ -41,7 +41,7 @@ new  class extends Component
                 <flux:table.column></flux:table.column>
             </flux:table.columns>
             <flux:table.rows>
-                @foreach ($this->steps as $step)
+                @forelse ($this->steps as $step)
                     <flux:table.row :key="$step->id">
                         <flux:table.cell class="flex items-center gap-3">
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $step->name }}</span>
@@ -55,7 +55,18 @@ new  class extends Component
                             </div>
                         </flux:table.cell>
                     </flux:table.row>
-                @endforeach
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="3">
+                            <x-empty-state
+                                inset
+                                icon="numbered-list"
+                                title="Nenhuma etapa encontrada"
+                                description="Cadastre as etapas para dividir o processo de produção dos serviços."
+                            />
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
             </flux:table.rows>
         </flux:table>
     </div>
