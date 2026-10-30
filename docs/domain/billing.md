@@ -42,30 +42,45 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 2. Calcula o abatimento (percentual: `floor(valor × pct / 100)`), nunca deixando o valor abaixo de 0.
 3. Salva `metadata.discount = {discount_id, original_amount_in_cents, discount_in_cents}`.
 4. Marca o desconto como aplicado. Um pagamento aceita no máximo um desconto.
+5. **Repasse de Desconto ao Stripe via Coupon:** Ao criar a assinatura no Stripe para um laboratório com desconto pendente/aplicado, o sistema cria um cupom (`coupon`) no Stripe com `percent_off` ou `amount_off` (em centavos de BRL) e duração única (`duration: once`). O cupom é informado no parâmetro `discounts: [['coupon' => $couponId]]` em `subscriptions.create`, garantindo que a primeira fatura da Stripe aplique o abatimento concedido pelos sócios.
 
 ---
 
 ## 4. Isenção e Checkout
 
+- **Restrição Estrita a Novos Clientes (Não-Assinantes):** A isenção é exclusivamente um benefício de captação/aquisição comercial concedido pelos sócios. **É proibido conceder isenção a quem já é cliente/assinante** (laboratórios com pagamentos já realizados ou assinatura ativa pré-existente). O `ExemptionService::grant` rejeita a concessão caso o tenant já possua histórico de faturamento ativo.
 - **Bypass de Checkout:** Tenant isento (`Tenant::isExempt()`) não passa pelo fluxo de checkout de pagamento (sem coleta de cartão) e vai direto para a etapa de provisionamento.
-- **Cadastro pelo Painel Admin:** Aceita período de isenção; a assinatura nasce `active` cobrindo o período, sem `Payment` inicial.
+- **Cadastro pelo Painel Admin:** Aceita período de isenção no ato da criação do laboratório; a assinatura nasce `active` cobrindo o período, sem `Payment` inicial.
 - **Privilégio Exclusivo de Sócios:** Apenas requisições autenticadas por um `CentralUser` podem conceder isenções e aplicar descontos. Cadastros públicos (self-service do laboratório) nunca criam isenções e seguem o fluxo padrão de checkout com Stripe.
 - Ao fim do período de isenção, o tenant volta a ser cobrado normalmente, sem retroativo.
 - Concessão e revogação são auditadas (`tenant.exemption.granted|revoked`). Fluxos de checkout/cobrança devem sempre consultar `Tenant::isExempt()`.
 
 ---
 
-## 5. Integração com Stripe e Trial
+## 5. Integração com Stripe e Assinaturas Recorrentes
 
 1. **Tokenização Segura (Stripe Elements):**
    - Dados de cartão nunca tocam o banco de dados em texto plano.
-   - O checkout utiliza `SetupIntent` para registrar o cartão para o período de testes (**Trial**) sem cobrança imediata.
-2. **Contador Regressivo no Perfil:**
-   - No perfil do laboratório (`/perfil`), o administrador acompanha quantos dias restam para o término do trial.
-   - Exibe o cartão atual cadastrado no Stripe (`Mastercard •••• 4242`) e permite atualizar a forma de pagamento via modal com Stripe Elements.
-3. **Webhooks Idempotentes:**
-   - O endpoint central `POST /webhook/payment` recebe eventos do Stripe (`invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.deleted`).
-   - Pagamentos confirmados renovam o período da assinatura e marcam pagamentos como `paid`.
+   - O checkout utiliza `SetupIntent` para validar e tokenizar o cartão no navegador via Stripe Elements de forma segura.
+2. **Método de Pagamento Padrão:**
+   - O `PaymentMethod` retornado pelo `SetupIntent` é anexado ao cliente no Stripe (`stripe_customer_id`) e registrado como método padrão de faturamento (`invoice_settings.default_payment_method`).
+   - A bandeira (`card_brand`) e os últimos 4 dígitos (`card_last_four`) são persistidos no tenant central para exibição na UI.
+3. **Criação da Assinatura Recorrente no Stripe:**
+   - No checkout público (laboratórios pagantes), o sistema cria a assinatura recorrente via Stripe Subscriptions API (`$stripe->subscriptions->create`).
+   - O plano escolhido é vinculado à assinatura através de `stripe_price_id`.
+   - **Provisionamento Automático de Preços:** Se o plano ainda não tiver `stripe_price_id`, o sistema cria o Produto e o Preço correspondente na Stripe sob demanda e atualiza o `Plan`.
+   - O identificador da assinatura (`sub_...`) é salvo na coluna `stripe_subscription_id` da `Subscription` local.
+   - O ID da fatura inicial gerada (`in_...`) é registrado em `payments.gateway_transaction_id` com status `paid`.
+4. **Período de Testes (Trial Concedido por Sócios):**
+   - Laboratórios parceiros com período de teste concedido por administradores centrais possuem status `trial` e não são cobrados no checkout.
+   - No perfil do laboratório (`/perfil`), o administrador acompanha quantos dias restam para o término do trial (`daysRemainingInTrial()`).
+   - Permite cadastrar ou atualizar o cartão a qualquer momento antes do término do período de testes via modal com Stripe Elements.
+5. **Webhooks Idempotentes:**
+   - O endpoint central `POST /webhook/payment` processa notificações assíncronas do Stripe:
+     - `invoice.payment_succeeded`: renova `current_period_end` da assinatura local, garante status `active` e marca cobranças como `paid`.
+     - `invoice.payment_failed`: registra a falha de pagamento e aciona o estado de inadimplência (`overdue`).
+     - `customer.subscription.deleted`: marca a assinatura local como `cancelled`.
+   - O processamento de webhooks é estritamente idempotente, validando assinaturas e evitando duplicações por retransmissão de eventos.
 
 ---
 

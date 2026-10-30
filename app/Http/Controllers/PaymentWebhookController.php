@@ -108,6 +108,8 @@ class PaymentWebhookController extends Controller
             ], 422);
         }
 
+        $stripeSubscriptionId = $stripeObject['subscription'] ?? $payload['subscription'] ?? null;
+
         $centralConnection = config('tenancy.database.central_connection', 'pgsql');
 
         try {
@@ -117,6 +119,7 @@ class PaymentWebhookController extends Controller
                 $transactionId,
                 $amountInCents,
                 $planId,
+                $stripeSubscriptionId,
                 $payload
             ): void {
                 $now = now();
@@ -164,11 +167,15 @@ class PaymentWebhookController extends Controller
                     if ($planId !== null) {
                         $subscription->plan_id = $planId;
                     }
+                    if ($stripeSubscriptionId !== null && empty($subscription->stripe_subscription_id)) {
+                        $subscription->stripe_subscription_id = $stripeSubscriptionId;
+                    }
                     $subscription->save();
                 } elseif ($planId !== null) {
                     Subscription::query()->create([
                         'tenant_id' => $tenantId,
                         'plan_id' => $planId,
+                        'stripe_subscription_id' => $stripeSubscriptionId,
                         'status' => SubscriptionStatus::Active,
                         'current_period_start' => $periodStart,
                         'current_period_end' => $periodEnd,

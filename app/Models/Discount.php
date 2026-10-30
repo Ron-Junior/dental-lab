@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DiscountType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -56,5 +57,48 @@ class Discount extends Model
         return Attribute::make(
             get: fn (mixed $value, array $attributes): bool => ! empty($attributes['applied_payment_id']) || ! empty($attributes['applied_at']),
         );
+    }
+
+    /**
+     * @param  Builder<Discount>  $query
+     * @return Builder<Discount>
+     */
+    public function scopeUnapplied(Builder $query): Builder
+    {
+        return $query->whereNull('applied_payment_id')
+            ->whereNull('applied_at');
+    }
+
+    /**
+     * @param  Builder<Discount>  $query
+     * @return Builder<Discount>
+     */
+    public function scopeApplied(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereNotNull('applied_payment_id')
+                ->orWhereNotNull('applied_at');
+        });
+    }
+
+    /**
+     * @param  Builder<Discount>  $query
+     * @return Builder<Discount>
+     */
+    public function scopeNotExpired(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->whereNull('expires_at')
+                ->orWhere('expires_at', '>', Carbon::now());
+        });
+    }
+
+    /**
+     * @param  Builder<Discount>  $query
+     * @return Builder<Discount>
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->unapplied()->notExpired();
     }
 }

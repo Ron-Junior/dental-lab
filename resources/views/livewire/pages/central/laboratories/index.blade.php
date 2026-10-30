@@ -384,6 +384,23 @@ new #[Layout('layouts.central')] class extends Component
 
     public function openExemptionModal(string $tenantId): void
     {
+        $tenant = Tenant::query()->findOrFail($tenantId);
+
+        $hasPaidHistory = $tenant->payments()->where('status', PaymentStatus::Paid)->exists();
+        $hasActiveStripeSub = $tenant->subscriptions()
+            ->where('status', SubscriptionStatus::Active)
+            ->whereNotNull('stripe_subscription_id')
+            ->exists();
+
+        if ($hasPaidHistory || $hasActiveStripeSub) {
+            Flux::toast(
+                text: 'Isenção de pagamento só pode ser concedida a novos clientes (em onboarding). Assinantes ativos não são elegíveis.',
+                variant: 'danger',
+            );
+
+            return;
+        }
+
         $this->resetExemptionForm();
         $this->selectedTenantId = $tenantId;
         $this->editingExemptionId = null;
@@ -798,15 +815,21 @@ new #[Layout('layouts.central')] class extends Component
                                             </flux:menu>
                                         </flux:dropdown>
                                     @else
-                                        <flux:button
-                                            wire:click="openExemptionModal('{{ $tenant->id }}')"
-                                            size="sm"
-                                            variant="outline"
-                                            icon="gift"
-                                            title="Conceder período de isenção"
-                                        >
-                                            Isenção
-                                        </flux:button>
+                                        @php
+                                            $isExistingClient = $tenant->payments->contains(fn ($p) => $p->status === \App\Enums\PaymentStatus::Paid)
+                                                || $tenant->subscriptions->contains(fn ($s) => $s->status === \App\Enums\SubscriptionStatus::Active && ! empty($s->stripe_subscription_id));
+                                        @endphp
+                                        @if (! $isExistingClient)
+                                            <flux:button
+                                                wire:click="openExemptionModal('{{ $tenant->id }}')"
+                                                size="sm"
+                                                variant="outline"
+                                                icon="gift"
+                                                title="Conceder período de isenção"
+                                            >
+                                                Isenção
+                                            </flux:button>
+                                        @endif
                                     @endif
 
                                     @if ($tenant->status->value === 'active')

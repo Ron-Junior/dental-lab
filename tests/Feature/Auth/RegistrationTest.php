@@ -51,7 +51,6 @@ class RegistrationTest extends TestCase
             ->set('admin_name', 'Ana Silva')
             ->set('email', 'ana@example.com')
             ->set('slug', 'sorriso-lab')
-            ->set('plan_id', (string) $this->plan->id)
             ->call('register')
             ->assertHasNoErrors()
             ->assertRedirect(route('onboarding.checkout', ['tenant' => 'sorriso-lab']));
@@ -78,7 +77,6 @@ class RegistrationTest extends TestCase
             ->set('admin_name', 'Ana Silva')
             ->set('email', 'ana@example.com')
             ->set('slug', 'Sorriso Lab')
-            ->set('plan_id', (string) $this->plan->id)
             ->call('register')
             ->assertHasErrors('slug')
             ->assertSee('O endereço deve conter apenas letras minúsculas, números e hífens.');
@@ -96,7 +94,6 @@ class RegistrationTest extends TestCase
                 ->set('admin_name', 'Ana Silva')
                 ->set('email', 'ana'.$attempt.'@example.com')
                 ->set('slug', 'laboratorio-'.$attempt)
-                ->set('plan_id', (string) $this->plan->id)
                 ->call('register')
                 ->assertRedirect(route('onboarding.checkout', ['tenant' => 'laboratorio-'.$attempt]));
         }
@@ -106,7 +103,6 @@ class RegistrationTest extends TestCase
             ->set('admin_name', 'Ana Silva')
             ->set('email', 'excedente@example.com')
             ->set('slug', 'laboratorio-excedente')
-            ->set('plan_id', (string) $this->plan->id)
             ->call('register')
             ->assertStatus(429);
 

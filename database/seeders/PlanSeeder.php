@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\PlanResource;
 use App\Models\Plan;
+use App\Services\StripeService;
 use Illuminate\Database\Seeder;
 
 class PlanSeeder extends Seeder
@@ -11,8 +12,10 @@ class PlanSeeder extends Seeder
     /**
      * Run the database seeds.
      */
-    public function run(): void
+    public function run(?StripeService $stripeService = null): void
     {
+        $stripeService = $stripeService ?? app(StripeService::class);
+
         $plans = [
             [
                 'name' => 'Essencial',
@@ -50,13 +53,15 @@ class PlanSeeder extends Seeder
         ];
 
         foreach ($plans as $planData) {
-            Plan::query()->updateOrCreate(
+            $plan = Plan::query()->updateOrCreate(
                 [
                     'name' => $planData['name'],
                     'billing_cycle' => $planData['billing_cycle'],
                 ],
                 $planData,
             );
+
+            $stripeService->getOrCreatePrice($plan);
         }
     }
 }

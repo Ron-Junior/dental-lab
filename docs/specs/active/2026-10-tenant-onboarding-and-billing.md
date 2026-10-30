@@ -25,6 +25,8 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
   3. Aguardo de Provisionamento do Tenant (Feedback em tempo real e e-mail com link de primeiro acesso).
 - **Sem Período de Teste no Checkout:** O checkout público cobra a assinatura normal do plano escolhido, sem período de teste grátis.
 - **Período de Teste de Concessão Exclusiva dos Sócios:** Apenas sócios/administradores centrais podem conceder períodos de teste (`SubscriptionStatus::Trial`) ao cadastrar laboratórios parceiros.
+- **Isenção Exclusiva para Não-Clientes (Aquisição Comercial):** Isenção de pagamento (`exemptions`) só pode ser concedida no momento do cadastro do laboratório ou antes de possuir uma assinatura ativa. Laboratórios que já são assinantes ativos não podem receber isenções.
+- **Repasse de Descontos ao Stripe:** Caso haja desconto aplicado pelo sócio ao laboratório no checkout, o sistema cria/utiliza um `coupon` no Stripe e vincula à assinatura, garantindo transparência no valor cobrado na fatura inicial.
 - **Primeiro Acesso Protegido no Subdomínio:** A senha é definida pelo dono **apenas após o provisionamento**, diretamente no seu schema isolado, e o link só é válido enquanto o laboratório **não** tiver sido verificado (`verified_at === null`).
 - **Persistência do Dono no Banco Central:** Salvar `owner_email` e `verified_at` na tabela `tenants`.
 - **Gestão de Assinatura no Perfil do Laboratório:** Visualização do plano, **contador regressivo de dias restantes de Trial** (quando concedido por sócio), cartão cadastrado no Stripe e modal para atualizar a forma de pagamento.
@@ -35,25 +37,35 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
 
 ### 3.1. Etapa 1: Cadastro das Informações (Sem Senha)
 
-1. **Campos Obrigatórios:** Nome do laboratório (`laboratory_name`), Endereço (`slug`), Nome do administrador inicial (`admin_name`), E-mail do administrador (`email`) e Plano (`plan_id`).
+1. **Campos Obrigatórios:** Nome do laboratório (`laboratory_name`), Endereço (`slug`), Nome do administrador inicial (`admin_name`) e E-mail do administrador (`email`). A escolha e contratação do plano são realizadas na etapa seguinte de Checkout.
 2. **Proibição de Senhas no Banco Central:** Nenhum campo de senha é solicitado nesta etapa. O banco central nunca armazena senhas de usuários dos laboratórios.
 3. **Persistência do Tenant:**
    - O `Tenant` é criado no banco central com status `pending_payment`.
    - `owner_email` recebe o e-mail do administrador.
    - `verified_at` é inicializado como `null`.
    - O domínio `{slug}.central_domain` é registrado.
-   - A `Subscription` é criada vinculada ao plano selecionado.
+   - A `Subscription` é inicializada com o primeiro plano ativo do sistema (podendo ser livremente selecionado ou alternado pelo cliente na etapa de checkout).
 4. **Fluxo do Sócio:** Se cadastrado por um sócio autenticado, pode receber **Período de Testes (Trial)** ou **Isenção de Pagamento (`exemptions`)**, ambos com bypass imediato de checkout.
+   - **Regra de Isenção:** A concessão de isenção só é permitida neste momento (aquisição/novo laboratório). Clientes já existentes com assinaturas ativas não podem ser isentados retroativamente.
 
 ### 3.2. Etapa 2: Checkout de Pagamento (Stripe)
 
 1. **Bypass Automático (Isenção ou Período de Teste Concedido por Sócio):**
    - Se `$tenant->isExempt() === true` ou `$tenant->hasActiveTrial() === true`, a rota `/checkout/{tenant}` redireciona imediatamente para `/bem-vindo/{tenant}`. Nenhuma cobrança ou dados de cartão são solicitados.
 2. **Laboratórios Pagantes (Sem Benefício de Sócio):**
-   - Exibe resumo da assinatura do plano contratado (valor e ciclo: mensal ou anual).
-   - **Sem período de teste no checkout:** A ativação da assinatura e cobrança ocorrem de acordo com o plano contratado.
-   - Utiliza **Stripe Elements** para coletar os dados do cartão via `SetupIntent` (tokenização segura client-side).
-   - O backend salva o método de pagamento no Stripe (`stripe_customer_id`, `card_brand` e `card_last_four`), marca a fatura pendente inicial como paga e inicia o provisionamento (`/bem-vindo/{tenant}`).
+   - Exibe a seleção visual de todas as opções de planos ativos da plataforma, permitindo ao usuário escolher ou alternar o plano antes de confirmar o pagamento.
+   - Exibe o resumo da assinatura do plano selecionado (valor e ciclo: mensal ou anual). Se houver desconto aplicado, o valor líquido a pagar reflete o desconto no resumo.
+   - **Sem período de teste no checkout público:** A ativação da assinatura e a cobrança ocorrem imediatamente de acordo com o plano contratado.
+   - Utiliza **Stripe Elements** para coletar e tokenizar os dados do cartão via `SetupIntent` (client-side, sem expor dados sensíveis ao backend).
+   - O backend recebe o `payment_method` gerado:
+     1. Vincula o cartão ao cliente no Stripe (`stripe_customer_id`) e define-o como método de pagamento padrão (`invoice_settings.default_payment_method`).
+     2. Salva os dados de exibição segura no banco central (`card_brand` e `card_last_four`).
+     3. **Repasse de Desconto (Stripe Coupon):** Caso o laboratório possua um desconto pendente aplicado por sócio (`metadata.discount`), o backend cria/recupera um cupom correspondente no Stripe (`coupon` com `percent_off` ou `amount_off` e duração `once`) e o inclui nos parâmetros da assinatura (`discounts => [['coupon' => $couponId]]`).
+     4. Cria a assinatura recorrente no Stripe através da API de Subscriptions (`subscriptions.create`), vinculando o cliente ao preço do plano contratado e ao eventual cupom de desconto.
+     5. Caso o plano selecionado não possua `stripe_price_id` cadastrado no Stripe, o sistema provisiona automaticamente o Produto e o Preço recorrente na Stripe sob demanda, persistindo o ID no plano.
+     6. Armazena o identificador da assinatura retornada (`sub_...`) na coluna `stripe_subscription_id` do registro `Subscription` local.
+     7. Atualiza a cobrança pendente local (`Payment`) com status `paid`, data de pagamento e o ID da fatura gerada pela Stripe (`latest_invoice`).
+     8. Inicia o provisionamento assíncrono do banco do tenant (`/bem-vindo/{tenant}`).
 
 
 ### 3.3. Etapa 3: Aguardo de Provisionamento & Primeiro Acesso
@@ -126,4 +138,7 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
 5. **Cálculo de Trial no Perfil:** O perfil exibe a quantidade exata de dias restantes até o término do trial.
 6. **Webhooks Stripe:** Processamento de webhook `invoice.payment_succeeded` atualiza status e período da assinatura com idempotência.
 7. **Reenvio de Link Expirado:** Link expirado detectado em `/completar-cadastro`, banner em `/login` e botão no painel de laboratórios geram novo token de 48h e disparam e-mail via `ResendFirstAccessLink`.
+8. **Criação de Assinatura no Stripe:** A submissão bem-sucedida do checkout público cria a assinatura recorrente no Stripe vinculada ao plano, popula `subscriptions.stripe_subscription_id` e registra o pagamento inicial.
+9. **Repasse de Descontos ao Stripe:** Quando um laboratório com desconto aplicado conclui o checkout, a assinatura no Stripe é criada com cupom (`coupon`) correspondente, abatendo o valor na fatura gerada.
+10. **Bloqueio de Isenção para Assinantes Ativos:** Tentativa de conceder isenção a um laboratório que já é cliente (com assinatura ativa ou pagamentos confirmados) é estritamente bloqueada no `ExemptionService` e na interface administrativa.
 

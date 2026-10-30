@@ -423,6 +423,31 @@ class SuperAdminPanelTest extends TestCase
         $this->assertFalse($tenant->isExempt());
     }
 
+    public function test_grant_exemption_rejects_active_subscribers(): void
+    {
+        $tenant = $this->createTenant('t-paid-client', 'Cliente com Fatura Paga');
+        $tenant->payments()->create([
+            'amount_in_cents' => 9900,
+            'status' => PaymentStatus::Paid,
+            'due_date' => now(),
+            'paid_at' => now(),
+        ]);
+
+        $service = new ExemptionService;
+        $admin = $this->createCentralUser('admin-exemp@example.com');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Isenção de pagamento só pode ser concedida a novos clientes');
+
+        $service->grant(
+            $tenant,
+            Carbon::now(),
+            Carbon::now()->addMonths(2),
+            'Tentativa de isentar cliente ativo',
+            $admin
+        );
+    }
+
     public function test_admin_laboratory_creation_with_exemption_does_not_create_payment(): void
     {
         Queue::fake();
@@ -436,10 +461,8 @@ class SuperAdminPanelTest extends TestCase
             ->set('admin_name', 'Carlos Admin')
             ->set('email', 'carlos@example.com')
             ->set('slug', 'lab-isento-admin')
-            ->set('password', 'safe-password-123')
-            ->set('password_confirmation', 'safe-password-123')
             ->set('plan_id', (string) $plan->id)
-            ->set('has_exemption', true)
+            ->set('benefit_type', 'exemption')
             ->set('exemption_starts_at', Carbon::now()->format('Y-m'))
             ->set('exemption_ends_at', Carbon::now()->addMonths(6)->format('Y-m'))
             ->set('exemption_reason', 'Cortesia 6 meses')

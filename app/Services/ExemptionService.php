@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\PaymentStatus;
+use App\Enums\SubscriptionStatus;
 use App\Models\AuditLog;
 use App\Models\CentralUser;
 use App\Models\Exemption;
+use App\Models\Payment;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -27,6 +31,21 @@ class ExemptionService
         ?string $ipAddress = null,
         ?string $userAgent = null,
     ): Exemption {
+        $hasPaidHistory = Payment::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', PaymentStatus::Paid)
+            ->exists();
+
+        $hasActiveStripeSub = Subscription::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', SubscriptionStatus::Active)
+            ->whereNotNull('stripe_subscription_id')
+            ->exists();
+
+        if ($hasPaidHistory || $hasActiveStripeSub) {
+            throw new InvalidArgumentException('Isenção de pagamento só pode ser concedida a novos clientes (em onboarding). Assinantes ativos não são elegíveis.');
+        }
+
         $start = Carbon::instance($startsAt);
         $end = Carbon::instance($endsAt);
 

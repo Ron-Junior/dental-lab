@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Actions\CreateLaboratory;
+use App\Enums\DiscountType;
 use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenant;
 use App\Models\CentralUser;
+use App\Models\Discount;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -49,7 +51,6 @@ class TenantRegistrationFlowTest extends TestCase
             ->set('admin_name', 'Carlos Dono')
             ->set('email', 'carlos@alfa.test')
             ->set('slug', 'lab-alfa')
-            ->set('plan_id', (string) $this->plan->id)
             ->call('register')
             ->assertRedirect(route('onboarding.checkout', ['tenant' => 'lab-alfa']));
 
@@ -102,6 +103,10 @@ class TenantRegistrationFlowTest extends TestCase
         $this->assertSame('visa', $tenant->card_brand);
         $this->assertSame('4242', $tenant->card_last_four);
         $this->assertSame(TenantStatus::Provisioning, $tenant->status);
+
+        $subscription = $tenant->subscriptions()->latest()->first();
+        $this->assertNotNull($subscription?->stripe_subscription_id);
+        $this->assertStringStartsWith('sub_mock_', $subscription->stripe_subscription_id);
 
         Bus::assertChained([
             CreateDatabase::class,
@@ -158,6 +163,43 @@ class TenantRegistrationFlowTest extends TestCase
         $payment = $tenant->payments()->latest()->first();
         $this->assertSame(PaymentStatus::Paid, $payment->status);
         $this->assertSame(29900, $payment->amount_in_cents);
+    }
+
+    public function test_checkout_handles_unapplied_discount_and_marks_it_applied(): void
+    {
+        Bus::fake([CreateDatabase::class, ProvisionTenant::class]);
+
+        $tenant = Tenant::query()->create([
+            'id' => 'lab-discount',
+            'name' => 'Laboratório Desconto',
+            'owner_email' => 'discount@lab.test',
+            'status' => TenantStatus::PendingPayment,
+            'verified_at' => null,
+        ]);
+
+        Subscription::query()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $this->plan->id,
+            'status' => SubscriptionStatus::Active,
+            'current_period_start' => now(),
+            'current_period_end' => now()->addMonth(),
+        ]);
+
+        $discount = Discount::query()->create([
+            'tenant_id' => $tenant->id,
+            'type' => DiscountType::Percentage,
+            'value_in_cents' => 20,
+            'expires_at' => now()->addDays(5),
+        ]);
+
+        Volt::test('pages.central.checkout', ['tenant' => $tenant])
+            ->assertSee('Finalizar Assinatura')
+            ->call('confirmPaymentMethod', 'pm_test_card')
+            ->assertRedirect(route('onboarding.show', ['tenant' => $tenant->id]));
+
+        $discount->refresh();
+        $this->assertTrue($discount->is_applied);
+        $this->assertNotNull($discount->applied_payment_id);
     }
 
     public function test_partner_can_grant_trial_period_which_bypasses_checkout(): void

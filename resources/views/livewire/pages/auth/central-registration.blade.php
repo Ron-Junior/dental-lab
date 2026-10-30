@@ -1,9 +1,7 @@
 <?php
 
-use App\Models\Plan;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
@@ -16,22 +14,6 @@ new #[Layout('layouts.guest')] class extends Component
     public string $email = '';
 
     public string $slug = '';
-
-    public string $plan_id = '';
-
-    public function mount(): void
-    {
-        $defaultPlan = Plan::query()->where('is_active', true)->first();
-        if ($defaultPlan) {
-            $this->plan_id = (string) $defaultPlan->id;
-        }
-    }
-
-    #[Computed]
-    public function plans()
-    {
-        return Plan::query()->where('is_active', true)->get();
-    }
 
     /**
      * @return array<string, array<int, mixed>>
@@ -52,7 +34,6 @@ new #[Layout('layouts.guest')] class extends Component
                 Rule::unique('domains', 'domain')
                     ->where('domain', $this->slug.'.'.config('tenancy.central_domain')),
             ],
-            'plan_id' => ['required', 'exists:plans,id'],
         ];
     }
 
@@ -69,7 +50,6 @@ new #[Layout('layouts.guest')] class extends Component
             'slug.regex' => 'O endereço deve conter apenas letras minúsculas, números e hífens.',
             'slug.not_in' => 'Este endereço está reservado e não pode ser utilizado.',
             'slug.unique' => 'Este endereço já está em uso.',
-            'plan_id.required' => 'Selecione um plano.',
         ];
     }
 
@@ -164,18 +144,6 @@ new #[Layout('layouts.guest')] class extends Component
                     </span>
                 </div>
                 <flux:error name="slug" />
-            </flux:field>
-
-            <flux:field>
-                <flux:label>Plano de assinatura</flux:label>
-                <flux:select wire:model="plan_id" name="plan_id" required>
-                    @foreach ($this->plans as $plan)
-                        <option value="{{ $plan->id }}">
-                            {{ $plan->name }} — R$ {{ number_format($plan->price_in_cents / 100, 2, ',', '.') }} / {{ $plan->billing_cycle === 'annual' ? 'ano' : 'mês' }}
-                        </option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="plan_id" />
             </flux:field>
 
             <flux:button class="mt-2 w-full" type="submit" variant="primary" wire:loading.attr="disabled" wire:target="register">

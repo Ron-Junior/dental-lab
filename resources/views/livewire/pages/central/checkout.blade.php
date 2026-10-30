@@ -4,6 +4,8 @@ use App\Actions\CreateLaboratory;
 use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
+use App\Models\Discount;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -89,6 +91,28 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             ?? Plan::query()->find($this->selectedPlanId);
     }
 
+    #[Computed]
+    public function pendingPayment(): ?Payment
+    {
+        return $this->tenant->payments()
+            ->where('status', PaymentStatus::Pending)
+            ->first();
+    }
+
+    #[Computed]
+    public function appliedDiscount(): ?Discount
+    {
+        if ($this->pendingPayment && isset($this->pendingPayment->metadata['discount']['discount_id'])) {
+            return Discount::query()->find($this->pendingPayment->metadata['discount']['discount_id']);
+        }
+
+        return $this->tenant->discounts()
+            ->unapplied()
+            ->notExpired()
+            ->latest()
+            ->first();
+    }
+
     public function selectPlan(string $planId): void
     {
         $plan = Plan::query()->where('is_active', true)->find($planId);
@@ -118,26 +142,59 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
 
     public function confirmPaymentMethod(string $paymentMethodId, StripeService $stripeService): void
     {
+        $plan = $this->selectedPlan;
+        if (! $plan) {
+            return;
+        }
+
         $stripeService->attachPaymentMethod($this->tenant, $paymentMethodId);
 
-        $amountInCents = $plan?->price_in_cents ?? $this->subscription?->plan?->price_in_cents ?? 0;
+        $pendingPayment = $this->pendingPayment;
+        $discount = $this->appliedDiscount;
 
-        $pendingPayment = $this->tenant->payments()
-            ->where('status', PaymentStatus::Pending)
-            ->first();
+        $stripeSub = $stripeService->createSubscription($this->tenant, $plan, $discount);
+
+        if ($this->subscription) {
+            $this->subscription->update([
+                'plan_id' => $plan->id,
+                'stripe_subscription_id' => $stripeSub['id'],
+                'status' => SubscriptionStatus::Active,
+            ]);
+        } else {
+            $now = now();
+            $this->subscription = $this->tenant->subscriptions()->create([
+                'plan_id' => $plan->id,
+                'stripe_subscription_id' => $stripeSub['id'],
+                'status' => SubscriptionStatus::Active,
+                'current_period_start' => $now,
+                'current_period_end' => $plan->billing_cycle === 'annual' ? $now->copy()->addYear() : $now->copy()->addMonth(),
+            ]);
+        }
+
+        $amountInCents = $pendingPayment?->amount_in_cents ?? $plan->price_in_cents;
 
         if ($pendingPayment) {
             $pendingPayment->update([
                 'amount_in_cents' => $amountInCents,
                 'status' => PaymentStatus::Paid,
                 'paid_at' => now(),
+                'gateway_transaction_id' => $stripeSub['latest_invoice_id'] ?? null,
             ]);
+            $paidPayment = $pendingPayment;
         } else {
-            $this->tenant->payments()->create([
+            $paidPayment = $this->tenant->payments()->create([
                 'amount_in_cents' => $amountInCents,
                 'status' => PaymentStatus::Paid,
                 'paid_at' => now(),
                 'due_date' => now(),
+                'gateway_transaction_id' => $stripeSub['latest_invoice_id'] ?? null,
+            ]);
+        }
+
+        if ($discount && ! $discount->is_applied) {
+            $discount->update([
+                'applied_payment_id' => $paidPayment->id,
+                'applied_at' => now(),
             ]);
         }
 
@@ -263,15 +320,26 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
                     </div>
 
                     @if ($this->selectedPlan)
+                        @php
+                            $planPrice = $this->selectedPlan->price_in_cents;
+                            $discountAmount = $this->pendingPayment?->metadata['discount']['discount_in_cents'] ?? 0;
+                            $finalAmount = max(0, $this->pendingPayment?->amount_in_cents ?? $planPrice);
+                        @endphp
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="text-sm font-medium text-zinc-900 dark:text-white">
                                     Plano {{ $this->selectedPlan->name }}
                                 </span>
                                 <span class="text-sm font-semibold text-zinc-900 dark:text-white">
-                                    R$ {{ number_format($this->selectedPlan->price_in_cents / 100, 2, ',', '.') }}
+                                    R$ {{ number_format($planPrice / 100, 2, ',', '.') }}
                                 </span>
                             </div>
+                            @if ($discountAmount > 0)
+                                <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                                    <span>Desconto aplicado pelo sócio</span>
+                                    <span>- R$ {{ number_format($discountAmount / 100, 2, ',', '.') }}</span>
+                                </div>
+                            @endif
                             <div class="flex items-center justify-between text-xs text-zinc-500">
                                 <span>Frequência de cobrança</span>
                                 <span class="capitalize">{{ $this->selectedPlan->billing_cycle === 'annual' ? 'Anual' : 'Mensal' }}</span>
@@ -282,7 +350,7 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
                             <div class="flex justify-between items-baseline font-bold">
                                 <span class="text-zinc-900 dark:text-white text-sm">Total a pagar agora:</span>
                                 <span class="text-lg text-indigo-600 dark:text-indigo-400">
-                                    R$ {{ number_format($this->selectedPlan->price_in_cents / 100, 2, ',', '.') }}
+                                    R$ {{ number_format($finalAmount / 100, 2, ',', '.') }}
                                 </span>
                             </div>
                             <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
