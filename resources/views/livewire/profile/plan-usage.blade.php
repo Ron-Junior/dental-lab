@@ -20,16 +20,20 @@ new class extends Component
     }
 
     #[Computed]
-    public function planName(): string
+    public function currentSubscription(): ?Subscription
     {
-        $subscription = Subscription::query()
-            ->with('plan')
+        return Subscription::query()
+            ->with(['plan', 'scheduledPlan'])
             ->where('tenant_id', tenant('id'))
             ->whereIn('status', [SubscriptionStatus::Active, SubscriptionStatus::Trial])
             ->latest('current_period_start')
             ->first();
+    }
 
-        return $subscription?->plan?->name ?? 'Plano Atual';
+    #[Computed]
+    public function planName(): string
+    {
+        return $this->currentSubscription?->plan?->name ?? 'Plano Atual';
     }
 
     #[Computed]
@@ -84,6 +88,37 @@ new class extends Component
                     </div>
                 </div>
             </div>
+
+            @php
+                $activeSub = $this->currentSubscription;
+            @endphp
+
+            @if ($activeSub && $activeSub->has_scheduled_plan_migration && $activeSub->scheduledPlan && $activeSub->price_change_effective_at)
+                <div
+                    id="profile-plan-migration-notice"
+                    class="rounded-xl border border-indigo-200 bg-indigo-50/80 p-4 text-sm text-indigo-950 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-100"
+                >
+                    <div class="font-semibold">Aviso de migração de plano agendada</div>
+                    <p class="mt-1">
+                        O plano <strong>{{ $this->planName }}</strong> foi descontinuado. Sua assinatura permanecerá nas condições atuais até
+                        <strong>{{ $activeSub->price_change_effective_at->format('d/m/Y') }}</strong>, quando será migrada automaticamente para o plano
+                        <strong>{{ $activeSub->scheduledPlan->name }}</strong>
+                        ({{ currency_from_int((int) ($activeSub->scheduled_price_in_cents ?? $activeSub->scheduledPlan->price_in_cents), true) }}).
+                    </p>
+                </div>
+            @elseif ($activeSub && $activeSub->has_scheduled_price_change && $activeSub->price_change_effective_at)
+                <div
+                    id="profile-plan-price-change-notice"
+                    class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100"
+                >
+                    <div class="font-semibold">Aviso de atualização de valor agendada</div>
+                    <p class="mt-1">
+                        Sua assinatura manterá o valor atual ({{ currency_from_int($activeSub->effective_price_in_cents, true) }}) até
+                        <strong>{{ $activeSub->price_change_effective_at->format('d/m/Y') }}</strong>, passando então para
+                        <strong>{{ currency_from_int((int) $activeSub->scheduled_price_in_cents, true) }}</strong>.
+                    </p>
+                </div>
+            @endif
 
             <div class="grid gap-4 md:grid-cols-3">
                 @foreach ($this->usages as $usage)

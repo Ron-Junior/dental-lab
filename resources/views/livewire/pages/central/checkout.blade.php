@@ -127,6 +127,8 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             $subEnd = $plan->billing_cycle === 'annual' ? $now->copy()->addYear() : $now->copy()->addMonth();
             $this->subscription->update([
                 'plan_id' => $plan->id,
+                'price_in_cents' => $plan->price_in_cents,
+                'stripe_price_id' => $plan->stripe_price_id,
                 'current_period_end' => $subEnd,
             ]);
             $this->subscription->refresh();
@@ -157,6 +159,8 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         if ($this->subscription) {
             $this->subscription->update([
                 'plan_id' => $plan->id,
+                'price_in_cents' => $plan->price_in_cents,
+                'stripe_price_id' => $plan->stripe_price_id,
                 'stripe_subscription_id' => $stripeSub['id'],
                 'status' => SubscriptionStatus::Active,
             ]);
@@ -164,6 +168,8 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             $now = now();
             $this->subscription = $this->tenant->subscriptions()->create([
                 'plan_id' => $plan->id,
+                'price_in_cents' => $plan->price_in_cents,
+                'stripe_price_id' => $plan->stripe_price_id,
                 'stripe_subscription_id' => $stripeSub['id'],
                 'status' => SubscriptionStatus::Active,
                 'current_period_start' => $now,

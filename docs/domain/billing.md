@@ -6,8 +6,10 @@ Billing vive no **banco central** (`database/migrations/`) e descreve a relaçã
 
 ## 1. Entidades Principais
 
-- **`Plan`:** Plano comercial disponível para contratação. Contém `stripe_price_id` opcional.
-- **`Subscription`:** Assinatura do tenant a um plano. Status (`SubscriptionStatus`): `trial`, `active`, `overdue`, `cancelled`. Guarda `current_period_start/end` e `stripe_subscription_id`.
+- **`Plan`:** Plano comercial disponível para contratação. Contém `stripe_price_id` opcional, que aponta sempre para o Price **vigente** (o Price usado em novas assinaturas). Gerenciado pelos sócios em `/planos` (ver §9).
+- **`Subscription`:** Assinatura do tenant a um plano. Status (`SubscriptionStatus`): `trial`, `active`, `overdue`, `cancelled`. Guarda `current_period_start/end` e `stripe_subscription_id`, além do **preço contratado** (`price_in_cents`, `stripe_price_id`) e de um eventual reajuste agendado (`scheduled_price_in_cents`, `scheduled_stripe_price_id`, `price_change_effective_at`).
+- **`PlanPriceChange`:** Histórico de reajustes de preço de um plano (sócio, preços e Prices antigos e novos, assinaturas afetadas).
+- **`OperationalCost`:** Custo operacional do SaaS usado na calculadora de rentabilidade. Tipos: `fixed`, `per_tenant`, `per_storage_gb`, `revenue_percentage` (ver §10).
 - **`Payment`:** Cobrança/fatura do tenant. Status (`PaymentStatus`): `pending`, `paid`, `failed`, `expired`. Valor em `amount_in_cents`, vencimento em `due_date`, `metadata` JSON e `gateway_transaction_id`.
 - **`Discount`:** Desconto comercial concedido pelos sócios a um tenant.
   - `type` (`DiscountType`): `percentage` ou `fixed_amount`.
@@ -103,3 +105,31 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 
 - Valores sempre em centavos inteiros (ver [Convenções de Dados](../architecture/data-conventions.md)).
 - Mudanças de status via webhook são idempotentes.
+
+---
+
+## 9. Gestão de Planos e Reajuste de Preço
+
+> Especificação: [2026-10-plan-management-and-profitability](../specs/archived/2026-10-plan-management-and-profitability.md).
+
+- Os sócios podem criar, editar e ativar/desativar planos. **Não há exclusão.** Plano inativo some do checkout e do cadastro pelo sócio. Quando um plano com assinaturas vigentes é desativado, o sócio escolhe um **plano ativo de destino**: os assinantes recebem aviso por e-mail e no painel de perfil (`/perfil`) informando que migrarão para o novo plano após **2 meses** (`current_period_end + 2 meses`). Se o plano for reativado antes da data, a migração agendada é cancelada.
+- Nome e limites mudam na hora. `billing_cycle` não pode ser alterado se o plano tiver assinaturas `active`, `trial` ou `overdue`.
+- **Preço efetivo da assinatura** = `subscriptions.price_in_cents ?? plans.price_in_cents`.
+- **Reajuste:** cria um novo Price no Stripe, porque Prices são imutáveis, e o aplica de imediato a novas assinaturas. Assinantes atuais têm **carência de 2 ciclos**: `price_change_effective_at = current_period_end + 2 ciclos`. O período em curso não conta, e em trial a contagem parte do fim do trial. Um novo reajuste antes da virada substitui o valor agendado e mantém a data.
+- Um job diário (`plans:apply-scheduled-prices`) troca o price no Stripe (`proration_behavior: none`) e promove o preço agendado para o contratado. É idempotente e isola falhas por assinatura.
+- O responsável do laboratório é avisado por e-mail no momento do reajuste.
+- Reduzir um limite é permitido, com aviso prévio de quantos laboratórios ficarão acima dele.
+
+---
+
+## 10. Custos Operacionais e Rentabilidade
+
+> Especificação: [2026-10-plan-management-and-profitability](../specs/archived/2026-10-plan-management-and-profitability.md).
+
+- `OperationalCost.amount` depende do tipo: centavos/mês (`fixed`), centavos/mês por laboratório (`per_tenant`), centavos/GB/mês (`per_storage_gb`) ou pontos-base sobre a receita (`revenue_percentage`, 399 = 3,99%). Taxas do gateway são cadastradas como custos comuns.
+- Valores são normalizados para mensal (plano anual ÷ 12). Só entram custos ativos.
+- **Margem por plano:** preço − custos percentuais − custos por laboratório − storage (uso médio real e pior caso pelo limite) − rateio do custo fixo entre os laboratórios pagantes. Status: Prejuízo (< 0), Apertado (< 20%) ou Saudável.
+- **Visão real:**
+  - Receita = preço efetivo das assinaturas `active` de laboratórios **não isentos**.
+  - Custos = fixo + custo por laboratório × laboratórios que consomem (active, trial e isentos) + storage real total × custo/GB + receita × custos percentuais.
+  - O storage real é medido em cada tenant e fica em cache por 1h.

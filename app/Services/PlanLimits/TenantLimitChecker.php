@@ -44,6 +44,16 @@ class TenantLimitChecker
     }
 
     /**
+     * Calcula o consumo real de um recurso do tenant, mesmo quando o plano for ilimitado.
+     */
+    public function consumptionFor(PlanResource $resource, ?Tenant $tenant = null): float
+    {
+        $tenant = $this->resolveTenant($tenant);
+
+        return $this->resolveConsumption($resource, $tenant);
+    }
+
+    /**
      * @throws PlanLimitExceededException quando o recurso já está no limite
      *                                    ou a criação de `$incoming` itens o ultrapassaria.
      */

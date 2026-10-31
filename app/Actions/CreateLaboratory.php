@@ -105,6 +105,8 @@ class CreateLaboratory
                     Subscription::query()->create([
                         'tenant_id' => $tenant->id,
                         'plan_id' => $plan->id,
+                        'price_in_cents' => $plan->price_in_cents,
+                        'stripe_price_id' => $plan->stripe_price_id,
                         'status' => SubscriptionStatus::Active,
                         'current_period_start' => $startsAt,
                         'current_period_end' => $endsAt,
@@ -127,6 +129,8 @@ class CreateLaboratory
                     Subscription::query()->create([
                         'tenant_id' => $tenant->id,
                         'plan_id' => $plan->id,
+                        'price_in_cents' => $plan->price_in_cents,
+                        'stripe_price_id' => $plan->stripe_price_id,
                         'status' => SubscriptionStatus::Trial,
                         'current_period_start' => $now,
                         'current_period_end' => $subEnd,
@@ -144,6 +148,8 @@ class CreateLaboratory
                     Subscription::query()->create([
                         'tenant_id' => $tenant->id,
                         'plan_id' => $plan->id,
+                        'price_in_cents' => $plan->price_in_cents,
+                        'stripe_price_id' => $plan->stripe_price_id,
                         'status' => SubscriptionStatus::Active,
                         'current_period_start' => $now,
                         'current_period_end' => $subEnd,

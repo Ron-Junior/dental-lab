@@ -7,6 +7,7 @@ use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Jobs\ProvisionTenant;
 use App\Models\Payment;
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use Illuminate\Http\JsonResponse;
@@ -166,15 +167,24 @@ class PaymentWebhookController extends Controller
                     $subscription->current_period_end = $periodEnd;
                     if ($planId !== null) {
                         $subscription->plan_id = $planId;
+                        $planModel = Plan::query()->find($planId);
+                        if ($planModel !== null && $subscription->price_in_cents === null) {
+                            $subscription->price_in_cents = $planModel->price_in_cents;
+                            $subscription->stripe_price_id = $planModel->stripe_price_id;
+                        }
                     }
                     if ($stripeSubscriptionId !== null && empty($subscription->stripe_subscription_id)) {
                         $subscription->stripe_subscription_id = $stripeSubscriptionId;
                     }
                     $subscription->save();
                 } elseif ($planId !== null) {
+                    $planModel = Plan::query()->find($planId);
+
                     Subscription::query()->create([
                         'tenant_id' => $tenantId,
                         'plan_id' => $planId,
+                        'price_in_cents' => $planModel?->price_in_cents,
+                        'stripe_price_id' => $planModel?->stripe_price_id,
                         'stripe_subscription_id' => $stripeSubscriptionId,
                         'status' => SubscriptionStatus::Active,
                         'current_period_start' => $periodStart,

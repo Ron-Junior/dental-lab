@@ -50,4 +50,11 @@ class PlanFactory extends Factory
             'is_active' => false,
         ]);
     }
+
+    public function annual(): static
+    {
+        return $this->state(fn () => [
+            'billing_cycle' => 'annual',
+        ]);
+    }
 }

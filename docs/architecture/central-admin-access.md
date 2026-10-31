@@ -11,6 +11,7 @@ Define como os sócios acessam o painel central e inspecionam laboratórios com 
 - `EnsureCentralAdmin` (alias `central.admin`) define `Auth::shouldUse('central')` e retorna 403 se não houver `CentralUser` autenticado, permitindo que `Gate`/`can` resolvam o usuário correto.
 - Regras finas ficam em `TenantPolicy` (`viewOverdue`, `manageDiscounts`, `impersonate`).
 - Interface exclusivamente Volt em `resources/views/livewire/pages/central/` (`laboratories/index.blade.php` unificando filtros de status/inadimplência e ações).
+- Gestão de planos (`/planos`, `central.plans.index`) e rentabilidade/custos operacionais (`/planos/rentabilidade`, `central.plans.profitability`) ficam no mesmo grupo protegido. Reajustes de preço são registrados em `plan_price_changes` com o sócio responsável. Ver [spec](../specs/archived/2026-10-plan-management-and-profitability.md).
 
 ---
 

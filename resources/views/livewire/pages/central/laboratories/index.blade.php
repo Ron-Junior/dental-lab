@@ -621,7 +621,13 @@ new #[Layout('layouts.central')] class extends Component
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <flux:button href="{{ route('central.plans.index') }}" variant="subtle" icon="squares-2x2">
+                    Planos
+                </flux:button>
+                <flux:button href="{{ route('central.plans.profitability') }}" variant="subtle" icon="calculator">
+                    Rentabilidade
+                </flux:button>
                 <flux:button href="{{ route('central.admin.laboratories.create') }}" variant="primary" icon="plus">
                     Cadastrar laboratório
                 </flux:button>

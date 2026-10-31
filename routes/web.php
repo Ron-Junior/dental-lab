@@ -17,6 +17,12 @@ Route::domain(config('tenancy.central_domain'))->group(function () {
 
         Volt::route('admin/laboratorios/cadastrar', 'pages.central.admin.laboratories.create')
             ->name('central.admin.laboratories.create');
+
+        Volt::route('planos', 'pages.central.plans.index')
+            ->name('central.plans.index');
+
+        Volt::route('planos/rentabilidade', 'pages.central.plans.profitability')
+            ->name('central.plans.profitability');
     });
 
     Volt::route('/cadastro', 'pages.auth.central-registration')->name('onboarding.create');

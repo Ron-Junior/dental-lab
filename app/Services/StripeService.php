@@ -7,6 +7,7 @@ use App\Models\Discount;
 use App\Models\Plan;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Log;
+use Stripe\Product;
 use Stripe\StripeClient;
 use Throwable;
 
@@ -279,6 +280,16 @@ class StripeService
             return $plan->stripe_price_id;
         }
 
+        return $this->createPrice($plan);
+    }
+
+    /**
+     * Resolve (reaproveitando ou criando) o Price do Stripe para o preço atual do plano
+     * e o registra como vigente em `plans.stripe_price_id`. Prices são imutáveis no Stripe,
+     * por isso cada reajuste gera um novo Price.
+     */
+    public function createPrice(Plan $plan): string
+    {
         if ($this->isMock()) {
             $mockPriceId = 'price_mock_'.bin2hex(random_bytes(6));
             $plan->update(['stripe_price_id' => $mockPriceId]);
@@ -287,33 +298,13 @@ class StripeService
         }
 
         try {
-            $expectedName = 'Plano '.$plan->name;
-            $interval = $plan->billing_cycle === 'annual' ? 'year' : 'month';
+            $interval = $plan->isAnnual() ? 'year' : 'month';
+            $product = $this->findOrCreateProduct($plan);
 
-            // 1. Verificar se o produto já existe no Stripe para evitar duplicados
-            $existingProduct = null;
-            $products = $this->stripe->products->all(['active' => true, 'limit' => 50]);
-            foreach ($products->data as $prod) {
-                if ($prod->name === $expectedName || $prod->name === $plan->name) {
-                    $existingProduct = $prod;
-                    break;
-                }
-            }
-
-            if ($existingProduct === null) {
-                $existingProduct = $this->stripe->products->create([
-                    'name' => $expectedName,
-                    'metadata' => [
-                        'plan_id' => $plan->id,
-                        'plan_name' => $plan->name,
-                    ],
-                ]);
-            }
-
-            // 2. Verificar se já existe um preço ativo compatível para esse produto
+            // Verificar se já existe um preço ativo compatível para esse produto
             $matchingPrice = null;
             $prices = $this->stripe->prices->all([
-                'product' => $existingProduct->id,
+                'product' => $product->id,
                 'active' => true,
                 'limit' => 50,
             ]);
@@ -332,7 +323,7 @@ class StripeService
 
             if ($matchingPrice === null) {
                 $matchingPrice = $this->stripe->prices->create([
-                    'product' => $existingProduct->id,
+                    'product' => $product->id,
                     'unit_amount' => $plan->price_in_cents,
                     'currency' => 'brl',
                     'recurring' => [
@@ -355,6 +346,93 @@ class StripeService
 
             throw $e;
         }
+    }
+
+    /**
+     * Atualiza o nome do produto do plano no Stripe.
+     */
+    public function updateProductName(Plan $plan): void
+    {
+        if ($this->isMock()) {
+            return;
+        }
+
+        try {
+            $product = $this->findOrCreateProduct($plan);
+
+            $this->stripe->products->update($product->id, [
+                'name' => 'Plano '.$plan->name,
+                'metadata' => [
+                    'plan_id' => $plan->id,
+                    'plan_name' => $plan->name,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Erro ao atualizar nome do produto no Stripe: '.$e->getMessage(), [
+                'plan_id' => $plan->id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Troca o Price do item da assinatura sem proração; o novo valor entra na próxima fatura.
+     */
+    public function swapSubscriptionPrice(string $stripeSubscriptionId, string $newPriceId): void
+    {
+        if ($this->isMock()) {
+            return;
+        }
+
+        try {
+            $subscription = $this->stripe->subscriptions->retrieve($stripeSubscriptionId);
+            $itemId = $subscription->items->data[0]->id;
+
+            $this->stripe->subscriptions->update($stripeSubscriptionId, [
+                'items' => [
+                    ['id' => $itemId, 'price' => $newPriceId],
+                ],
+                'proration_behavior' => 'none',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Erro ao trocar preço da assinatura no Stripe: '.$e->getMessage(), [
+                'stripe_subscription_id' => $stripeSubscriptionId,
+                'price_id' => $newPriceId,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Localiza o produto do plano (por metadata `plan_id` ou nome) ou o cria.
+     */
+    private function findOrCreateProduct(Plan $plan): Product
+    {
+        $expectedName = 'Plano '.$plan->name;
+
+        $products = $this->stripe->products->all(['active' => true, 'limit' => 100]);
+
+        foreach ($products->data as $product) {
+            if (($product->metadata['plan_id'] ?? null) === $plan->id) {
+                return $product;
+            }
+        }
+
+        foreach ($products->data as $product) {
+            if ($product->name === $expectedName || $product->name === $plan->name) {
+                return $product;
+            }
+        }
+
+        return $this->stripe->products->create([
+            'name' => $expectedName,
+            'metadata' => [
+                'plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+            ],
+        ]);
     }
 
     /**
