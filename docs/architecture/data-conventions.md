@@ -18,7 +18,7 @@ Utilize o padrão com `Attribute` ou o helper global de moeda:
 use App\Facades\Currency;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 
-// Exemplo em StockMovement / StockBatch / RequestService / Payment:
+// Exemplo em Product / StockMovement / StockBatch / RequestService / Payment:
 protected function unitCost(): Attribute
 {
     return Attribute::make(

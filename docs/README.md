@@ -11,7 +11,7 @@
 - [Cobrança & Assinaturas](domain/billing.md)
 
 ## Especificações (`specs/`)
-- Ativas: [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md), [Edição de Serviços, Integridade de Demandas Históricas e Resiliência Monetária](specs/active/2026-10-service-edition-pricing-and-demand-integrity.md).
+- Ativas: [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md), [Edição de Serviços, Integridade de Demandas Históricas e Resiliência Monetária](specs/active/2026-10-service-edition-pricing-and-demand-integrity.md), [Correção de Distorção de CMV, Custo Médio Ponderado de Lote e Integridade de Movimentações de Estoque](specs/active/2026-10-cmv-batch-cost-and-stock-consistency.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).
