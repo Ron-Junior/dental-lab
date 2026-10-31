@@ -73,8 +73,14 @@ O sistema permite configurar comissões de técnicos parceiros como percentual (
 
 ---
 
-## 5. Soft Deletes e Integridade Relacional
+## 5. Soft Deletes, Unicidade Ativa e Integridade Relacional
 
-- Registros financeiros, movimentações de estoque e ordens com faturamento não devem ser removidos fisicamente sem auditoria.
-- Deleções em cascata são restritas estritamente ao escopo da mesma entidade pai (ex: deletar itens temporários não confirmados), enquanto entidades consolidadas devem usar status (ex: status cancelado, arquivado).
-- Relações entre catálogo de serviços e demandas de parceiros (`partner_demands.service_service_step_id`) utilizam restrição referencial (`restrictOnDelete`) para impedir que a alteração de etapas no catálogo apague o histórico de produção e comissões passadas.
+- **Proibição de Hard Delete (`SoftDeletes` Obrigatório) ([spec](../specs/active/2026-10-deletion-integrity-and-authorization.md)):**
+  - As entidades `User`, `Dentist`, `Partner`, `Service`, `ServiceStep`, `Product` e `ProductCategory` utilizam obrigatoriamente `SoftDeletes` (`deleted_at`), nunca sendo removidas fisicamente do banco de dados (`forceDelete` retorna `false` nas Policies).
+  - Relacionamentos `BelongsTo` que partem de registros históricos/transacionais (`DentistRequest`, `RequestService`, `PartnerDemand`, `ServiceServiceStep`, `StockBatch`, `StockMovement`, `RequestServiceConsumption`) declaram `->withTrashed()` para preservar a exibição de nomes e cálculos em pedidos concluídos e relatórios gerenciais.
+- **Unicidade Escopada a Registros Ativos (`whereNull('deleted_at')`):**
+  - Colunas de nome (`services.name`, `service_steps.name`, `products.name`, `product_categories.name`) e e-mail (`users.email`) não utilizam constraint `UNIQUE` irrestrita no banco que impeça o recadastro após Soft Delete. A unicidade é garantida na validação de formulário considerando apenas registros ativos (`Rule::unique(...)->whereNull('deleted_at')`).
+- **Restrições Referenciais (`restrictOnDelete`) no Banco de Dados:**
+  - `dentists.user_id`, `partners.user_id`, `dentist_requests.dentist_id` e `request_services.service_id`: utilizam `restrictOnDelete` para impedir qualquer deleção física em cascata no banco que apague faturamento ou deixe arquivos órfãos em `files`/S3.
+  - `partner_demands.service_service_step_id`, `partner_demands.partner_id`, `service_service_step.service_id` e `service_service_step.service_step_id`: utilizam `restrictOnDelete` para blindar demandas executadas e comissões passadas.
+  - `stock_batches.product_id`, `stock_movements.product_id` e `request_service_consumptions.product_id`: utilizam `restrictOnDelete` para proteger o histórico de movimentações e lotes.
