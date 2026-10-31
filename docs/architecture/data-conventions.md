@@ -31,6 +31,7 @@ protected function unitCost(): Attribute
 ### Helpers Globais:
 Disponíveis em `app/Helpers/currency.php`:
 - `currency_to_int($value)`: Converte float/string para inteiro (centavos).
+- `currency_to_float($value)`: Converte string monetária formatada (ex.: `R$ 1.500.000,50`) em float decimal em reais (`1500000.50`), com suporte resiliente a múltiplos separadores de milhar e símbolos de moeda.
 - `currency_from_int($value, $formatted = false)`: Converte centavos para float ou string formatada em moeda brasileira (`R$ 150,50`).
 
 ---
@@ -48,6 +49,8 @@ Disponíveis em `app/Helpers/currency.php`:
 - **Quantidades em Estoque / Movimentação:**
   - Armazenadas como colunas `DECIMAL(10, 2)` para suportar tanto itens unitários (ex: 2 coroas) quanto fracionados (ex: 15.5 gramas de resina/liga metálica, 2.5 ml).
   - Casts Eloquent configurados como `'decimal:2'`.
+- **Quantidades de Itens Solicitados (`RequestService`):**
+  - Armazenadas como `unsignedInteger` para suportar grandes tiragens (até 1.000.000 de unidades) sem estourar o limite de `smallint` do PostgreSQL.
 - **Unidades de Medida (`UnitMeasure` Enum):**
   - Padronizadas via Enum: `UN` (Unidade), `GR` (Grama), `ML` (Mililitro), `KG` (Quilo), `CX` (Caixa), etc.
 
@@ -67,3 +70,4 @@ Disponíveis em `app/Helpers/currency.php`:
 
 - Registros financeiros, movimentações de estoque e ordens com faturamento não devem ser removidos fisicamente sem auditoria.
 - Deleções em cascata são restritas estritamente ao escopo da mesma entidade pai (ex: deletar itens temporários não confirmados), enquanto entidades consolidadas devem usar status (ex: status cancelado, arquivado).
+- Relações entre catálogo de serviços e demandas de parceiros (`partner_demands.service_service_step_id`) utilizam restrição referencial (`restrictOnDelete`) para impedir que a alteração de etapas no catálogo apague o histórico de produção e comissões passadas.
