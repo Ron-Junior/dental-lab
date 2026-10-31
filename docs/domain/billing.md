@@ -34,6 +34,13 @@ Tenants com isenção ativa (`Tenant::isExempt()`) são sempre excluídos da ina
 
 Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias em atraso = dias desde o vencimento mais antigo (ou `current_period_end` se não houver pagamento vencido).
 
+### 2.1. Bloqueio de Acesso Operacional e Ciclo de Expiração ([spec](../specs/active/2026-10-tenant-access-enforcement-and-lifecycle.md))
+
+- **Middleware `EnsureTenantIsOperational` (`tenant.operational`):** Protege todas as rotas operacionais do laboratório em `routes/tenant.php`. O acesso só é liberado quando `$tenant->status === TenantStatus::Active` e o laboratório possui cobertura financeira válida: isenção ativa (`isExempt()`), `Trial` dentro do prazo (`current_period_end > now()`) ou assinatura `Active` vigente (não originada de isenção já expirada/revogada sem assinatura Stripe).
+- **Redirecionamento para Regularização (`/perfil`):** Laboratórios com assinatura `Overdue`, `Cancelled`, `Trial` vencido ou `Exemption` encerrada/revogada têm suas rotas operacionais bloqueadas e são redirecionados para `/perfil`, onde o administrador visualiza o motivo da suspensão e pode cadastrar/atualizar seu cartão via Stripe para ativar/regularizar a assinatura imediatamente. Rotas de autenticação, `/perfil`, logout e impersonation de suporte (`impersonated_by_central`) permanecem acessíveis.
+- **Rotina Agendada (`subscriptions:expire-lifecycle`):** Comando agendado em `routes/console.php` que encerra períodos de `Trial` vencidos (`current_period_end <= now()`) e transiciona assinaturas cuja isenção (`Exemption`) atingiu `ends_at` sem método de pagamento recorrente ativo no Stripe (tentando ativar a cobrança caso o cliente já tenha cadastrado cartão, ou alterando o status para `Overdue` com geração de `Payment` pendente).
+- **Revogação Imediata de Isenção:** Ao revogar manualmente uma isenção em `ExemptionService::revoke`, caso o tenant não possua assinatura paga no Stripe, sua assinatura transiciona imediatamente para `Overdue` e o acesso operacional é bloqueado até a regularização.
+
 ---
 
 ## 3. Aplicação de Desconto
@@ -100,7 +107,9 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 
 ## 7. Limites do Plano
 
-`Plan.limits` (JSON) define `users_limit`, `storage_gb_limit` e `monthly_exams_limit` (itens `RequestService` no mês). Chave ausente = ilimitado. Níveis: `normal` (<80%), `warning` (≥80%), `critical` (≥95%), `exceeded` (≥100%). Em `exceeded` apenas a criação é bloqueada (HTTP 403 / toast). Detalhes em [spec](../specs/active/2026-10-plan-limits.md).
+`Plan.limits` (JSON) define `users_limit`, `storage_gb_limit` e `monthly_exams_limit` (itens `RequestService` no mês). Chave ausente = ilimitado. Níveis: `normal` (<80%), `warning` (≥80%), `critical` (≥95%), `exceeded` (≥100%). Em `exceeded` apenas a criação é bloqueada (HTTP 403 / toast). Detalhes em [spec](../specs/archived/2026-10-plan-limits.md).
+
+- **Política *Fail-Closed* para Inadimplentes/Expirados ([spec](../specs/active/2026-10-tenant-access-enforcement-and-lifecycle.md)):** `TenantLimitChecker` só aplica limites abertos quando o laboratório possui cobertura operacional ativa (`Active` vigente, `Trial` vigente com `current_period_end > now()`, ou isenção ativa). Se a assinatura estiver `Overdue`, `Cancelled`, com `Trial` vencido ou sem cobertura, `assertCanCreate` bloqueia imediatamente qualquer criação (`PlanLimitExceededException`) e os recursos são tratados com limite `0` (`UsageLevel::Exceeded`), impedindo que clientes inadimplentes recebam limites ilimitados. O fallback *fail-open* ocorre exclusivamente em caso de falha técnica de leitura no banco central.
 
 ---
 

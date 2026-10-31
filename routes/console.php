@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('plans:apply-scheduled-prices')
     ->dailyAt('03:00')
     ->withoutOverlapping();
+
+Schedule::command('subscriptions:expire-lifecycle')
+    ->hourly()
+    ->withoutOverlapping();

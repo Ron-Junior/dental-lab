@@ -29,7 +29,7 @@ new class extends Component
         <div class="bg-amber-500 text-amber-950 px-4 py-2 text-sm font-medium flex items-center justify-between shadow-sm sticky top-0 z-50">
             <div class="flex items-center gap-2">
                 <flux:icon icon="shield-exclamation" class="size-5 shrink-0 text-amber-950" />
-                <span>Modo de Suporte: Você está navegando como administrador central.</span>
+                <span>Modo de Suporte: Você está navegando como administrador central.@if(tenant() && ! tenant()->canAccessOperationalFeatures()) <strong class="underline decoration-amber-900 ml-1">Laboratório bloqueado para usuários comuns (acesso operacional suspenso).</strong>@endif</span>
             </div>
             <a
                 href="{{ route('tenant.impersonate.leave') }}"

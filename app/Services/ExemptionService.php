@@ -240,7 +240,8 @@ class ExemptionService
                 throw new InvalidArgumentException('Esta isenção já foi revogada.');
             }
 
-            $freshExemption->revoked_at = Carbon::now();
+            $now = Carbon::now();
+            $freshExemption->revoked_at = $now;
             $freshExemption->save();
 
             AuditLog::query()->create([
@@ -254,6 +255,46 @@ class ExemptionService
                     'revoked_at' => $freshExemption->revoked_at->toIso8601String(),
                 ],
             ]);
+
+            // Transição imediata da assinatura se o tenant não possuir outra isenção ou stripe_subscription_id
+            $tenant = Tenant::query()->lockForUpdate()->find($freshExemption->tenant_id);
+
+            $hasOtherActiveExemption = Exemption::query()
+                ->where('tenant_id', $freshExemption->tenant_id)
+                ->where('id', '!=', $freshExemption->id)
+                ->whereNull('revoked_at')
+                ->where('starts_at', '<=', $now)
+                ->where('ends_at', '>', $now)
+                ->exists();
+
+            if (! $hasOtherActiveExemption && $tenant !== null) {
+                $currentSub = $tenant->currentSubscription();
+
+                if ($currentSub !== null && empty($currentSub->stripe_subscription_id)) {
+                    $currentSub->current_period_end = $now;
+                    $currentSub->status = SubscriptionStatus::Overdue;
+                    $currentSub->save();
+
+                    $hasPendingPayment = Payment::query()
+                        ->where('tenant_id', $tenant->id)
+                        ->where('status', PaymentStatus::Pending)
+                        ->exists();
+
+                    if (! $hasPendingPayment) {
+                        Payment::query()->create([
+                            'tenant_id' => $tenant->id,
+                            'method' => 'credit_card',
+                            'status' => PaymentStatus::Pending,
+                            'amount_in_cents' => (int) $currentSub->effective_price_in_cents,
+                            'due_date' => $now,
+                            'metadata' => [
+                                'reason' => 'exemption_revoked',
+                                'exemption_id' => $freshExemption->id,
+                            ],
+                        ]);
+                    }
+                }
+            }
         });
     }
 }

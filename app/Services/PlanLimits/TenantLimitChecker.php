@@ -4,12 +4,10 @@ namespace App\Services\PlanLimits;
 
 use App\Enums\PlanResource;
 use App\Enums\Rules;
-use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
 use App\Enums\UsageLevel;
 use App\Models\File;
 use App\Models\RequestService;
-use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -59,6 +57,13 @@ class TenantLimitChecker
      */
     public function assertCanCreate(PlanResource $resource, int|float $incoming = 1, ?Tenant $tenant = null): void
     {
+        $tenant = $this->resolveTenant($tenant);
+
+        if (! $tenant->canAccessOperationalFeatures()) {
+            $usage = $this->buildUsage($resource, $this->limitsFor($tenant), $tenant);
+            throw new PlanLimitExceededException($usage);
+        }
+
         $usage = $this->usageFor($resource, $tenant);
 
         if ($usage->isUnlimited()) {
@@ -148,6 +153,10 @@ class TenantLimitChecker
      */
     private function buildUsage(PlanResource $resource, array $limits, Tenant $tenant): ResourceUsage
     {
+        if (! $tenant->canAccessOperationalFeatures()) {
+            return new ResourceUsage($resource, 0.0, 0);
+        }
+
         $limit = $limits[$resource->value] ?? null;
         $limit = is_numeric($limit) ? (int) $limit : null;
 
@@ -211,20 +220,15 @@ class TenantLimitChecker
     }
 
     /**
-     * Limites do plano vigente no banco central. Sem assinatura ativa/trial,
-     * ou em caso de falha de leitura, não há limite (fail-open).
+     * Limites do plano vinculado no banco central. Em caso de falha de conexão técnica,
+     * registra o erro e retorna [] (fail-open apenas para falha de infraestrutura).
      *
      * @return array<string, mixed>
      */
     private function limitsFor(Tenant $tenant): array
     {
         try {
-            $subscription = Subscription::query()
-                ->with('plan')
-                ->where('tenant_id', $tenant->getTenantKey())
-                ->whereIn('status', [SubscriptionStatus::Active, SubscriptionStatus::Trial])
-                ->latest('current_period_start')
-                ->first();
+            $subscription = $tenant->currentSubscription();
 
             return $subscription?->plan?->limits ?? [];
         } catch (Throwable $exception) {

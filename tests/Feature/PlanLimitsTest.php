@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Services\PlanLimits\PlanLimitExceededException;
 use App\Services\PlanLimits\TenantLimitChecker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -39,10 +40,13 @@ class PlanLimitsTest extends TestCase
             'limits' => $limits,
         ]);
 
+        Subscription::query()->where('tenant_id', $this->testTenant->getTenantKey())->delete();
+
         Subscription::query()->create([
             'tenant_id' => $this->testTenant->getTenantKey(),
             'plan_id' => $plan->id,
             'status' => $status,
+            'stripe_subscription_id' => $status === SubscriptionStatus::Active ? 'sub_test_mock' : null,
             'current_period_start' => now()->subDay(),
             'current_period_end' => now()->addMonth(),
         ]);
@@ -107,14 +111,30 @@ class PlanLimitsTest extends TestCase
         $this->assertSame(UsageLevel::Normal, $usage->level);
     }
 
-    public function test_missing_key_or_inactive_subscription_means_unlimited(): void
+    public function test_inactive_subscription_blocks_resource_creation_fail_closed(): void
     {
         $this->subscribeWithLimits(['users_limit' => 1], SubscriptionStatus::Cancelled);
 
         $checker = app(TenantLimitChecker::class);
-        $this->assertTrue($checker->usageFor(PlanResource::Users)->isUnlimited());
+        $usage = $checker->usageFor(PlanResource::Users);
 
+        $this->assertFalse($usage->isUnlimited());
+        $this->assertSame(0, $usage->limit);
+        $this->assertSame(UsageLevel::Exceeded, $usage->level);
+        $this->assertFalse($checker->isAllUnlimited($checker->usage()));
+
+        $this->expectException(PlanLimitExceededException::class);
         $checker->assertCanCreate(PlanResource::Users);
+    }
+
+    public function test_missing_key_in_active_plan_means_unlimited(): void
+    {
+        $this->subscribeWithLimits(['users_limit' => 1], SubscriptionStatus::Active);
+
+        $checker = app(TenantLimitChecker::class);
+        $this->assertTrue($checker->usageFor(PlanResource::MonthlyItems)->isUnlimited());
+
+        $checker->assertCanCreate(PlanResource::MonthlyItems);
         $this->addToAssertionCount(1);
     }
 
@@ -221,6 +241,8 @@ class PlanLimitsTest extends TestCase
 
     public function test_profile_shows_plan_usage_and_remaining_days_to_lab_team(): void
     {
+        Carbon::setTestNow('2026-10-15 12:00:00');
+
         $this->subscribeWithLimits([
             'monthly_exams_limit' => 10,
             'users_limit' => 5,

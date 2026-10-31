@@ -40,31 +40,34 @@ Route::domain('{tenant}.'.config('tenancy.central_domain'))
         require __DIR__.'/auth.php';
 
         Route::middleware('auth')->group(function () {
-            Route::view('dashboard', 'dashboard')->name('dashboard');
             Route::view('perfil', 'profile')->name('profile');
 
-            Route::middleware('can:viewAny,'.Dentist::class)->group(function () {
-                Volt::route('etapas', 'pages.steps.index')->name('steps.index');
+            Route::middleware('tenant.operational')->group(function () {
+                Route::view('dashboard', 'dashboard')->name('dashboard');
 
-                Route::prefix('produtos')->group(function () {
-                    Volt::route('', 'pages.products.index')->name('products.index');
-                    Volt::route('categorias', 'pages.products.categories.index')->name('products.categories.index');
-                    Volt::route('movimentacoes', 'pages.products.movements.index')->name('products.movements.index');
+                Route::middleware('can:viewAny,'.Dentist::class)->group(function () {
+                    Volt::route('etapas', 'pages.steps.index')->name('steps.index');
+
+                    Route::prefix('produtos')->group(function () {
+                        Volt::route('', 'pages.products.index')->name('products.index');
+                        Volt::route('categorias', 'pages.products.categories.index')->name('products.categories.index');
+                        Volt::route('movimentacoes', 'pages.products.movements.index')->name('products.movements.index');
+                    });
+
+                    Volt::route('parceiros', 'pages.partners.index')->name('partners.index');
+                    Volt::route('dentistas', 'dentists.index')->name('dentists.index');
+                    Volt::route('serviços', 'pages.services.index')->name('services.index');
+                    Volt::route('relatorios', 'pages.reports.index')->name('reports.index');
                 });
 
-                Volt::route('parceiros', 'pages.partners.index')->name('partners.index');
-                Volt::route('dentistas', 'dentists.index')->name('dentists.index');
-                Volt::route('serviços', 'pages.services.index')->name('services.index');
-                Volt::route('relatorios', 'pages.reports.index')->name('reports.index');
-            });
+                Route::middleware('can:viewAny,'.ServiceServiceStep::class)->group(function () {
+                    Volt::route('demandas', 'pages.dentists.demands')->name('dentists.demands.index');
+                });
 
-            Route::middleware('can:viewAny,'.ServiceServiceStep::class)->group(function () {
-                Volt::route('demandas', 'pages.dentists.demands')->name('dentists.demands.index');
-            });
-
-            Route::middleware('can:viewAny,'.DentistRequest::class)->group(function () {
-                Volt::route('serviços-solicitados', 'pages.services.planned')->name('services.planned.index');
-                Volt::route('solicitações/{id}', 'pages.services.planned')->name('dentist-request.show');
+                Route::middleware('can:viewAny,'.DentistRequest::class)->group(function () {
+                    Volt::route('serviços-solicitados', 'pages.services.planned')->name('services.planned.index');
+                    Volt::route('solicitações/{id}', 'pages.services.planned')->name('dentist-request.show');
+                });
             });
         });
     });

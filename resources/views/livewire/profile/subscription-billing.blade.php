@@ -1,9 +1,13 @@
 <?php
 
+use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionStatus;
+use App\Models\Dentist;
+use App\Models\Payment;
 use App\Models\Tenant;
 use App\Services\StripeService;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 
@@ -25,6 +29,12 @@ new class extends Component
             $intent = $stripeService->createSetupIntent($tenant);
             $this->clientSecret = $intent['client_secret'];
         }
+    }
+
+    #[Computed]
+    public function isAuthorized(): bool
+    {
+        return (bool) Auth::user()?->can('viewAny', Dentist::class);
     }
 
     #[Computed]
@@ -89,13 +99,67 @@ new class extends Component
         }
 
         $stripeService->attachPaymentMethod($tenant, $paymentMethodId);
+        $tenant->refresh();
+
+        $sub = $this->subscription;
+        if ($sub && (! $tenant->canAccessOperationalFeatures() || in_array($sub->status, [SubscriptionStatus::Overdue, SubscriptionStatus::Cancelled]))) {
+            $this->regularizeSubscription($stripeService);
+        } else {
+            Flux::modal('update-card-modal')->close();
+            Flux::toast(variant: 'success', text: 'Cartão de crédito atualizado com sucesso!');
+        }
+    }
+
+    public function regularizeSubscription(StripeService $stripeService): void
+    {
+        $tenant = $this->centralTenant;
+        if (! $tenant) {
+            return;
+        }
+
+        $sub = $this->subscription;
+        if (! $sub || ! $sub->plan) {
+            return;
+        }
+
+        if (empty($sub->stripe_subscription_id)) {
+            if (! $tenant->card_last_four) {
+                $this->openUpdateCardModal();
+
+                return;
+            }
+
+            try {
+                $stripeSub = $stripeService->createSubscription($tenant, $sub->plan);
+                $sub->stripe_subscription_id = $stripeSub['id'];
+            } catch (\Throwable $e) {
+                Flux::toast(variant: 'danger', text: 'Não foi possível processar a cobrança do cartão: '.$e->getMessage());
+
+                return;
+            }
+        }
+
+        $now = now();
+        $sub->status = SubscriptionStatus::Active;
+        $sub->current_period_start = $now;
+        $sub->current_period_end = $sub->plan->addBillingCycles($now, 1);
+        $sub->save();
+
+        Payment::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', PaymentStatus::Pending)
+            ->update([
+                'status' => PaymentStatus::Paid,
+                'paid_at' => $now,
+            ]);
 
         Flux::modal('update-card-modal')->close();
-        Flux::toast(variant: 'success', text: 'Cartão de crédito atualizado com sucesso!');
+        Flux::toast(variant: 'success', text: 'Assinatura regularizada com sucesso! O acesso ao laboratório foi restabelecido.');
     }
 }; ?>
 
 <div>
+    @if ($this->isAuthorized)
     <flux:card class="space-y-6" id="profile-subscription-billing-card">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="space-y-1">
@@ -187,6 +251,23 @@ new class extends Component
                 </div>
             </div>
         </div>
+
+        @if (! $this->isExempt && $this->subscription && ($this->subscription->status === \App\Enums\SubscriptionStatus::Overdue || $this->subscription->status === \App\Enums\SubscriptionStatus::Cancelled || ! $this->centralTenant?->canAccessOperationalFeatures()))
+            <div class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="text-sm text-zinc-600 dark:text-zinc-400">
+                    Sua assinatura precisa de regularização para restabelecer o acesso completo ao laboratório.
+                </div>
+                @if ($this->centralTenant?->card_last_four)
+                    <flux:button wire:click="regularizeSubscription" variant="primary" icon="check-circle">
+                        Regularizar Pagamento
+                    </flux:button>
+                @else
+                    <flux:button wire:click="openUpdateCardModal" variant="primary" icon="credit-card">
+                        Cadastrar Cartão e Ativar Assinatura
+                    </flux:button>
+                @endif
+            </div>
+        @endif
 
         <!-- Modal para atualizar cartão com Flux Modal -->
         <flux:modal name="update-card-modal" class="md:w-120">
@@ -295,5 +376,6 @@ new class extends Component
             </div>
         </flux:modal>
     </flux:card>
+    @endif
 </div>
 

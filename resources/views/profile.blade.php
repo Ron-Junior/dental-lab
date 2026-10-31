@@ -1,5 +1,15 @@
 <x-app-layout>
     <div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        @php
+            $denialMessage = session('operational_block') ?? (tenant() && ! tenant()->canAccessOperationalFeatures() ? tenant()->operationalDenialMessage(auth()->user()) : null);
+        @endphp
+
+        @if ($denialMessage)
+            <flux:callout variant="danger" icon="exclamation-triangle">
+                {{ $denialMessage }}
+            </flux:callout>
+        @endif
+
         <header class="space-y-1">
             <flux:heading size="xl">
                 {{ __('Profile') }}
