@@ -44,4 +44,3 @@ class PlanDeactivatedMigrationNotification extends Notification implements Shoul
             ->line('Caso tenha qualquer dúvida ou deseje escolher outro plano antes dessa data, nossa equipe está à disposição.');
     }
 }
-

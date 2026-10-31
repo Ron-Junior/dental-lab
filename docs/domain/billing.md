@@ -77,12 +77,14 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
    - Laboratórios parceiros com período de teste concedido por administradores centrais possuem status `trial` e não são cobrados no checkout.
    - No perfil do laboratório (`/perfil`), o administrador acompanha quantos dias restam para o término do trial (`daysRemainingInTrial()`).
    - Permite cadastrar ou atualizar o cartão a qualquer momento antes do término do período de testes via modal com Stripe Elements.
-5. **Webhooks Idempotentes:**
-   - O endpoint central `POST /webhook/payment` processa notificações assíncronas do Stripe:
-     - `invoice.payment_succeeded`: renova `current_period_end` da assinatura local, garante status `active` e marca cobranças como `paid`.
-     - `invoice.payment_failed`: registra a falha de pagamento e aciona o estado de inadimplência (`overdue`).
-     - `customer.subscription.deleted`: marca a assinatura local como `cancelled`.
-   - O processamento de webhooks é estritamente idempotente, validando assinaturas e evitando duplicações por retransmissão de eventos.
+5. **Webhooks Idempotentes e Seguros ([spec](../specs/active/2026-10-webhook-security-and-lifecycle.md)):**
+   - O endpoint central `POST /webhook/payment` valida a autenticidade criptográfica do cabeçalho `Stripe-Signature` via `\Stripe\Webhook::constructEvent` usando `config('services.stripe.webhook_secret')`. Requisições sem assinatura válida são rejeitadas com HTTP 400.
+   - Processa notificações assíncronas do Stripe:
+     - `invoice.payment_succeeded` (e equivalentes `charge.paid`, `payment.succeeded`): marca a cobrança como `paid`, garante status `active` na assinatura e renova `current_period_start` / `current_period_end` priorizando os timestamps do período da fatura no Stripe ou calculando via `Plan::addBillingCycles` (`+1 mês` para mensal, `+1 ano` para anual). Se houver reajuste ou migração agendada vencida (`price_change_effective_at <= now()`), promove os valores `scheduled_*` na renovação.
+     - **Trava de Ciclo de Vida no Provisionamento:** O job `ProvisionTenant` (e o envio do e-mail de boas-vindas com token de primeiro acesso) só é disparado quando o tenant está em onboarding (`PendingPayment` ou `Failed` e ainda não verificado). Renovações subsequentes de laboratórios já ativos nunca re-executam o provisionamento nem resetam tokens de convite.
+     - `invoice.payment_failed` (e equivalentes `charge.failed`, `payment.failed`): marca a cobrança como `failed` e altera a assinatura de tenants ativos não-isentos (`! $tenant->isExempt()`) para `overdue`.
+     - `customer.subscription.deleted` (e `subscription.cancelled`): marca a assinatura local como `cancelled` e limpa agendamentos futuros (`scheduled_*`).
+   - O processamento de webhooks é estritamente idempotente, evitando duplicações por retransmissão de eventos.
 
 ---
 

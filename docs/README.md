@@ -11,7 +11,7 @@
 - [Cobrança & Assinaturas](domain/billing.md)
 
 ## Especificações (`specs/`)
-- Ativas: [Onboarding, Checkout e Assinaturas Stripe](specs/active/2026-10-tenant-onboarding-and-billing.md), [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
+- Ativas: [Onboarding, Checkout e Assinaturas Stripe](specs/active/2026-10-tenant-onboarding-and-billing.md), [Segurança e Ciclo de Vida no Webhook de Pagamento](specs/active/2026-10-webhook-security-and-lifecycle.md), [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).

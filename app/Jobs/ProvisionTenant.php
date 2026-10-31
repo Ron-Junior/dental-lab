@@ -47,6 +47,15 @@ class ProvisionTenant implements ShouldQueue
     {
         $tenant = Tenant::query()->findOrFail($this->tenantId);
 
+        // Se o laboratório já estiver verificado, não resetar tokens nem reenviar e-mail de boas-vindas
+        if ($tenant->isVerified()) {
+            Log::info('Tenant já verificado. Pulando envio de convite e reset de token.', [
+                'tenantId' => $tenant->id,
+            ]);
+
+            return;
+        }
+
         $userEmail = ! empty($this->userData['email']) ? $this->userData['email'] : $tenant->owner_email;
 
         if (empty($userEmail)) {
@@ -96,7 +105,7 @@ class ProvisionTenant implements ShouldQueue
         // Dados do usuário
         $userName = $this->userData['name'] ?? $tenant->name;
 
-        $firstAccessUrl = $tenant->run(function () use ($userName, $userEmail, $tenant): string {
+        $firstAccessUrl = $tenant->run(function () use ($userName, $userEmail, $tenant): ?string {
             Log::info('Provisionando tenant - criando usuário no schema do tenant', [
                 'email' => $userEmail,
             ]);
@@ -114,6 +123,11 @@ class ProvisionTenant implements ShouldQueue
                     'rule_id' => $labRule->id,
                 ],
             );
+
+            // Se o usuário proprietário já concluiu o primeiro acesso, não alterar tokens de convite
+            if ($user->email_verified_at !== null) {
+                return null;
+            }
 
             // Gerar token seguro de primeiro acesso
             $user->invitationToken()->delete();
@@ -137,15 +151,19 @@ class ProvisionTenant implements ShouldQueue
         });
 
         // Salvar a URL de primeiro acesso nos metadados do tenant para a tela de boas-vindas
-        $tenant->first_access_url = $firstAccessUrl;
+        if ($firstAccessUrl !== null) {
+            $tenant->first_access_url = $firstAccessUrl;
+        }
         $tenant->status = TenantStatus::Active;
         $tenant->save();
 
-        Notification::route('mail', $userEmail)
-            ->notify(new TenantWelcomeNotification(
-                $tenant->name,
-                $firstAccessUrl,
-            ));
+        if ($firstAccessUrl !== null) {
+            Notification::route('mail', $userEmail)
+                ->notify(new TenantWelcomeNotification(
+                    $tenant->name,
+                    $firstAccessUrl,
+                ));
+        }
 
         Log::info('Provisionamento do tenant concluído com sucesso', [
             'tenantId' => $tenant->id,

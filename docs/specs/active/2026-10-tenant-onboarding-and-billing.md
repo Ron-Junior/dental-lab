@@ -136,7 +136,7 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
 3. **Trava de Verificação:** Acesso à rota `/completar-cadastro` em um tenant com `verified_at != null` é bloqueado e redirecionado para o login.
 4. **Verificação com Sucesso:** Definição da senha no primeiro acesso salva a senha no schema tenant, seta `verified_at` no banco central e autentica o usuário.
 5. **Cálculo de Trial no Perfil:** O perfil exibe a quantidade exata de dias restantes até o término do trial.
-6. **Webhooks Stripe:** Processamento de webhook `invoice.payment_succeeded` atualiza status e período da assinatura com idempotência.
+6. **Webhooks Stripe ([2026-10-webhook-security-and-lifecycle](2026-10-webhook-security-and-lifecycle.md)):** Validação obrigatória de `Stripe-Signature` (HTTP 400 quando inválido), cálculo de vigência respeitando ciclo mensal/anual (`Plan::addBillingCycles`), disparo de `ProvisionTenant` restrito ao primeiro pagamento (onboarding) e tratamento automático de `invoice.payment_failed` (`overdue`) e `customer.subscription.deleted` (`cancelled`).
 7. **Reenvio de Link Expirado:** Link expirado detectado em `/completar-cadastro`, banner em `/login` e botão no painel de laboratórios geram novo token de 48h e disparam e-mail via `ResendFirstAccessLink`.
 8. **Criação de Assinatura no Stripe:** A submissão bem-sucedida do checkout público cria a assinatura recorrente no Stripe vinculada ao plano, popula `subscriptions.stripe_subscription_id` e registra o pagamento inicial.
 9. **Repasse de Descontos ao Stripe:** Quando um laboratório com desconto aplicado conclui o checkout, a assinatura no Stripe é criada com cupom (`coupon`) correspondente, abatendo o valor na fatura gerada.
