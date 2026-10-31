@@ -74,6 +74,18 @@ new class extends Component
     }
 
     #[Computed]
+    public function allBatches(): Collection
+    {
+        if (! $this->form->productId) {
+            return collect();
+        }
+
+        return StockBatch::where('product_id', $this->form->productId)
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    #[Computed]
     public function calculatedTotalQuantity(): float
     {
         $amount = (float) ($this->form->amount ?? 0);
@@ -112,6 +124,15 @@ new class extends Component
     {
         $this->form->reason = null;
         $this->form->stockBatchId = null;
+        $this->form->batchNumber = null;
+        $this->form->expirationDate = null;
+    }
+
+    public function updatedFormReason(): void
+    {
+        $this->form->stockBatchId = null;
+        $this->form->batchNumber = null;
+        $this->form->expirationDate = null;
     }
 
     public function save(): void
@@ -194,7 +215,7 @@ new class extends Component
                     </flux:select>
 
                     <!-- Motivo -->
-                    <flux:select label="Motivo" name="reason" wire:model="form.reason">
+                    <flux:select label="Motivo" name="reason" wire:model.live="form.reason">
                         <option value="">Selecione o motivo</option>
                         @foreach ($form->getAvailableReasons() as $reason)
                             <option wire:key="reason-{{ $reason->value }}" value="{{ $reason->value }}">
@@ -246,7 +267,7 @@ new class extends Component
                 @endif
 
                 <!-- Preço Total (para entradas ou compras) -->
-                @if ($form->getTypeEnum() === StockMovementsTypes::In || $form->getTypeEnum() === StockMovementsTypes::Adjustment)
+                @if ($form->isIncoming())
                     <div class="space-y-1">
                         <flux:input 
                             mask:dynamic="$money($input, ',', '.', 2)" 
@@ -269,14 +290,29 @@ new class extends Component
                             <flux:heading size="sm">Rastreabilidade de Lote (ANVISA)</flux:heading>
                         </div>
 
-                        @if ($form->getTypeEnum() === StockMovementsTypes::In)
-                            <!-- Cadastro de Novo Lote na Entrada -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <flux:input wire:model="form.batchNumber" label="Número do Lote" placeholder="Ex: LOT-2026-A" />
-                                <flux:input wire:model="form.expirationDate" label="Data de Validade" type="date" />
-                            </div>
+                        @if ($form->isIncoming())
+                            @if ($this->allBatches->isNotEmpty())
+                                <div>
+                                    <flux:select label="Lote Existente (Opcional)" wire:model.live="form.stockBatchId" placeholder="Selecione ou deixe em branco para novo lote">
+                                        <option value="">Cadastrar Novo Lote</option>
+                                        @foreach ($this->allBatches as $batch)
+                                            <option wire:key="batch-in-{{ $batch->id }}" value="{{ $batch->id }}">
+                                                Lote: {{ $batch->batch_number }} | Saldo: {{ $batch->current_quantity }} {{ $this->selectedProduct->unit_of_measure?->value }} | Val: {{ $batch->expiration_date?->format('d/m/Y') }}
+                                            </option>
+                                        @endforeach
+                                    </flux:select>
+                                </div>
+                            @endif
+
+                            @if (! $form->stockBatchId)
+                                <!-- Cadastro de Novo Lote na Entrada -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <flux:input wire:model="form.batchNumber" label="Número do Lote" placeholder="Ex: LOT-2026-A" />
+                                    <flux:input wire:model="form.expirationDate" label="Data de Validade" type="date" />
+                                </div>
+                            @endif
                         @else
-                            <!-- Seleção de Lote Existente na Saída ou Ajuste -->
+                            <!-- Seleção de Lote Existente na Saída ou Ajuste de Saída -->
                             <div>
                                 <flux:select label="Lote de Origem" wire:model="form.stockBatchId" placeholder="Selecione o lote">
                                     <option value="">Selecione o lote do material</option>

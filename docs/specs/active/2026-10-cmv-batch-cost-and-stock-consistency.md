@@ -1,8 +1,9 @@
 # Especificação: Correção de Distorção de CMV, Custo Médio Ponderado de Lote e Integridade de Movimentações de Estoque
 
 - **Identificador:** `2026-10-cmv-batch-cost-and-stock-consistency`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Estoque & Insumos (`app/Actions/StockMovement.php`, `app/Livewire/Forms/StockMovementForm.php`, `app/Enums/StockMovementsTypes.php`, `app/Enums/StockMovementsReasons.php`, `app/Models/Product.php`, `app/Models/StockBatch.php`, `app/Models/StockMovement.php`, `resources/views/components/products/stock/store.blade.php`, `resources/views/components/products/stock/out.blade.php`, `resources/views/components/stock/get.blade.php`), Demandas de Parceiros (`resources/views/components/partners/start-demand.blade.php`), Relatórios Gerenciais (`resources/views/livewire/pages/reports/index.blade.php`), Migrations Tenant (`database/migrations/tenant/`).
 
 ---
@@ -154,20 +155,20 @@ Durante a revisão contábil e operacional do módulo de estoque e relatórios g
 ## 5. Critérios de Aceite & Matriz de Testes
 
 1. **Movimentações de Ajuste (`Adjustment`):**
-   - [ ] Realizar um ajuste de entrada (`AdjustmentIn`) e de saída (`AdjustmentOut`) em produto com lote atualiza simultaneamente `products.current_stock` e `stock_batches.current_quantity`, criando o `StockMovement` e retornando instância válida sem `TypeError`.
-   - [ ] Tentar executar `StockMovement::handle()` com combinação inválida de tipo e motivo que não seja nem entrada nem saída lança `ValidationException` em vez de corromper o saldo ou retornar array vazio.
+   - [x] Realizar um ajuste de entrada (`AdjustmentIn`) e de saída (`AdjustmentOut`) em produto com lote atualiza simultaneamente `products.current_stock` e `stock_batches.current_quantity`, criando o `StockMovement` e retornando instância válida sem `TypeError`.
+   - [x] Tentar executar `StockMovement::handle()` com combinação inválida de tipo e motivo que não seja nem entrada nem saída lança `ValidationException` em vez de corromper o saldo ou retornar array vazio.
 2. **CMV de Produtos sem Lote (`has_batches = false`):**
-   - [ ] Dar entrada de compra em produto sem lote calcula e armazena `products.unit_cost` (em centavos no banco).
-   - [ ] Realizar saída de consumo (`ServiceConsumption`) vinculada a uma `DentistRequest` para produto sem lote preenche automaticamente `stock_movements.unit_cost` com o custo do produto.
-   - [ ] No relatório `reports/index.blade.php`, o pedido com consumo de produto sem lote exibe o CMV calculado, o Lucro Bruto, a Margem e o status **"Completo"** (sem alerta indevido de *"Custo parcial"*).
+   - [x] Dar entrada de compra em produto sem lote calcula e armazena `products.unit_cost` (em centavos no banco).
+   - [x] Realizar saída de consumo (`ServiceConsumption`) vinculada a uma `DentistRequest` para produto sem lote preenche automaticamente `stock_movements.unit_cost` com o custo do produto.
+   - [x] No relatório `reports/index.blade.php`, o pedido com consumo de produto sem lote exibe o CMV calculado, o Lucro Bruto, a Margem e o status **"Completo"** (sem alerta indevido de *"Custo parcial"*).
 3. **Custo Médio Ponderado (CMP) e `initial_quantity` em Lotes:**
-   - [ ] Ao dar uma primeira entrada de `100` un. a `R$ 10,00` (total `R$ 1.000,00`) no lote `LOTE-01` e depois uma segunda entrada de `100` un. a `R$ 20,00` (total `R$ 2.000,00`) no mesmo `LOTE-01`, o lote passa a ter `initial_quantity = 200`, `current_quantity = 200` e `cost_price = 15.00` (R$ 15,00 de média ponderada, ou `1500` centavos).
-   - [ ] Caso parte do lote já tenha sido consumida antes da nova entrada (ex.: restavam `50` un. a `R$ 10,00` e entram `50` un. a `R$ 20,00`), o novo `cost_price` pondera pelo saldo remanescente (`current_quantity = 100`, `initial_quantity = 150`, `cost_price = 15.00`).
+   - [x] Ao dar uma primeira entrada de `100` un. a `R$ 10,00` (total `R$ 1.000,00`) no lote `LOTE-01` e depois uma segunda entrada de `100` un. a `R$ 20,00` (total `R$ 2.000,00`) no mesmo `LOTE-01`, o lote passa a ter `initial_quantity = 200`, `current_quantity = 200` e `cost_price = 15.00` (R$ 15,00 de média ponderada, ou `1500` centavos).
+   - [x] Caso parte do lote já tenha sido consumida antes da nova entrada (ex.: restavam `50` un. a `R$ 10,00` e entram `50` un. a `R$ 20,00`), o novo `cost_price` pondera pelo saldo remanescente (`current_quantity = 100`, `initial_quantity = 150`, `cost_price = 15.00`).
 4. **Retirada Rápida de Estoque (`out.blade.php`) e Concorrência:**
-   - [ ] É possível retirar a última unidade disponível (`quantity == current_stock`) sem erro de validação.
-   - [ ] É possível retirar produtos com `has_batches = false` pelo modal de retirada rápida sem erro de `batch_number` obrigatório.
-   - [ ] Para produtos com `has_batches = true`, o componente seleciona automaticamente o lote não vencido de vencimento mais próximo (FEFO) com saldo positivo e envia `stockBatchId`/`batchNumber` para `StockMovement::handle()`.
-   - [ ] `StockMovement::handle()` executa `lockForUpdate()` no produto e nos lotes dentro da transação.
+   - [x] É possível retirar a última unidade disponível (`quantity == current_stock`) sem erro de validação.
+   - [x] É possível retirar produtos com `has_batches = false` pelo modal de retirada rápida sem erro de `batch_number` obrigatório.
+   - [x] Para produtos com `has_batches = true`, o componente seleciona automaticamente o lote não vencido de vencimento mais próximo (FEFO) com saldo positivo e envia `stockBatchId`/`batchNumber` para `StockMovement::handle()`.
+   - [x] `StockMovement::handle()` executa `lockForUpdate()` no produto e nos lotes dentro da transação.
 
 ---
 

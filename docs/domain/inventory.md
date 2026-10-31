@@ -51,7 +51,7 @@ O módulo de estoque gerencia os materiais odontológicos e insumos utilizados n
 2. **Estratégia FEFO / PEPS (Primeiro que Expira, Primeiro que Sai):**
    - Na saída rápida (`components/products/stock/out.blade.php`) e no processamento de baixas em `StockMovement::handle()` para produtos com múltiplos lotes válidos, a prioridade de consumo seleciona o lote válido com data de validade mais próxima (`expiration_date` ascendente).
    - Na retirada rápida, é permitido consumir até 100% do saldo disponível (`quantity <= current_stock`), e a exigência de lote aplica-se apenas quando `has_batches = true`.
-3. **Custo Médio Ponderado (CMP) e Apuração de CMV ([spec](../specs/active/2026-10-cmv-batch-cost-and-stock-consistency.md)):**
+3. **Custo Médio Ponderado (CMP) e Apuração de CMV ([spec](../specs/archived/2026-10-cmv-batch-cost-and-stock-consistency.md)):**
    - **Em Lotes (`StockBatch`):** Quando um lote já existente recebe uma entrada adicional com novo custo, seu `cost_price` é recalculado pela média ponderada entre o saldo atual remanescente (`current_quantity * cost_price`) e a nova entrada (`totalQuantity * unitCost`), e `initial_quantity` é incrementada com o volume adicionado.
    - **No Produto (`Product`):** Toda entrada com custo informado atualiza `products.unit_cost` via média ponderada com o saldo anterior.
    - **Herança nas Saídas / Consumo em OS (`ServiceConsumption`):** Saídas de produtos com lote herdam `unit_cost` de `$batch->cost_price` (com fallback para `$product->unit_cost`); saídas de produtos sem lote (`has_batches = false`) herdam automaticamente `$product->unit_cost`. Isso garante que os relatórios de lucratividade (`reports/index.blade.php`) apurem o CMV real sem falsos alertas de *"Custo parcial"*.

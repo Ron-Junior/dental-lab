@@ -6,12 +6,13 @@ use App\Enums\UnitMeasure;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['category_id', 'name', 'barcode', 'unit_of_measure', 'current_stock', 'min_stock', 'has_batches', 'is_active'])]
+#[Fillable(['category_id', 'name', 'barcode', 'unit_of_measure', 'current_stock', 'min_stock', 'unit_cost', 'has_batches', 'is_active'])]
 class Product extends Model
 {
     use HasFactory;
@@ -54,5 +55,13 @@ class Product extends Model
     public function searchCategory(Builder $query, ?array $categoryIds): void
     {
         $query->when(! empty($categoryIds), fn ($query) => $query->whereIn('category_id', $categoryIds));
+    }
+
+    protected function unitCost(): Attribute
+    {
+        return Attribute::make(
+            set: fn (float|int|null $value) => $value !== null ? (int) round((float) $value * 100) : null,
+            get: fn (?int $value) => $value !== null ? $value / 100 : null
+        );
     }
 }

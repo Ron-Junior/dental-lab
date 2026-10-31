@@ -21,6 +21,7 @@ new class extends Component
             'id' => null,
             'quantity' => null,
             'unit_of_measure' => null,
+            'stock_batch_id' => null,
             'batch_number' => null,
             'min_stock' => null,
             'has_batches' => false,
@@ -33,9 +34,9 @@ new class extends Component
         return [
             'selectedProducts' => 'array',
             'selectedProducts.*.id' => 'required',
-            'selectedProducts.*.quantity' => 'required|lt:selectedProducts.*.current_stock',
+            'selectedProducts.*.quantity' => ['required', 'numeric', 'gt:0', 'lte:selectedProducts.*.current_stock'],
             'selectedProducts.*.unit_of_measure' => 'required',
-            'selectedProducts.*.batch_number' => 'required',
+            'selectedProducts.*.batch_number' => ['nullable', 'required_if:selectedProducts.*.has_batches,true'],
         ];
     }
 
@@ -44,9 +45,10 @@ new class extends Component
         return [
             'selectedProducts.*.id.required' => 'Produto é obrigatório',
             'selectedProducts.*.quantity.required' => 'Quantidade é obrigatória',
+            'selectedProducts.*.quantity.gt' => 'Quantidade deve ser maior que zero',
             'selectedProducts.*.quantity.lte' => 'Quantidade deve ser menor ou igual ao estoque atual',
             'selectedProducts.*.unit_of_measure.required' => 'Unidade de medida é obrigatória',
-            'selectedProducts.*.batch_number.required' => 'Lote é obrigatório',
+            'selectedProducts.*.batch_number.required_if' => 'Lote é obrigatório para produtos com controle de lote',
         ];
     }
     
@@ -94,8 +96,12 @@ new class extends Component
         ];
     }
 
-    public function updatedSelectedProducts($value, $key): void
+    public function updatedSelectedProducts($value, ?string $key = null): void
     {
+        if (! $key || ! str_contains($key, '.')) {
+            return;
+        }
+
         [$index, $property] = explode('.', $key);
         
         if ($property !== 'id') {
@@ -112,17 +118,27 @@ new class extends Component
         $this->selectedProducts[$index]['has_batches'] = $product->has_batches;
         $this->selectedProducts[$index]['min_stock'] = $product->min_stock;
         $this->selectedProducts[$index]['current_stock'] = $product->current_stock;
+        $this->selectedProducts[$index]['stock_batch_id'] = null;
+        $this->selectedProducts[$index]['batch_number'] = null;
 
-        if ($product->has_batches && $product->batches->count()) {
-            $batch = $product->batches->sortByDesc('expiration_date')->first();
-            
-            $this->selectedProducts[$index]['stock_batch_id'] = $batch->id;
-            $this->selectedProducts[$index]['batch_number'] = $batch->batch_number;
+        if ($product->has_batches) {
+            $validBatches = $product->batches
+                ->filter(fn ($b) => (float) $b->current_quantity > 0 && (! $b->expiration_date || $b->expiration_date->gte(now()->startOfDay())))
+                ->sortBy('expiration_date');
+
+            $batch = $validBatches->first();
+
+            if ($batch) {
+                $this->selectedProducts[$index]['stock_batch_id'] = $batch->id;
+                $this->selectedProducts[$index]['batch_number'] = $batch->batch_number;
+            } else {
+                $this->addError('selectedProducts.' . $index . '.id', 'Nenhum lote válido com saldo disponível');
+            }
         }
 
         $currentStock = (float) $product->current_stock;
-        
-        if ($currentStock < 1 || !$currentStock) {
+
+        if ($currentStock <= 0) {
             $this->addError('selectedProducts.' . $index . '.id', 'Estoque insuficiente');
         }
     }
@@ -135,14 +151,16 @@ new class extends Component
             StockMovement::handle($product['id'], [
                 'dentist_request_id' => $this->dentistRequest?->id,
                 'movementType' => StockMovementsTypes::Out,
-                'reason'       => StockMovementsReasons::ServiceConsumption,
-                'amount'       => $product['quantity'],
-                'notes'        => 'Retirada para uso no setor A',
+                'reason' => StockMovementsReasons::ServiceConsumption,
+                'amount' => $product['quantity'],
+                'stockBatchId' => $product['stock_batch_id'] ?? null,
+                'batchNumber' => $product['batch_number'] ?? null,
+                'notes' => 'Retirada para uso no setor A',
             ]);
         }
 
         Flux::toast(text: 'Produto retirado do estoque com sucesso!', variant: 'success');
-        
+
         $this->closeModal();
     }
 };
