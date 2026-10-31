@@ -1,8 +1,9 @@
 # Especificação: Edição de Serviços, Integridade de Demandas Históricas e Resiliência Monetária
 
 - **Identificador:** `2026-10-service-edition-pricing-and-demand-integrity`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Catálogo de Serviços (`resources/views/components/service/store.blade.php`, `Service`, `ServiceStep`, `ServiceServiceStep`, `ServicePolicy`), Ordens de Serviço (`resources/views/components/service/update.blade.php`, `resources/views/components/service/requesting.blade.php`, `resources/views/livewire/pages/services/planned.blade.php`, `DentistRequest`, `RequestService`), Terceirização & Parceiros (`PartnerDemand`), Migrations Tenant (`database/migrations/tenant/2026_09_21_133414_create_dentist_services_table.php`, `database/migrations/tenant/2026_09_27_140710_create_partner_demands_table.php`), Utilitários Globais (`CurrencyService`, `app/Helpers/currency.php`).
 
 ---
@@ -134,15 +135,15 @@ Durante a auditoria operacional do módulo de serviços do Dental Lab, foram ide
 ## 5. Critérios de Aceite & Matriz de Testes
 
 1. **Edição do Catálogo de Serviços:**
-   - [ ] Alterar nome, descrição e preço de um serviço existente atualiza os registros no banco de dados.
-   - [ ] Tentar remover uma etapa de serviço vinculada a demandas existentes é rejeitado por regra de negócio / restrição de integridade referencial.
+   - [x] Alterar nome, descrição e preço de um serviço existente atualiza os registros no banco de dados.
+   - [x] Tentar remover uma etapa de serviço vinculada a demandas existentes é rejeitado por regra de negócio / restrição de integridade referencial.
 2. **Edição de Solicitação de Serviço (`RequestService`):**
-   - [ ] Itens com demandas já iniciadas (`started_at !== null`) não podem ter seu serviço trocado nem ser editados.
-   - [ ] Itens sem demandas iniciadas permitem a troca de serviço, removendo as demandas antigas e instanciando as demandas do novo serviço.
+   - [x] Itens com demandas já iniciadas (`started_at !== null`) não podem ter seu serviço trocado nem ser editados.
+   - [x] Itens sem demandas iniciadas permitem a troca de serviço, removendo as demandas antigas e instanciando as demandas do novo serviço.
 3. **Conversão de Valores Monetários:**
-   - [ ] Valores formatados como `R$ 999,99`, `R$ 1.500,00` e `R$ 1.250.000,50` são convertidos e armazenados com exatidão em centavos no banco de dados.
+   - [x] Valores formatados como `R$ 999,99`, `R$ 1.500,00` e `R$ 1.250.000,50` são convertidos e armazenados com exatidão em centavos no banco de dados.
 4. **Volume / Quantidade:**
-   - [ ] Criação e edição de solicitações com `quantity` acima de 32.767 (ex.: 50.000 ou 100.000) são persistidas com sucesso no PostgreSQL sem exceções de range.
+   - [x] Criação e edição de solicitações com `quantity` acima de 32.767 (ex.: 50.000 ou 100.000) são persistidas com sucesso no PostgreSQL sem exceções de range.
 
 ---
 

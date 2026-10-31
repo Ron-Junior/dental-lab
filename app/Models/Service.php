@@ -25,7 +25,7 @@ class Service extends Model
     {
         return Attribute::make(
             get: fn ($value) => $value / 100,
-            set: fn ($value) => $value * 100,
+            set: fn ($value) => (int) round((float) $value * 100),
         );
     }
 }

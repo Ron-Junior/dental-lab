@@ -23,7 +23,8 @@ new class extends Component
             'dentist.user',
             'requestServices.service.serviceSteps',
             'requestServices' => fn ($query) => $query->withCount([
-                'partnerDemands as demands_completed' => fn ($query) => $query->whereNotNull('ended_at'),
+                'partnerDemands as demands_completed' => fn ($q) => $q->whereNotNull('ended_at'),
+                'partnerDemands as demands_started' => fn ($q) => $q->whereNotNull('started_at'),
             ]),
             'requestServices.service' => fn ($query) => $query->withCount(['serviceSteps']),
         ])
@@ -207,15 +208,34 @@ new class extends Component
                                             @endcan
 
                                             @can('viewAny', \App\Models\Dentist::class)
-                                                <flux:menu.item
-                                                    wire:key="edit-service-menu-{{ $requestService->id }}"
-                                                    :disabled="(bool)($requestService->completed_at || $requestService->step_id)"
-                                                    icon="pencil"
-                                                    icon:variant="outline"
-                                                    wire:click="dispatch('service::update', '{{ $requestService->id }}')"
-                                                >
-                                                    Editar
-                                                </flux:menu.item>
+                                                @php
+                                                    $hasStartedDemands = ($requestService->demands_started ?? 0) > 0 || ($requestService->demands_completed ?? 0) > 0;
+                                                    $cannotEdit = (bool) ($requestService->completed_at || $hasStartedDemands);
+                                                @endphp
+                                                @if ($hasStartedDemands)
+                                                    <flux:tooltip content="Não é possível editar este serviço pois as etapas já foram iniciadas pelos técnicos parceiros">
+                                                        <div>
+                                                            <flux:menu.item
+                                                                wire:key="edit-service-menu-{{ $requestService->id }}"
+                                                                :disabled="true"
+                                                                icon="pencil"
+                                                                icon:variant="outline"
+                                                            >
+                                                                Editar
+                                                            </flux:menu.item>
+                                                        </div>
+                                                    </flux:tooltip>
+                                                @else
+                                                    <flux:menu.item
+                                                        wire:key="edit-service-menu-{{ $requestService->id }}"
+                                                        :disabled="$cannotEdit"
+                                                        icon="pencil"
+                                                        icon:variant="outline"
+                                                        wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                                    >
+                                                        Editar
+                                                    </flux:menu.item>
+                                                @endif
                                             @endcan
                                         </flux:menu>
                                     </flux:dropdown>
@@ -282,14 +302,32 @@ new class extends Component
                                     @endcan
 
                                     @can('viewAny', \App\Models\Dentist::class)
-                                        <flux:button
-                                            wire:key="edit-service-mobile-{{ $requestService->id }}"
-                                            :disabled="$requestService->completed_at || $requestService->step_id"
-                                            size="xs"
-                                            icon="pencil"
-                                            variant="ghost"
-                                            wire:click="dispatch('service::update', '{{ $requestService->id }}')"
-                                        >Editar</flux:button>
+                                        @php
+                                            $hasStartedDemands = ($requestService->demands_started ?? 0) > 0 || ($requestService->demands_completed ?? 0) > 0;
+                                            $cannotEdit = (bool) ($requestService->completed_at || $hasStartedDemands);
+                                        @endphp
+                                        @if ($hasStartedDemands)
+                                            <flux:tooltip content="Não é possível editar este serviço pois as etapas já foram iniciadas pelos técnicos parceiros">
+                                                <span>
+                                                    <flux:button
+                                                        wire:key="edit-service-mobile-{{ $requestService->id }}"
+                                                        :disabled="true"
+                                                        size="xs"
+                                                        icon="pencil"
+                                                        variant="ghost"
+                                                    >Editar</flux:button>
+                                                </span>
+                                            </flux:tooltip>
+                                        @else
+                                            <flux:button
+                                                wire:key="edit-service-mobile-{{ $requestService->id }}"
+                                                :disabled="$cannotEdit"
+                                                size="xs"
+                                                icon="pencil"
+                                                variant="ghost"
+                                                wire:click="dispatch('service::update', '{{ $requestService->id }}')"
+                                            >Editar</flux:button>
+                                        @endif
                                     @endcan
                                 </div>
                             </div>

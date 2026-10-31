@@ -111,16 +111,20 @@ new class extends Component
         return Service::all();
     }
 
-    public function updatedServices($value, $key): void
+    public function updatedServices($value, $key = null): void
     {
-        [$index, $field] = explode('.', $key);
+        if (! $key || ! str_contains((string) $key, '.')) {
+            return;
+        }
+
+        [$index, $field] = explode('.', (string) $key);
 
         if ($field === 'unit_price' || $field === 'quantity') {
             return;
         }
 
         $selectedService = $this->offerServices->firstWhere('id', $value);
-        $this->services[$index]['unit_price'] = number_format($selectedService?->price, 2, ',', '.') ?? 0;
+        $this->services[$index]['unit_price'] = number_format($selectedService?->price ?? 0, 2, ',', '.');
     }
 
     public function addService(): void
@@ -285,7 +289,7 @@ new class extends Component
                 RequestService::create([
                     'dentist_request_id' => $dentistRequest->id,
                     'service_id' => $service['service_id'],
-                    'unit_price' => str($service['unit_price'])->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
+                    'unit_price' => currency_to_float($service['unit_price']),
                     'quantity' => $service['quantity'],
                 ]);
             }
