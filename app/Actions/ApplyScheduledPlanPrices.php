@@ -31,6 +31,7 @@ class ApplyScheduledPlanPrices
         $threshold = $now->copy()->addDays(self::LOOKAHEAD_DAYS);
 
         $subscriptions = Subscription::query()
+            ->with(['plan', 'scheduledPlan'])
             ->where(function ($query): void {
                 $query->whereNotNull('scheduled_price_in_cents')
                     ->orWhereNotNull('scheduled_plan_id');
@@ -44,20 +45,45 @@ class ApplyScheduledPlanPrices
 
         foreach ($subscriptions as $subscription) {
             try {
+                $newPlanId = $subscription->scheduled_plan_id ?? $subscription->plan_id;
+                $newPriceInCents = $subscription->scheduled_price_in_cents ?? $subscription->price_in_cents;
+                $newStripePriceId = $subscription->scheduled_stripe_price_id ?? $subscription->stripe_price_id;
+
+                if ($subscription->scheduled_plan_id !== null) {
+                    $targetPlan = $subscription->scheduledPlan;
+
+                    if ($targetPlan !== null) {
+                        $currentPlan = $subscription->plan;
+                        if ($currentPlan !== null && $targetPlan->billing_cycle !== $currentPlan->billing_cycle) {
+                            throw new \RuntimeException("Ciclo de cobrança incompatível entre o plano atual ({$currentPlan->billing_cycle}) e o plano agendado ({$targetPlan->billing_cycle}).");
+                        }
+
+                        $oldStripePriceId = $currentPlan?->stripe_price_id;
+                        if (
+                            $subscription->scheduled_price_in_cents === null
+                            || empty($newStripePriceId)
+                            || ($oldStripePriceId !== null && $newStripePriceId === $oldStripePriceId)
+                        ) {
+                            $newPriceInCents = (int) $targetPlan->price_in_cents;
+                            $newStripePriceId = $targetPlan->stripe_price_id ?? $this->stripeService->getOrCreatePrice($targetPlan);
+                        }
+                    }
+                }
+
                 if (
                     ! empty($subscription->stripe_subscription_id)
-                    && ! empty($subscription->scheduled_stripe_price_id)
+                    && ! empty($newStripePriceId)
                 ) {
                     $this->stripeService->swapSubscriptionPrice(
                         (string) $subscription->stripe_subscription_id,
-                        (string) $subscription->scheduled_stripe_price_id,
+                        (string) $newStripePriceId,
                     );
                 }
 
                 $subscription->update([
-                    'plan_id' => $subscription->scheduled_plan_id ?? $subscription->plan_id,
-                    'price_in_cents' => $subscription->scheduled_price_in_cents ?? $subscription->price_in_cents,
-                    'stripe_price_id' => $subscription->scheduled_stripe_price_id ?? $subscription->stripe_price_id,
+                    'plan_id' => $newPlanId,
+                    'price_in_cents' => $newPriceInCents,
+                    'stripe_price_id' => $newStripePriceId,
                     'scheduled_plan_id' => null,
                     'scheduled_price_in_cents' => null,
                     'scheduled_stripe_price_id' => null,

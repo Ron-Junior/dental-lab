@@ -90,6 +90,7 @@ class UpdatePlan
                 $subscriptions = Subscription::query()
                     ->with('tenant')
                     ->where('plan_id', $plan->id)
+                    ->whereNull('scheduled_plan_id')
                     ->whereIn('status', Plan::BILLABLE_STATUSES)
                     ->get();
 
@@ -128,6 +129,15 @@ class UpdatePlan
                         ];
                     }
                 }
+
+                // RN-02: Atualização de assinaturas que migrarão para este plano
+                Subscription::query()
+                    ->where('scheduled_plan_id', $plan->id)
+                    ->whereIn('status', Plan::BILLABLE_STATUSES)
+                    ->update([
+                        'scheduled_price_in_cents' => $newPriceInCents,
+                        'scheduled_stripe_price_id' => $newStripePriceId,
+                    ]);
 
                 PlanPriceChange::query()->create([
                     'plan_id' => $plan->id,

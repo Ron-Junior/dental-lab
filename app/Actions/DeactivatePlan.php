@@ -21,7 +21,8 @@ class DeactivatePlan
 
     /**
      * Desativa um plano comercial. Quando há assinaturas vigentes, exige um plano
-     * ativo de destino, agenda a migração para daqui a 2 meses e notifica os laboratórios.
+     * ativo de destino compatível com o mesmo ciclo de cobrança, agenda a migração
+     * respeitando 2 ciclos do plano atual e notifica os laboratórios.
      *
      * @throws ValidationException
      */
@@ -34,9 +35,11 @@ class DeactivatePlan
             ->get();
 
         if ($subscriptions->isNotEmpty()) {
+            $periodText = $plan->isAnnual() ? '2 ciclos anuais' : '2 meses';
+
             if ($targetPlan === null) {
                 throw ValidationException::withMessages([
-                    'targetPlanId' => 'Selecione um plano ativo de destino para migrar os assinantes atuais em 2 meses.',
+                    'targetPlanId' => "Selecione um plano ativo de destino para migrar os assinantes atuais em {$periodText}.",
                 ]);
             }
 
@@ -51,9 +54,15 @@ class DeactivatePlan
                     'targetPlanId' => 'O plano de destino precisa estar ativo.',
                 ]);
             }
+
+            if ($targetPlan->billing_cycle !== $plan->billing_cycle) {
+                throw ValidationException::withMessages([
+                    'targetPlanId' => 'O plano de destino deve ter o mesmo ciclo de cobrança do plano que está sendo desativado.',
+                ]);
+            }
         }
 
-        /** @var list<array{email: string, lab_name: string, old_plan: string, target_plan: string, current_price: int, target_price: int, effective_at: Carbon}> $notificationsToSend */
+        /** @var list<array{email: string, lab_name: string, old_plan: string, target_plan: string, current_price: int, target_price: int, effective_at: Carbon, billing_cycle: string}> $notificationsToSend */
         $notificationsToSend = [];
 
         $updatedPlan = DB::transaction(function () use (
@@ -76,7 +85,7 @@ class DeactivatePlan
                         ? Carbon::instance($subscription->current_period_end)
                         : $now;
 
-                    $effectiveAt = $periodEnd->copy()->addMonthsNoOverflow(2);
+                    $effectiveAt = $plan->addBillingCycles($periodEnd, 2);
 
                     $subscription->update([
                         'price_in_cents' => $contractedPrice,
@@ -97,6 +106,7 @@ class DeactivatePlan
                             'current_price' => $contractedPrice,
                             'target_price' => (int) $targetPlan->price_in_cents,
                             'effective_at' => $effectiveAt,
+                            'billing_cycle' => (string) $plan->billing_cycle,
                         ];
                     }
                 }
@@ -115,6 +125,7 @@ class DeactivatePlan
                         currentPriceInCents: $payload['current_price'],
                         targetPriceInCents: $payload['target_price'],
                         effectiveAt: $payload['effective_at'],
+                        billingCycle: $payload['billing_cycle'],
                     ));
             } catch (Throwable $e) {
                 Log::warning('Falha ao enviar notificação de migração de plano desativado.', [

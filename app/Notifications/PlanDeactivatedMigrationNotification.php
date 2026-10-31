@@ -19,6 +19,7 @@ class PlanDeactivatedMigrationNotification extends Notification implements Shoul
         public int $currentPriceInCents,
         public int $targetPriceInCents,
         public CarbonInterface $effectiveAt,
+        public string $billingCycle = 'monthly',
     ) {}
 
     /**
@@ -34,12 +35,13 @@ class PlanDeactivatedMigrationNotification extends Notification implements Shoul
         $currentPriceFormatted = currency_from_int($this->currentPriceInCents, true);
         $targetPriceFormatted = currency_from_int($this->targetPriceInCents, true);
         $effectiveDate = $this->effectiveAt->format('d/m/Y');
+        $gracePeriodText = $this->billingCycle === 'annual' ? 'pelos próximos 2 ciclos anuais' : 'pelos próximos 2 meses';
 
         return (new MailMessage)
             ->subject("Aviso de migração do plano {$this->oldPlanName}")
             ->greeting('Olá, '.$this->laboratoryName.'!')
             ->line("Informamos que o plano {$this->oldPlanName} foi descontinuado para novas contratações.")
-            ->line("Sua assinatura permanecerá ativa nas condições atuais ({$currentPriceFormatted}) pelos próximos 2 meses.")
+            ->line("Sua assinatura permanecerá ativa nas condições atuais ({$currentPriceFormatted}) {$gracePeriodText}.")
             ->line("A partir de {$effectiveDate}, sua assinatura será migrada automaticamente para o plano {$this->targetPlanName} ({$targetPriceFormatted}).")
             ->line('Caso tenha qualquer dúvida ou deseje escolher outro plano antes dessa data, nossa equipe está à disposição.');
     }

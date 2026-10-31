@@ -57,4 +57,3 @@ class EnsureTenantIsOperational
         return $next($request);
     }
 }
-

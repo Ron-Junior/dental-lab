@@ -98,9 +98,31 @@ new #[Layout('layouts.central')] class extends Component
     #[Computed]
     public function availableTargetPlans(): Collection
     {
+        $deactivatingPlan = $this->deactivatingPlan;
+
         return $this->plans
-            ->filter(fn (Plan $plan): bool => $plan->is_active && (string) $plan->id !== (string) $this->deactivatingPlanId)
+            ->filter(function (Plan $plan) use ($deactivatingPlan): bool {
+                if (! $plan->is_active || (string) $plan->id === (string) $this->deactivatingPlanId) {
+                    return false;
+                }
+
+                if ($deactivatingPlan !== null && $plan->billing_cycle !== $deactivatingPlan->billing_cycle) {
+                    return false;
+                }
+
+                return true;
+            })
             ->values();
+    }
+
+    #[Computed]
+    public function deactivatingPlan(): ?Plan
+    {
+        if ($this->deactivatingPlanId === null) {
+            return null;
+        }
+
+        return $this->plans->firstWhere('id', $this->deactivatingPlanId) ?? Plan::query()->find($this->deactivatingPlanId);
     }
 
     public function openCreatePlanModal(): void
@@ -234,7 +256,7 @@ new #[Layout('layouts.central')] class extends Component
             $this->deactivatingPlanId = (string) $plan->id;
             $this->deactivatingPlanName = (string) $plan->name;
             $this->deactivatingSubscribersCount = (int) $plan->billable_subscriptions_count;
-            unset($this->availableTargetPlans);
+            unset($this->availableTargetPlans, $this->deactivatingPlan);
             $this->targetPlanId = (string) ($this->availableTargetPlans->first()?->id ?? '');
             $this->resetErrorBag();
 
@@ -244,7 +266,7 @@ new #[Layout('layouts.central')] class extends Component
         }
 
         $deactivatePlan->handle($plan);
-        unset($this->plans, $this->availableTargetPlans);
+        unset($this->plans, $this->availableTargetPlans, $this->deactivatingPlan);
 
         Flux::toast(
             heading: 'Plano desativado',
@@ -269,14 +291,15 @@ new #[Layout('layouts.central')] class extends Component
 
         $targetName = $targetPlan?->name ?? '';
         $count = $this->deactivatingSubscribersCount;
+        $gracePeriodText = $plan->isAnnual() ? 'em 2 ciclos anuais' : 'em 2 meses';
 
         Flux::modal('deactivate-plan')->close();
         $this->closeDeactivatePlanModal();
-        unset($this->plans, $this->availableTargetPlans);
+        unset($this->plans, $this->availableTargetPlans, $this->deactivatingPlan);
 
         Flux::toast(
             heading: 'Plano desativado e migração agendada',
-            text: "{$count} assinante(s) foram notificados de que migrarão para o plano {$targetName} em 2 meses.",
+            text: "{$count} assinante(s) foram notificados de que migrarão para o plano {$targetName} {$gracePeriodText}.",
             variant: 'success',
         );
     }
@@ -288,6 +311,7 @@ new #[Layout('layouts.central')] class extends Component
         $this->deactivatingSubscribersCount = 0;
         $this->targetPlanId = '';
         $this->resetErrorBag();
+        unset($this->availableTargetPlans, $this->deactivatingPlan);
         Flux::modal('deactivate-plan')->close();
     }
 
@@ -410,6 +434,7 @@ new #[Layout('layouts.central')] class extends Component
 
         $subscriptions = Subscription::query()
             ->where('plan_id', $plan->id)
+            ->whereNull('scheduled_plan_id')
             ->whereIn('status', Plan::BILLABLE_STATUSES)
             ->get();
 
@@ -818,13 +843,21 @@ new #[Layout('layouts.central')] class extends Component
             </div>
         </flux:modal>
 
-        {{-- Modal de desativação de plano com agendamento de migração em 2 meses --}}
+        {{-- Modal de desativação de plano com agendamento de migração conforme ciclo --}}
         <flux:modal name="deactivate-plan" class="w-full max-w-lg backdrop:backdrop-blur-sm" @close="closeDeactivatePlanModal">
+            @php
+                $deactivatingPlanModel = $this->deactivatingPlan;
+                $isAnnual = $deactivatingPlanModel?->isAnnual() ?? false;
+                $gracePeriodText = $isAnnual ? '2 ciclos anuais' : '2 meses';
+                $cycleLabel = $isAnnual ? 'anual' : 'mensal';
+                $hasNoCompatibleTargets = $this->availableTargetPlans->isEmpty();
+            @endphp
+
             <div class="space-y-6">
                 <div>
                     <flux:heading size="lg">Desativar plano {{ $deactivatingPlanName }}</flux:heading>
                     <flux:subheading>
-                        Este plano possui assinaturas vigentes. Escolha para qual plano ativo os laboratórios migrarão após 2 meses.
+                        Este plano possui assinaturas vigentes. Escolha para qual plano ativo os laboratórios migrarão após {{ $gracePeriodText }}.
                     </flux:subheading>
                 </div>
 
@@ -833,14 +866,23 @@ new #[Layout('layouts.central')] class extends Component
                     <p>
                         <strong>{{ $deactivatingSubscribersCount }}</strong>
                         {{ $deactivatingSubscribersCount === 1 ? 'laboratório receberá' : 'laboratórios receberão' }}
-                        um aviso por e-mail e no painel informando que o plano atual foi descontinuado e que a assinatura migrará automaticamente para o plano selecionado abaixo em <strong>2 meses</strong>.
+                        um aviso por e-mail e no painel informando que o plano atual foi descontinuado e que a assinatura migrará automaticamente para o plano selecionado abaixo em <strong>{{ $gracePeriodText }}</strong>.
                     </p>
                 </div>
+
+                @if ($hasNoCompatibleTargets)
+                    <div class="space-y-2 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-950 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-100">
+                        <div class="font-semibold">Nenhum plano ativo compatível</div>
+                        <p>
+                            É necessário possuir outro plano ativo com o mesmo ciclo ({{ $cycleLabel }}) para migrar os assinantes atuais antes de desativar este plano.
+                        </p>
+                    </div>
+                @endif
 
                 <form wire:submit="confirmDeactivatePlan" class="space-y-4">
                     <flux:field>
                         <flux:label>Plano ativo de destino</flux:label>
-                        <flux:select wire:model="targetPlanId" required>
+                        <flux:select wire:model="targetPlanId" required :disabled="$hasNoCompatibleTargets">
                             <option value="">Selecione um plano...</option>
                             @foreach ($this->availableTargetPlans as $candidatePlan)
                                 <option value="{{ $candidatePlan->id }}">
@@ -855,7 +897,7 @@ new #[Layout('layouts.central')] class extends Component
                         <flux:button type="button" variant="ghost" wire:click="closeDeactivatePlanModal" class="w-full sm:w-auto">
                             Cancelar
                         </flux:button>
-                        <flux:button type="submit" variant="primary" class="w-full sm:w-auto">
+                        <flux:button type="submit" variant="primary" class="w-full sm:w-auto" :disabled="$hasNoCompatibleTargets">
                             Desativar e notificar assinantes
                         </flux:button>
                     </div>
