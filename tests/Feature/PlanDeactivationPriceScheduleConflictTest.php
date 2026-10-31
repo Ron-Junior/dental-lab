@@ -494,4 +494,3 @@ class PlanDeactivationPriceScheduleConflictTest extends TestCase
         ]);
     }
 }
-

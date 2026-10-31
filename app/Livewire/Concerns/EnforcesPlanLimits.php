@@ -20,11 +20,25 @@ trait EnforcesPlanLimits
 
             return true;
         } catch (PlanLimitExceededException $exception) {
-            Flux::toast(
-                variant: 'danger',
-                heading: 'Limite do plano atingido',
-                text: $exception->messageFor(Auth::user()),
-            );
+            if (app('livewire')->current()) {
+                Flux::toast(
+                    variant: 'danger',
+                    heading: 'Limite do plano atingido',
+                    text: $exception->messageFor(Auth::user()),
+                );
+            } elseif (method_exists($this, 'dispatch')) {
+                $this->dispatch(
+                    'toast-show',
+                    duration: 5000,
+                    slots: [
+                        'text' => $exception->messageFor(Auth::user()),
+                        'heading' => 'Limite do plano atingido',
+                    ],
+                    dataset: [
+                        'variant' => 'danger',
+                    ],
+                );
+            }
 
             return false;
         }

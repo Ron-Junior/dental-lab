@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\Rules;
+use App\Models\DentistRequest;
 use App\Models\User;
 
 class DentistRequestPolicy
@@ -19,8 +20,40 @@ class DentistRequestPolicy
         ], true);
     }
 
+    public function view(User $user, DentistRequest $dentistRequest): bool
+    {
+        $user->loadMissing('rule');
+
+        if (in_array($user->rule?->name, [
+            Rules::Owner,
+            Rules::Lab,
+            Rules::LabManager,
+        ], true)) {
+            return true;
+        }
+
+        if ($user->rule?->name === Rules::Dentist) {
+            $user->loadMissing('dentist');
+
+            return $dentistRequest->dentist_id !== null
+                && $dentistRequest->dentist_id === $user->dentist?->id;
+        }
+
+        return false;
+    }
+
     public function create(User $user): bool
     {
         return $this->viewAny($user);
+    }
+
+    public function update(User $user, DentistRequest $dentistRequest): bool
+    {
+        return $this->view($user, $dentistRequest);
+    }
+
+    public function deleteFile(User $user, DentistRequest $dentistRequest): bool
+    {
+        return $this->update($user, $dentistRequest);
     }
 }

@@ -1,13 +1,18 @@
 <?php
 
+use App\Enums\PlanResource;
+use App\Livewire\Concerns\EnforcesPlanLimits;
 use App\Models\PartnerDemand;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
 new class extends Component
 {
+    use EnforcesPlanLimits;
     use WithFileUploads;
 
     public ?PartnerDemand $partnerDemand = null;
@@ -31,22 +36,53 @@ new class extends Component
     public function finishDemand()
     {
         $this->authorize('complete', $this->partnerDemand);
-        
+
         $this->validate([
             'image' => 'nullable|image|max:5128',
         ]);
-        
+
+        $fileSize = 0;
+
         if ($this->image) {
-            $path = $this->image->store('requests/'. $this->partnerDemand->request_service_id);
-            $this->partnerDemand->result_photo_path = $path;
+            $fileSize = (int) $this->image->getSize();
+            $incomingGb = $fileSize / (1024 ** 3);
+
+            if (! $this->guardPlanLimit(PlanResource::Storage, $incomingGb)) {
+                return;
+            }
         }
 
-        $this->partnerDemand->ended_at = now();
-        $this->partnerDemand->save();
+        DB::transaction(function () use ($fileSize): void {
+            if ($this->image) {
+                $disk = config('filesystems.default', 's3');
+                $tenantId = tenant('id') ?? 'default';
+                $path = $this->image->store("requests/{$tenantId}/demands/{$this->partnerDemand->request_service_id}", $disk);
+
+                foreach ($this->partnerDemand->files as $existingFile) {
+                    Storage::disk($existingFile->disk ?: $disk)->delete($existingFile->path);
+                    $existingFile->delete();
+                }
+
+                $this->partnerDemand->files()->create([
+                    'name' => $this->image->getClientOriginalName(),
+                    'path' => $path,
+                    'disk' => $disk,
+                    'mime_type' => $this->image->getMimeType(),
+                    'extension' => strtolower($this->image->getClientOriginalExtension()),
+                    'size' => $fileSize,
+                    'original_size' => $fileSize,
+                ]);
+
+                $this->partnerDemand->result_photo_path = $path;
+            }
+
+            $this->partnerDemand->ended_at = now();
+            $this->partnerDemand->save();
+        });
 
         $this->closeModal();
         $this->dispatch('demand::refresh');
-        Flux::toast(heading: 'Serviço finalizado com sucesso!', variant: 'success', text: "");
+        Flux::toast(heading: 'Serviço finalizado com sucesso!', variant: 'success', text: '');
     }
 };
 ?>

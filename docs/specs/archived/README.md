@@ -11,6 +11,7 @@ Este diretório contém especificações de funcionalidades que já foram totalm
 - [2026-10-lab-manager-step2.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-lab-manager-step2.md): Fluxo de webhook de pagamento idempotente e provisionamento assíncrono de tenant (`ProvisionTenant`).
 - [2026-10-plan-limits.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-plan-limits.md): Verificação de limites de consumo, alertas em níveis (warning, critical, exceeded) e bloqueio de criação.
 - [2026-10-plan-management-and-profitability.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-plan-management-and-profitability.md): Gestão de planos comerciais, reajuste de preço com carência de 2 ciclos, aviso de redução de limites, cadastro de custos operacionais e calculadora de rentabilidade.
+- [2026-10-storage-limit-and-s3-upload-security.md](file:///root/projetos/dental-lab/docs/specs/archived/2026-10-storage-limit-and-s3-upload-security.md): Controle real de quota de armazenamento S3 em GB, autorização por instância em `DentistRequestPolicy` contra IDOR e exclusão arbitrária no S3, e rastreamento polimórfico de fotos de conclusão de demandas na tabela `files`.
 
 ---
 

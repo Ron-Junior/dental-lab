@@ -80,18 +80,23 @@ new class extends Component
     }
 
     #[On('remove-s3-file')]
-    public function removeS3File($requestId, $path)
+    public function removeS3File(int|string $requestId, string $path): void
     {
-    
-        Storage::disk('s3')->delete($path);
+        $dentistRequest = DentistRequest::findOrFail((int) $requestId);
 
-        File::where('fileable_id', $requestId)
-            ->where('fileable_type', DentistRequest::class)
-            ->where('path', $path)
-            ->first()
-            ->delete();
+        $this->authorize('update', $dentistRequest);
 
-        Flux::toast(text: 'Arquivo removido!', variant: 'success');
+        $file = $dentistRequest->files()->where('path', $path)->firstOrFail();
+
+        Storage::disk($file->disk ?: config('filesystems.default', 's3'))->delete($file->path);
+
+        $file->delete();
+
+        if (app('livewire')->current()) {
+            Flux::toast(text: 'Arquivo removido!', variant: 'success');
+        } else {
+            $this->dispatch('toast-show', duration: 5000, slots: ['text' => 'Arquivo removido!'], dataset: ['variant' => 'success']);
+        }
     }
 
     #[Computed(true)]
@@ -136,7 +141,15 @@ new class extends Component
     {
         $this->authorize('create', DentistRequest::class);
 
-        if (! $this->guardPlanLimit(PlanResource::Storage, 0)) {
+        if ($fileSize === null || $fileSize <= 0) {
+            throw ValidationException::withMessages([
+                'uploadedFiles' => 'O tamanho do arquivo deve ser informado e maior que zero.',
+            ]);
+        }
+
+        $incomingGb = $fileSize / (1024 ** 3);
+
+        if (! $this->guardPlanLimit(PlanResource::Storage, $incomingGb)) {
             throw ValidationException::withMessages([
                 'uploadedFiles' => 'Não foi possível enviar arquivos no momento. Entre em contato com o laboratório.',
             ]);
@@ -189,20 +202,46 @@ new class extends Component
      */
     public function addFilesToRequest(int $requestId, array $files): void
     {
-        $this->authorize('create', DentistRequest::class);
+        $dentistRequest = DentistRequest::findOrFail($requestId);
 
-        if (! $this->guardPlanLimit(PlanResource::Storage, 0)) {
-            return;
+        $this->authorize('update', $dentistRequest);
+
+        $tenantId = tenant('id') ?? 'default';
+        $tenantPrefix = "requests/{$tenantId}/";
+
+        foreach ($files as $fileData) {
+            $size = (int) ($fileData['size'] ?? 0);
+            $path = (string) ($fileData['path'] ?? '');
+
+            if ($size <= 0 || ! str_starts_with($path, $tenantPrefix) || str_contains($path, '..')) {
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'Arquivo inválido ou fora do escopo do laboratório.',
+                ]);
+            }
         }
 
-        $dentistRequest = DentistRequest::findOrFail($requestId);
+        $totalBytes = collect($files)->sum(fn (array $file) => max(0, (int) ($file['size'] ?? 0)));
+        $incomingGb = $totalBytes / (1024 ** 3);
+
+        if (! $this->guardPlanLimit(PlanResource::Storage, $incomingGb)) {
+            foreach ($files as $fileData) {
+                $path = (string) ($fileData['path'] ?? '');
+                $diskName = $fileData['disk'] ?? config('filesystems.default', 's3');
+
+                if ($path !== '' && str_starts_with($path, $tenantPrefix) && ! str_contains($path, '..')) {
+                    Storage::disk($diskName)->delete($path);
+                }
+            }
+
+            return;
+        }
 
         foreach ($files as $fileData) {
             $dentistRequest->files()->create([
                 'name' => $fileData['name'],
                 'path' => $fileData['path'],
                 'disk' => $fileData['disk'] ?? config('filesystems.default', 's3'),
-                'size' => $fileData['size'] ?? null,
+                'size' => (int) $fileData['size'],
                 'original_size' => $fileData['original_size'] ?? null,
                 'extension' => $fileData['extension'] ?? null,
                 'mime_type' => $fileData['mime_type'] ?? 'application/zip',

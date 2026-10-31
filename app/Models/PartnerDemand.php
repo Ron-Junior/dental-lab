@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\Storage;
 
 #[UsePolicy(PartnerDemandPolicy::class)]
@@ -38,6 +39,11 @@ class PartnerDemand extends Model
     public function serviceServiceStep(): BelongsTo
     {
         return $this->belongsTo(ServiceServiceStep::class);
+    }
+
+    public function files(): MorphMany
+    {
+        return $this->morphMany(File::class, 'fileable');
     }
 
     #[Scope]

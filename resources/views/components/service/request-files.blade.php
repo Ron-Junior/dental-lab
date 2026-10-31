@@ -14,12 +14,16 @@ new class extends Component {
     public function loadRequest(int $requestId): void
     {
         $this->requestId = $requestId;
-        $this->dentistRequest = DentistRequest::with('files')->find($requestId);
+        $dentistRequest = DentistRequest::with('files')->find($requestId);
 
-        if (!$this->dentistRequest) {
+        if (! $dentistRequest) {
             Flux::toast(variant: 'danger', heading: 'Erro', text: 'Solicitação não encontrada.');
             return;
         }
+
+        $this->authorize('view', $dentistRequest);
+
+        $this->dentistRequest = $dentistRequest;
 
         Flux::modal('show-request-files-modal')->show();
     }

@@ -15,8 +15,8 @@ As ordens de serviço (no código modeladas como `DentistRequest`) representam o
   - Guarda `unit_price` (em centavos), quantidade (`quantity`) e `completed_at`.
   - Vincula-se a etapas de produção (`ServiceStep` e demandas a parceiros).
   - Registra o consumo real de insumos do estoque (`RequestServiceConsumption`).
-- **`PartnerDemand`:** Sub-etapas delegadas para técnicos protéticos especializados parceiros (ex: fundição, fresagem, maquiagem).
-- **`File`:** Anexos polimórficos associados à ordem (arquivos STL, fotos da boca do paciente, prescrições escaneadas, PDFs).
+- **`PartnerDemand`:** Sub-etapas delegadas para técnicos protéticos especializados parceiros (ex: fundição, fresagem, maquiagem). Quando concluída com foto comprobatória (`result_photo_path`), registra polimorficamente o arquivo em `files` para contabilização no limite de armazenamento do laboratório.
+- **`File`:** Anexos polimórficos associados à ordem (`DentistRequest` — arquivos 3D STL, PLY, OBJ e tomografias DICOM compactados em ZIP) e às etapas de produção (`PartnerDemand` — fotos de resultado/comprovante).
 
 ---
 
@@ -54,3 +54,7 @@ As ordens de serviço (no código modeladas como `DentistRequest`) representam o
    - Insumos utilizados em uma ordem devem registrar o `stock_batch_id` quando o produto possuir controle de lote, permitindo recall e rastreabilidade sanitária.
 4. **Isolamento por Schema:**
    - Ordens de serviço pertencem estritamente ao schema do laboratório (`tenant_*`). Nenhum dado de paciente ou de dentista vaza entre laboratórios concorrentes.
+5. **Autorização e Controle de Armazenamento em Anexos ([spec](../specs/archived/2026-10-storage-limit-and-s3-upload-security.md)):**
+   - Usuários com perfil `Dentist` só podem visualizar, anexar ou excluir arquivos de solicitações (`DentistRequest`) vinculadas ao seu próprio registro de dentista (`DentistRequestPolicy`). Equipe interna (`Owner`, `Lab`, `LabManager`) gerencia arquivos de qualquer solicitação do laboratório.
+   - A exclusão de arquivos no S3 (`removeS3File`) exige autorização prévia sobre a `DentistRequest` e validação de que o `path` pertence a um registro `File` daquela solicitação antes de remover o objeto no bucket.
+   - Todo upload de arquivo 3D/DICOM ou foto de conclusão de etapa (`PartnerDemand`) valida o incremento real em GB contra o limite `PlanResource::Storage` do plano e persiste o metadado de tamanho (`size`) na tabela `files`.
