@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-#[Fillable(['user_id', 'token', 'expires_at'])]
+#[Fillable(['user_id', 'token', 'expires_at', 'used_at'])]
 class InvitationToken extends Authenticatable
 {
     public function user(): BelongsTo
@@ -24,6 +24,7 @@ class InvitationToken extends Authenticatable
     {
         return [
             'expires_at' => 'datetime',
+            'used_at' => 'datetime',
         ];
     }
 }

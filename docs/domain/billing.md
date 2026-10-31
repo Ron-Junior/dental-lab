@@ -96,12 +96,15 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 
 ---
 
-## 6. Primeiro Acesso Protegido
+## 6. Primeiro Acesso Protegido e Convites de Usuários
 
 - O cadastro (self-service ou sócio) **não coleta senhas** no banco central.
 - A senha do dono do laboratório só é definida no **Primeiro Acesso** (`/completar-cadastro` no subdomínio do laboratório) após o tenant já estar provisionado.
-- **Trava de Segurança:** O acesso a essa rota é estritamente restrito a tenants com `verified_at === null` e cujo e-mail informado corresponda a `owner_email`.
-- Ao definir a senha com sucesso, o sistema marca `tenant.verified_at = now()` e invalida o token, impedindo qualquer reutilização futura do link.
+- **Vinculação Estrita ao Token e Isolamento de Convites ([spec](../specs/active/2026-10-partner-dentist-privilege-escalation-and-invitation-security.md)):**
+  - Na rota `/completar-cadastro`, o usuário cuja senha será definida é resolvido **exclusivamente** através do relacionamento do `InvitationToken` válido (`$invitation->user`), impedindo escalação de privilégio ou redefinição de senha de terceiros via adulteração da propriedade `$email` no Livewire.
+  - A trava `tenant()->isVerified()` e a marcação `tenant()->markAsVerified()` (`verified_at = now()`) aplicam-se **estritamente ao proprietário do laboratório (`owner_email`)**.
+  - Convites enviados para **Parceiros (`LabPartner`) e Dentistas (`Dentist`)** via `SendInvitation` utilizam seus próprios `InvitationToken` individuais: permanecem funcionais mesmo após o laboratório já estar verificado pelo dono (`verified_at !== null`) e nunca marcam `tenants.verified_at` caso sejam aceitos antes do primeiro acesso do proprietário.
+- Ao definir a senha com sucesso, o sistema marca `$user->markEmailAsVerified()` e invalida o `InvitationToken`, impedindo qualquer reutilização futura do link.
 
 ---
 

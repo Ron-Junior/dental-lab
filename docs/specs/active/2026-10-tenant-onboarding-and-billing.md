@@ -81,16 +81,18 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
    - Polling reativo a cada 3 segundos (`wire:poll.3s`).
    - Quando o status atinge `active`, libera o botão **"Acessar plataforma e criar senha"** apontando para a URL assinada no subdomínio.
 
-### 3.4. Etapa 4: Conclusão do Primeiro Acesso no Subdomínio
+### 3.4. Etapa 4: Conclusão do Primeiro Acesso e Convites no Subdomínio
 
-1. **Condições Rígidas de Validação:**
-   - Se `tenant()->verified_at !== null` (ou `tenant()->isVerified()`): **Acesso negado**. Redireciona imediatamente para `route('login')` informando que o laboratório já foi ativado.
-   - Se o e-mail da URL não coincidir com `tenant()->owner_email`: **Acesso negado (HTTP 403)**.
+1. **Condições Rígidas de Validação ([2026-10-partner-dentist-privilege-escalation-and-invitation-security](2026-10-partner-dentist-privilege-escalation-and-invitation-security.md)):**
+   - O usuário alvo deve ser resolvido **exclusivamente** a partir do `InvitationToken` válido (`$invitation->user`), nunca confiando apenas no parâmetro `$email` do request Livewire. Se o `$email` informado divergir de `$invitation->user->email`, o acesso é negado (**HTTP 403**).
+   - **Isolamento entre Dono e Convidados (`Partner`/`Dentist`):**
+     - Se o acesso for do **proprietário do laboratório** (`email === tenant()->owner_email`) e `tenant()->isVerified()` for `true`: **Acesso negado**. Redireciona imediatamente para `route('login')` informando que o primeiro acesso do laboratório já foi realizado.
+     - Se o acesso for de um **parceiro ou dentista convidado** (`SendInvitation`), o link permanece válido mesmo após `tenant()->isVerified() === true`, desde que seu `InvitationToken` individual esteja válido e não utilizado.
 2. **Ativação da Conta:**
-   - O proprietário insere `password` e `password_confirmation`.
-   - A senha com hash `Hash::make()` é salva na tabela `users` do banco do laboratório.
+   - O usuário insere `password` e `password_confirmation`.
+   - A senha com hash `Hash::make()` é salva na tabela `users` do banco do laboratório (`$invitation->user`).
    - Marca `$user->markEmailAsVerified()`.
-   - Marca o tenant como verificado: `tenant()->markAsVerified()` (atualiza `verified_at = now()`).
+   - **Somente se o usuário for o proprietário do laboratório (`$user->email === tenant()->owner_email`)**, marca o tenant como verificado: `tenant()->markAsVerified()` (atualiza `verified_at = now()`). Convites aceitos por parceiros ou dentistas nunca alteram `tenants.verified_at`.
    - Invalida o token de convite (`InvitationToken`).
    - Autentica o usuário e redireciona para o `dashboard`.
 

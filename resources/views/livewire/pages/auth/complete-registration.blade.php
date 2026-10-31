@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\ResendFirstAccessLink;
+use App\Enums\Rules;
 use App\Models\InvitationToken;
 use App\Models\User;
 use Flux\Flux;
@@ -30,25 +31,94 @@ new #[Layout('layouts.guest')] class extends Component
 
     public bool $resent = false;
 
+    protected function isOwnerFirstAccess(?User $user = null, ?string $targetEmail = null): bool
+    {
+        $currentTenant = tenant();
+        if (! $currentTenant) {
+            return false;
+        }
+
+        $ownerEmail = (string) $currentTenant->owner_email;
+
+        if ($targetEmail !== null && ! empty($targetEmail) && strcasecmp($targetEmail, $ownerEmail) === 0) {
+            return true;
+        }
+
+        if ($user !== null) {
+            if (strcasecmp($user->email, $ownerEmail) === 0) {
+                return true;
+            }
+
+            $ruleName = $user->rule?->name;
+            if ($ruleName === Rules::Lab->value || $ruleName === Rules::Owner->value) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function canResendFirstAccess(): bool
+    {
+        $currentTenant = tenant();
+
+        return $currentTenant && ! $currentTenant->isVerified() && $this->isOwnerFirstAccess(null, $this->email);
+    }
+
     public function mount()
     {
         $currentTenant = tenant();
 
-        // Se for o dono do laboratório e o tenant já foi verificado, bloquear imediatamente
-        if ($currentTenant && $currentTenant->isVerified()) {
+        if ($currentTenant && $currentTenant->isVerified() && $this->isOwnerFirstAccess(null, $this->email)) {
             Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
 
             return redirect()->route('login');
         }
 
         $invitation = InvitationToken::query()
+            ->with('user.rule')
             ->where('token', $this->token)
             ->whereNull('used_at')
             ->where('expires_at', '>', now())
             ->first();
 
-        if (! $invitation) {
+        if (! $invitation || ! $invitation->user) {
+            if (! empty($this->email)) {
+                $existingUser = User::query()->where('email', $this->email)->first();
+                if ($existingUser && ! $this->isOwnerFirstAccess($existingUser, $this->email)) {
+                    if ($existingUser->email_verified_at !== null && $existingUser->password !== null) {
+                        Flux::toast(variant: 'info', text: 'Seu cadastro já foi concluído anteriormente. Acesse sua conta.');
+
+                        return redirect()->route('login');
+                    }
+                }
+            }
+
+            $isOwner = $this->isOwnerFirstAccess(null, $this->email);
+            if ($isOwner && $currentTenant && $currentTenant->isVerified()) {
+                Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
+
+                return redirect()->route('login');
+            }
+
             $this->isExpired = true;
+
+            return;
+        }
+
+        if (! empty($this->email) && strcasecmp($this->email, $invitation->user->email) !== 0) {
+            $this->isExpired = true;
+
+            return;
+        }
+
+        $this->email = $invitation->user->email;
+
+        $isOwner = $this->isOwnerFirstAccess($invitation->user, $this->email);
+        if ($isOwner && $currentTenant && $currentTenant->isVerified()) {
+            Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
+
+            return redirect()->route('login');
         }
     }
 
@@ -56,7 +126,7 @@ new #[Layout('layouts.guest')] class extends Component
     {
         $currentTenant = tenant();
 
-        if (! $currentTenant || $currentTenant->isVerified()) {
+        if (! $this->canResendFirstAccess()) {
             Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
 
             $this->redirectRoute('login');
@@ -83,26 +153,45 @@ new #[Layout('layouts.guest')] class extends Component
 
         $this->validate();
 
-        $currentTenant = tenant();
+        $invitation = InvitationToken::query()
+            ->with('user.rule')
+            ->where('token', $this->token)
+            ->whereNull('used_at')
+            ->where('expires_at', '>', now())
+            ->first();
 
-        // Verificar novamente estado do tenant
-        if ($currentTenant && $currentTenant->isVerified()) {
+        if (! $invitation || ! $invitation->user) {
+            $this->isExpired = true;
+            Flux::toast(variant: 'danger', text: 'Token de convite inválido ou expirado.');
+
+            return;
+        }
+
+        $user = $invitation->user;
+
+        if (! empty($this->email) && strcasecmp($this->email, $user->email) !== 0) {
+            abort(403, 'Acesso não autorizado para o e-mail informado.');
+        }
+
+        $currentTenant = tenant();
+        $isOwner = $this->isOwnerFirstAccess($user, $user->email);
+
+        if ($isOwner && $currentTenant && $currentTenant->isVerified()) {
             Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
 
             return redirect()->route('login');
         }
 
-        /** @var User $user */
-        $user = User::query()->where('email', $this->email)->firstOrFail();
-
-        DB::transaction(function () use ($user, $currentTenant) {
+        DB::transaction(function () use ($user, $currentTenant, $isOwner, $invitation) {
             $user->password = Hash::make($this->password);
             $user->save();
             $user->markEmailAsVerified();
+
+            $invitation->update(['used_at' => now()]);
             $user->invitationToken()->delete();
 
             // Se for o proprietário do laboratório, marcar tenant como verificado
-            if ($currentTenant) {
+            if ($isOwner && $currentTenant && ! $currentTenant->isVerified()) {
                 $currentTenant->markAsVerified();
             }
         });
@@ -131,23 +220,37 @@ new #[Layout('layouts.guest')] class extends Component
                     </flux:text>
                 </div>
 
-                @if ($resent)
-                    <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-                        <p class="font-medium">Novo link enviado com sucesso!</p>
-                        <p class="mt-1 text-xs">Enviamos as instruções para <strong>{{ tenant('owner_email') ?? $email }}</strong>. Verifique sua caixa de entrada e spam.</p>
-                    </div>
+                @if ($this->canResendFirstAccess())
+                    @if ($resent)
+                        <div class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                            <p class="font-medium">Novo link enviado com sucesso!</p>
+                            <p class="mt-1 text-xs">Enviamos as instruções para <strong>{{ tenant('owner_email') ?? $email }}</strong>. Verifique sua caixa de entrada e spam.</p>
+                        </div>
+                    @else
+                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+                            <flux:text class="text-xs">
+                                Você pode gerar um novo link de primeiro acesso com validade de 48 horas para o e-mail: <strong>{{ tenant('owner_email') ?? $email }}</strong>.
+                            </flux:text>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <flux:button wire:click="resendLink" variant="primary" icon="paper-airplane" wire:loading.attr="disabled">
+                                Reenviar novo link para meu e-mail
+                            </flux:button>
+                            <flux:button href="{{ route('login') }}" variant="ghost">
+                                Ir para tela de login
+                            </flux:button>
+                        </div>
+                    @endif
                 @else
                     <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900">
                         <flux:text class="text-xs">
-                            Você pode gerar um novo link de primeiro acesso com validade de 48 horas para o e-mail: <strong>{{ tenant('owner_email') ?? $email }}</strong>.
+                            Este link de acesso expirou ou já foi utilizado. Caso precise de um novo convite, solicite à administração do laboratório.
                         </flux:text>
                     </div>
 
                     <div class="flex flex-col gap-2">
-                        <flux:button wire:click="resendLink" variant="primary" icon="paper-airplane" wire:loading.attr="disabled">
-                            Reenviar novo link para meu e-mail
-                        </flux:button>
-                        <flux:button href="{{ route('login') }}" variant="ghost">
+                        <flux:button href="{{ route('login') }}" variant="primary">
                             Ir para tela de login
                         </flux:button>
                     </div>
@@ -156,7 +259,7 @@ new #[Layout('layouts.guest')] class extends Component
         @else
             <div class="text-center">
                 <flux:heading size="xl">Defina sua senha de acesso</flux:heading>
-                <flux:text class="mt-2">Crie sua senha para concluir a ativação do seu laboratório.</flux:text>
+                <flux:text class="mt-2">{{ $this->canResendFirstAccess() ? 'Crie sua senha para concluir a ativação do seu laboratório.' : 'Crie sua senha para acessar a plataforma.' }}</flux:text>
             </div>
 
             <form class="flex flex-col gap-4" wire:submit="completeRegistration">

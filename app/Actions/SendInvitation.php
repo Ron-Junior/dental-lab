@@ -20,13 +20,19 @@ class SendInvitation
             'expires_at' => $expirationTime,
         ]);
 
+        $routeParams = [
+            'email' => $user->email,
+            'token' => $token,
+        ];
+
+        if (function_exists('tenant') && tenant()) {
+            $routeParams['tenant'] = tenant()->getTenantKey();
+        }
+
         $urlConvite = URL::temporarySignedRoute(
             'complete-signup.show',
             $expirationTime,
-            [
-                'email' => $user->email,
-                'token' => $token,
-            ]
+            $routeParams
         );
 
         $user->notify(new InviteNotification($user->email, $urlConvite));
