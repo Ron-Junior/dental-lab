@@ -50,6 +50,11 @@ class RequestService extends Model
         return $this->hasMany(PartnerDemand::class);
     }
 
+    public function consumptions(): HasMany
+    {
+        return $this->hasMany(RequestServiceConsumption::class);
+    }
+
     public function unitPrice(): Attribute
     {
         return Attribute::make(

@@ -20,22 +20,33 @@ new class extends Component
     {
         $partnerDemand = PartnerDemand::with(['partner.user', 'serviceServiceStep.serviceStep.partners'])->find($partnerDemandId);
 
-        if (!$partnerDemand) {
-            Flux::toast(heading: 'Demanda não encontrada!', variant: 'error', text: "A demanda solicitada não foi encontrada.");
+        if (! $partnerDemand) {
+            Flux::toast(heading: 'Demanda não encontrada!', variant: 'error', text: 'A demanda solicitada não foi encontrada.');
+
+            return;
+        }
+
+        $stepPartner = $partnerDemand->serviceServiceStep
+            ?->serviceStep
+            ?->partners
+            ?->firstWhere('id', $partnerDemand->partner_id);
+
+        if (! $stepPartner || ! $stepPartner->pivot) {
+            $this->partnerDemand = null;
+            $this->partnerCommissionValue = null;
+            $this->partnerCommissionType = null;
+            Flux::toast(
+                heading: 'Parceiro desvinculado da etapa!',
+                variant: 'error',
+                text: 'O parceiro atribuído não possui mais vínculo ativo com esta etapa no catálogo. Reatribua a demanda antes de iniciá-la.'
+            );
+
             return;
         }
 
         $this->partnerDemand = $partnerDemand;
-
-        $partnerDemandCommission = $partnerDemand->serviceServiceStep
-            ->serviceStep
-            ->partners
-            ->where('id', $this->partnerDemand->partner_id)
-            ->first()
-            ->pivot;
-
-        $this->partnerCommissionValue = $partnerDemandCommission->commission;
-        $this->partnerCommissionType = $partnerDemandCommission->commission_type;
+        $this->partnerCommissionValue = (float) $stepPartner->pivot->commission;
+        $this->partnerCommissionType = $stepPartner->pivot->commission_type;
 
         Flux::modal('start-demand-modal')->show();
     }
@@ -43,16 +54,22 @@ new class extends Component
     #[Computed()]
     public function commission(): string
     {
-        if ($this->partnerCommissionType === CommissionTypes::Percentage->value) {
-            return $this->partnerCommissionValue . '%';
-        } else {
-            return 'R$ ' .number_format( $this->partnerCommissionValue, 2, ',', '.');
+        if ($this->partnerCommissionValue === null) {
+            return '';
         }
+
+        if ($this->partnerCommissionType === CommissionTypes::Percentage->value) {
+            return number_format($this->partnerCommissionValue, 2, ',', '.') . '%';
+        }
+
+        return 'R$ ' . number_format($this->partnerCommissionValue, 2, ',', '.');
     }
 
     public function closeModal(): void
     {
         $this->partnerDemand = null;
+        $this->partnerCommissionValue = null;
+        $this->partnerCommissionType = null;
     }
 
     public function startDemand()

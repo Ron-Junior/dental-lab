@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\CompleteService;
 use App\Enums\PlanResource;
 use App\Livewire\Concerns\EnforcesPlanLimits;
 use App\Models\PartnerDemand;
@@ -80,8 +81,11 @@ new class extends Component
             $this->partnerDemand->save();
         });
 
+        CompleteService::handle($this->partnerDemand->request_service_id);
+
         $this->closeModal();
         $this->dispatch('demand::refresh');
+        $this->dispatch('requests::refresh');
         Flux::toast(heading: 'Serviço finalizado com sucesso!', variant: 'success', text: '');
     }
 };

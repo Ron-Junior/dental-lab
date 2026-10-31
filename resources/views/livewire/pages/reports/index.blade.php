@@ -404,7 +404,7 @@ new class extends Component
             WHEN partner_demands.partner_commission_type = '".CommissionTypes::Percentage->value."'
                 THEN ROUND(partner_demands.partner_commission * request_services.unit_price * request_services.quantity / 100.0)
             WHEN partner_demands.partner_commission_type = '".CommissionTypes::Fixed->value."'
-                THEN partner_demands.partner_commission * 100
+                THEN ROUND(partner_demands.partner_commission * 100)
             ELSE NULL
         END";
     }
@@ -760,7 +760,7 @@ new class extends Component
                                     @if ($demand->partner_commission_type === CommissionTypes::Percentage->value && $demand->partner_commission !== null)
                                         {{ number_format((float) $demand->partner_commission, 2, ',', '.') }}%
                                     @elseif ($demand->partner_commission_type === CommissionTypes::Fixed->value && $demand->partner_commission !== null)
-                                        {{ currency_from_int((int) $demand->partner_commission * 100, true) }}
+                                        {{ currency_from_int((int) round((float) $demand->partner_commission * 100), true) }}
                                     @else
                                         —
                                     @endif

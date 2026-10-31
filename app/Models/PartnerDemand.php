@@ -22,6 +22,7 @@ class PartnerDemand extends Model
     use HasFactory;
 
     protected $casts = [
+        'partner_commission' => 'decimal:2',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
     ];

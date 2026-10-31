@@ -1,8 +1,10 @@
 <?php
 
+use App\Actions\CancelService;
 use App\Enums\Rules;
 use App\Models\DentistRequest;
 use App\Models\RequestService;
+use Flux\Flux;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -37,13 +39,30 @@ new class extends Component
         return $query->orderBy('created_at')->paginate(10);
     }
 
+    #[On('service::canceled')]
+    public function cancelService(int|string $requestServiceId): void
+    {
+        $requestService = RequestService::with(['service', 'dentistRequest.requestServices', 'partnerDemands'])->findOrFail((int) $requestServiceId);
+
+        $this->authorize('updateStatus', $requestService);
+
+        try {
+            CancelService::handle($requestService);
+            Flux::toast(heading: 'Serviço cancelado com sucesso!', variant: 'success', text: '');
+            $this->dispatch('requests::refresh');
+            $this->dispatch('demand::refresh');
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Erro ao cancelar serviço', variant: 'error', text: $e->getMessage());
+        }
+    }
+
     public function getColor(int $completed, int $total): string
     {
-        if ($completed === 0) {
+        if ($total === 0 || $completed === 0) {
             return 'blue';
         }
 
-        return $completed === $total ? 'green' : 'blue';
+        return ($total > 0 && $completed === $total) ? 'green' : 'blue';
     }
 };
 
@@ -73,8 +92,9 @@ new class extends Component
         <div class="space-y-4">
             @forelse ($this->dentistRequests as $dentistRequest)
                 @php
-                    $completedSteps = $dentistRequest->requestServices->sum('demands_completed');
-                    $totalSteps = $dentistRequest->requestServices->sum('service.service_steps_count');
+                    $completedSteps = (int) $dentistRequest->requestServices->sum('demands_completed');
+                    $totalSteps = (int) $dentistRequest->requestServices->sum('service.service_steps_count');
+                    $progressPercentage = $totalSteps > 0 ? (int) round(($completedSteps / $totalSteps) * 100) : 0;
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
@@ -89,11 +109,11 @@ new class extends Component
                         <flux:text class="truncate">{{ currency_from_int($dentistRequest->total_price, true) }}</flux:text>
                                                 
                         <div class="pr-2">
-                            <flux:tooltip content="{{ number_format($completedSteps/$totalSteps * 100, 0, ',', '.') }}%" class="w-full">
+                            <flux:tooltip content="{{ $progressPercentage }}%" class="w-full">
                                 <flux:progress 
                                     color="{{ $this->getColor($completedSteps, $totalSteps) }}"
                                     value="{{ $completedSteps }}" 
-                                    max="{{ $totalSteps }}"
+                                    max="{{ $totalSteps > 0 ? $totalSteps : 1 }}"
                                 />
                             </flux:tooltip>
                         </div>
@@ -136,11 +156,11 @@ new class extends Component
                                 <flux:text size="xs" class="text-zinc-500">Progresso</flux:text>
                                 <flux:text size="xs" class="font-medium">{{ $completedSteps }} / {{ $totalSteps }}</flux:text>
                             </div>
-                            <flux:tooltip content="{{ number_format($completedSteps/$totalSteps * 100, 0, ',', '.') }}%" class="w-full">
+                            <flux:tooltip content="{{ $progressPercentage }}%" class="w-full">
                                 <flux:progress 
                                     color="{{ $this->getColor($completedSteps, $totalSteps) }}"
                                     value="{{ $completedSteps }}" 
-                                    max="{{ $totalSteps }}"
+                                    max="{{ $totalSteps > 0 ? $totalSteps : 1 }}"
                                 />
                             </flux:tooltip>
                         </div>
@@ -148,6 +168,11 @@ new class extends Component
 
                     <div x-show="open" x-collapse.duration.300ms style="display: none;" class="border-t border-zinc-100 dark:border-zinc-800">
                         @foreach ($dentistRequest->requestServices as $requestService)
+                            @php
+                                $serviceTotalSteps = (int) ($requestService->service->service_steps_count ?? $requestService->service->serviceSteps->count());
+                                $serviceCompletedSteps = (int) $requestService->demands_completed;
+                                $serviceProgressPercentage = $serviceTotalSteps > 0 ? (int) round(($serviceCompletedSteps / $serviceTotalSteps) * 100) : 0;
+                            @endphp
                             <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px]  items-center w-full gap-4 px-6 py-3 border-b last:border-b-0 border-zinc-100 dark:border-zinc-800/50" wire:key="request-service-desktop-{{ $requestService->id }}">
                                 <div></div>
 
@@ -157,11 +182,11 @@ new class extends Component
 
                                 <div class="content-center pr-2">
                                     @if ($requestService->completed_at === null)
-                                        <flux:tooltip content="{{ number_format($requestService->demands_completed/$requestService->service->serviceSteps->count() * 100, 0, ',', '.') }}%" class="w-full">
+                                        <flux:tooltip content="{{ $serviceProgressPercentage }}%" class="w-full">
                                             <flux:progress 
-                                                :color="$this->getColor($requestService->demands_completed, $requestService->service->serviceSteps->count())"
-                                                value="{{ $requestService->demands_completed }}" 
-                                                max="{{ $requestService->service->serviceSteps->count() }}"
+                                                :color="$this->getColor($serviceCompletedSteps, $serviceTotalSteps)"
+                                                value="{{ $serviceCompletedSteps }}" 
+                                                max="{{ $serviceTotalSteps > 0 ? $serviceTotalSteps : 1 }}"
                                             />
                                         </flux:tooltip>
                                     @endif
@@ -262,13 +287,13 @@ new class extends Component
                                     <div class="space-y-1">
                                         <div class="flex justify-between items-center text-xs">
                                             <flux:text size="xs" class="text-zinc-500">Etapas</flux:text>
-                                            <flux:text size="xs" class="font-medium">{{ $requestService->demands_completed }} / {{ $requestService->service->serviceSteps->count() }}</flux:text>
+                                            <flux:text size="xs" class="font-medium">{{ $serviceCompletedSteps }} / {{ $serviceTotalSteps }}</flux:text>
                                         </div>
-                                        <flux:tooltip content="test">
+                                        <flux:tooltip content="{{ $serviceProgressPercentage }}%">
                                             <flux:progress 
-                                                :color="$this->getColor($requestService->demands_completed, $requestService->service->serviceSteps->count())"
-                                                value="{{ $requestService->demands_completed }}" 
-                                                max="{{ $requestService->service->serviceSteps->count() }}"
+                                                :color="$this->getColor($serviceCompletedSteps, $serviceTotalSteps)"
+                                                value="{{ $serviceCompletedSteps }}" 
+                                                max="{{ $serviceTotalSteps > 0 ? $serviceTotalSteps : 1 }}"
                                             />
                                         </flux:tooltip>
                                     </div>

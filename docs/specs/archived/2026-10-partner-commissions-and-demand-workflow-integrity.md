@@ -1,7 +1,8 @@
 # Especificação: Integridade de Comissões de Parceiros e Robustez no Fluxo de Demandas e Serviços
 
 - **Identificador:** `2026-10-partner-commissions-and-demand-workflow-integrity`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
+- **Data de Conclusão:** 2026-10-31
 - **Data:** Outubro de 2026
 - **Módulos Afetados:** Terceirização & Parceiros (`PartnerDemand`, `PartnerDemandPolicy`, `resources/views/components/partners/start-demand.blade.php`, `resources/views/components/partners/finish-demand.blade.php`, `resources/views/livewire/pages/dentists/demands.blade.php`), Ordens & Serviços Solicitados (`RequestService`, `RequestServicePolicy`, `resources/views/livewire/pages/services/planned.blade.php`, `resources/views/components/service/progress.blade.php`, `CompleteService`), Relatórios Gerenciais (`resources/views/livewire/pages/reports/index.blade.php`), Migrations Tenant (`database/migrations/tenant/`).
 

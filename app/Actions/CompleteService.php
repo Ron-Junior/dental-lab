@@ -9,9 +9,9 @@ class CompleteService
 {
     public static function handle(int $requestServiceId): void
     {
-        $service = RequestService::with(['dentistRequest.requestServices', 'dentistRequest.dentist.user'])->find($requestServiceId);
+        $service = RequestService::with(['dentistRequest.dentist.user', 'partnerDemands'])->find($requestServiceId);
 
-        if (! $service->partnerDemands->every(fn ($demand) => $demand->ended_at !== null)) {
+        if (! $service || ! $service->partnerDemands->every(fn ($demand) => $demand->ended_at !== null)) {
             return;
         }
 
@@ -19,7 +19,7 @@ class CompleteService
             'completed_at' => now(),
         ]);
 
-        $isCompleted = $service->dentistRequest->requestServices->every(fn (RequestService $requestService) => $requestService->completed_at !== null);
+        $isCompleted = $service->dentistRequest->requestServices()->whereNull('completed_at')->doesntExist();
 
         if (! $isCompleted) {
             return;
@@ -29,6 +29,6 @@ class CompleteService
             'completed_at' => now(),
         ]);
 
-        $service->dentistRequest->dentist->user->notify(new CompletedRequestNotification($service->dentistRequest->id));
+        $service->dentistRequest->dentist?->user?->notify(new CompletedRequestNotification($service->dentistRequest->id));
     }
 }
