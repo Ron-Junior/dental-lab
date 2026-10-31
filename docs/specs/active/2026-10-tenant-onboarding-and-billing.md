@@ -54,7 +54,7 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
    - Se `$tenant->isExempt() === true` ou `$tenant->hasActiveTrial() === true`, a rota `/checkout/{tenant}` redireciona imediatamente para `/bem-vindo/{tenant}`. Nenhuma cobrança ou dados de cartão são solicitados.
 2. **Laboratórios Pagantes (Sem Benefício de Sócio):**
    - Exibe a seleção visual de todas as opções de planos ativos da plataforma, permitindo ao usuário escolher ou alternar o plano antes de confirmar o pagamento.
-   - Exibe o resumo da assinatura do plano selecionado (valor e ciclo: mensal ou anual). Se houver desconto aplicado, o valor líquido a pagar reflete o desconto no resumo.
+   - Exibe o resumo da assinatura do plano selecionado (valor e ciclo: mensal ou anual). Se houver desconto aplicado pelo sócio, ao alternar entre planos (`selectPlan`) o desconto é preservado e recalculado automaticamente sobre o preço do novo plano via `ApplyDiscountService::recalculateForPayment` ([2026-10-checkout-discount-recalculation](2026-10-checkout-discount-recalculation.md)), mantendo `amount_in_cents` e `metadata.discount` sincronizados.
    - **Sem período de teste no checkout público:** A ativação da assinatura e a cobrança ocorrem imediatamente de acordo com o plano contratado.
    - Utiliza **Stripe Elements** para coletar e tokenizar os dados do cartão via `SetupIntent` (client-side, sem expor dados sensíveis ao backend).
    - O backend recebe o `payment_method` gerado:

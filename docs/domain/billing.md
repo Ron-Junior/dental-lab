@@ -44,7 +44,8 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 2. Calcula o abatimento (percentual: `floor(valor × pct / 100)`), nunca deixando o valor abaixo de 0.
 3. Salva `metadata.discount = {discount_id, original_amount_in_cents, discount_in_cents}`.
 4. Marca o desconto como aplicado. Um pagamento aceita no máximo um desconto.
-5. **Repasse de Desconto ao Stripe via Coupon:** Ao criar a assinatura no Stripe para um laboratório com desconto pendente/aplicado, o sistema cria um cupom (`coupon`) no Stripe com `percent_off` ou `amount_off` (em centavos de BRL) e duração única (`duration: once`). O cupom é informado no parâmetro `discounts: [['coupon' => $couponId]]` em `subscriptions.create`, garantindo que a primeira fatura da Stripe aplique o abatimento concedido pelos sócios.
+5. **Preservação e Recálculo ao Trocar Plano no Checkout ([spec](../specs/active/2026-10-checkout-discount-recalculation.md)):** Quando o cliente altera o plano na tela de checkout (`selectPlan`) ou confirma o pagamento (`confirmPaymentMethod`), `ApplyDiscountService::recalculateForPayment` recalcula o desconto ativo sobre o preço do plano selecionado (`$plan->price_in_cents`), atualizando `amount_in_cents` e `metadata.discount` (`original_amount_in_cents` e `discount_in_cents`). Caso o desconto tenha expirado antes da conclusão do checkout, os metadados de desconto são limpos e o valor integral do plano é restabelecido.
+6. **Repasse de Desconto ao Stripe via Coupon:** Ao criar a assinatura no Stripe para um laboratório com desconto pendente/aplicado, o sistema cria um cupom (`coupon`) no Stripe com `percent_off` ou `amount_off` (em centavos de BRL) e duração única (`duration: once`). O cupom é informado no parâmetro `discounts: [['coupon' => $couponId]]` em `subscriptions.create`, garantindo que a primeira fatura da Stripe aplique o abatimento concedido pelos sócios.
 
 ---
 

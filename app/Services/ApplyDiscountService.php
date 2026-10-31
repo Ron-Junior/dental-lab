@@ -108,6 +108,121 @@ class ApplyDiscountService
     }
 
     /**
+     * Recalculate a pending payment's amount and discount metadata for a new base price.
+     *
+     * @throws InvalidArgumentException
+     */
+    public function recalculateForPayment(
+        Payment $payment,
+        int $baseAmountInCents,
+        ?Discount $discount = null,
+    ): Payment {
+        $baseAmountInCents = max(0, $baseAmountInCents);
+
+        $centralConnection = config('tenancy.database.central_connection');
+
+        return DB::connection($centralConnection)->transaction(function () use (
+            $payment,
+            $baseAmountInCents,
+            $discount,
+        ): Payment {
+            /** @var Payment $freshPayment */
+            $freshPayment = Payment::query()
+                ->lockForUpdate()
+                ->findOrFail($payment->id);
+
+            if ($freshPayment->status !== PaymentStatus::Pending) {
+                throw new InvalidArgumentException('Não é possível recalcular o valor de uma fatura que não está pendente.');
+            }
+
+            // Resolução do desconto aplicável
+            if ($discount === null) {
+                $discountId = $freshPayment->metadata['discount']['discount_id'] ?? null;
+                if ($discountId !== null) {
+                    $discount = Discount::query()->lockForUpdate()->find($discountId);
+                }
+
+                if ($discount === null && $freshPayment->tenant_id) {
+                    $discount = Discount::query()
+                        ->where('tenant_id', $freshPayment->tenant_id)
+                        ->unapplied()
+                        ->notExpired()
+                        ->latest()
+                        ->lockForUpdate()
+                        ->first();
+                }
+            } else {
+                $discount = Discount::query()->lockForUpdate()->find($discount->id) ?? $discount;
+            }
+
+            $currentMetadata = $freshPayment->metadata ?? [];
+
+            // Caso 1 — Desconto válido e não expirado
+            if ($discount !== null && ! $discount->is_expired) {
+                if ($discount->is_applied && $discount->applied_payment_id !== $freshPayment->id) {
+                    throw new InvalidArgumentException('Desconto já aplicado a outro pagamento.');
+                }
+
+                $originalAmount = $baseAmountInCents;
+
+                if ($discount->type === DiscountType::Percentage) {
+                    $percentage = (int) $discount->value_in_cents;
+                    $discountInCents = (int) floor(($baseAmountInCents * $percentage) / 100);
+                } else {
+                    $discountInCents = (int) $discount->value_in_cents;
+                }
+
+                $discountInCents = max(0, $discountInCents);
+                $newAmount = max(0, $baseAmountInCents - $discountInCents);
+
+                $currentMetadata['discount'] = [
+                    'discount_id' => $discount->id,
+                    'original_amount_in_cents' => $baseAmountInCents,
+                    'discount_in_cents' => $discountInCents,
+                ];
+
+                $freshPayment->amount_in_cents = $newAmount;
+                $freshPayment->metadata = $currentMetadata;
+                $freshPayment->save();
+
+                $discount->applied_payment_id = $freshPayment->id;
+                $discount->applied_at = $discount->applied_at ?? Carbon::now();
+                $discount->save();
+            } else {
+                // Caso 2 — Desconto inexistente ou expirado
+                if ($discount !== null && $discount->is_expired) {
+                    if ($discount->applied_payment_id === $freshPayment->id) {
+                        $discount->applied_payment_id = null;
+                        $discount->applied_at = null;
+                        $discount->save();
+                    }
+                }
+
+                if (isset($currentMetadata['discount'])) {
+                    $metaDiscountId = $currentMetadata['discount']['discount_id'] ?? null;
+                    if ($metaDiscountId && ($discount === null || $discount->id !== $metaDiscountId)) {
+                        $oldDiscount = Discount::query()->lockForUpdate()->find($metaDiscountId);
+                        if ($oldDiscount && $oldDiscount->applied_payment_id === $freshPayment->id) {
+                            $oldDiscount->applied_payment_id = null;
+                            $oldDiscount->applied_at = null;
+                            $oldDiscount->save();
+                        }
+                    }
+                    unset($currentMetadata['discount']);
+                }
+
+                $freshPayment->metadata = empty($currentMetadata) ? null : $currentMetadata;
+                $freshPayment->amount_in_cents = $baseAmountInCents;
+                $freshPayment->save();
+            }
+
+            $payment->refresh();
+
+            return $freshPayment;
+        });
+    }
+
+    /**
      * Remove an applied or pending discount, restoring the payment amount.
      *
      * @throws InvalidArgumentException
@@ -139,7 +254,9 @@ class ApplyDiscountService
                 }
 
                 $metadata = $payment->metadata ?? [];
-                $originalAmount = $metadata['discount']['original_amount_in_cents'] ?? null;
+                $originalAmount = $metadata['discount']['original_amount_in_cents']
+                    ?? $payment->tenant?->subscriptions()->latest()->first()?->price_in_cents
+                    ?? null;
 
                 if ($originalAmount !== null) {
                     $payment->amount_in_cents = (int) $originalAmount;

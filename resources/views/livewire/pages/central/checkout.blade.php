@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Services\ApplyDiscountService;
 use App\Services\StripeService;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
@@ -29,8 +30,11 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
 
     public bool $isMockMode = false;
 
-    public function mount(Tenant $tenant, StripeService $stripeService): void
-    {
+    public function mount(
+        Tenant $tenant,
+        StripeService $stripeService,
+        ApplyDiscountService $applyDiscountService,
+    ): void {
         $this->tenant = $tenant;
 
         // Se já está ativo, redirecionar
@@ -59,6 +63,24 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         } else {
             $firstPlan = $this->plans->first();
             $this->selectedPlanId = (string) ($firstPlan?->id ?? '');
+        }
+
+        if (! $this->pendingPayment && $this->appliedDiscount && $this->selectedPlan) {
+            $this->tenant->payments()->create([
+                'amount_in_cents' => $this->selectedPlan->price_in_cents,
+                'status' => PaymentStatus::Pending,
+                'due_date' => now(),
+            ]);
+            unset($this->pendingPayment);
+        }
+
+        if ($this->pendingPayment && $this->selectedPlan) {
+            $applyDiscountService->recalculateForPayment(
+                $this->pendingPayment,
+                $this->selectedPlan->price_in_cents,
+                $this->appliedDiscount,
+            );
+            unset($this->pendingPayment, $this->appliedDiscount);
         }
 
         $this->stripeKey = (string) config('services.stripe.key');
@@ -103,7 +125,10 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
     public function appliedDiscount(): ?Discount
     {
         if ($this->pendingPayment && isset($this->pendingPayment->metadata['discount']['discount_id'])) {
-            return Discount::query()->find($this->pendingPayment->metadata['discount']['discount_id']);
+            $discount = Discount::query()->find($this->pendingPayment->metadata['discount']['discount_id']);
+            if ($discount) {
+                return $discount;
+            }
         }
 
         return $this->tenant->discounts()
@@ -113,7 +138,7 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             ->first();
     }
 
-    public function selectPlan(string $planId): void
+    public function selectPlan(string $planId, ApplyDiscountService $applyDiscountService): void
     {
         $plan = Plan::query()->where('is_active', true)->find($planId);
         if (! $plan) {
@@ -135,15 +160,31 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             $this->subscription->load('plan');
         }
 
-        $this->tenant->payments()
-            ->where('status', PaymentStatus::Pending)
-            ->update([
+        $pendingPayment = $this->pendingPayment;
+        if (! $pendingPayment && $this->appliedDiscount) {
+            $pendingPayment = $this->tenant->payments()->create([
                 'amount_in_cents' => $plan->price_in_cents,
+                'status' => PaymentStatus::Pending,
+                'due_date' => now(),
             ]);
+        }
+
+        if ($pendingPayment) {
+            $applyDiscountService->recalculateForPayment(
+                $pendingPayment,
+                $plan->price_in_cents,
+                $this->appliedDiscount,
+            );
+        }
+
+        unset($this->pendingPayment, $this->appliedDiscount, $this->selectedPlan);
     }
 
-    public function confirmPaymentMethod(string $paymentMethodId, StripeService $stripeService): void
-    {
+    public function confirmPaymentMethod(
+        string $paymentMethodId,
+        StripeService $stripeService,
+        ApplyDiscountService $applyDiscountService,
+    ): void {
         $plan = $this->selectedPlan;
         if (! $plan) {
             return;
@@ -152,7 +193,32 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         $stripeService->attachPaymentMethod($this->tenant, $paymentMethodId);
 
         $pendingPayment = $this->pendingPayment;
+
+        if ($pendingPayment) {
+            $pendingPayment = $applyDiscountService->recalculateForPayment(
+                $pendingPayment,
+                $plan->price_in_cents,
+                $this->appliedDiscount,
+            );
+        } else {
+            $pendingPayment = $this->tenant->payments()->create([
+                'amount_in_cents' => $plan->price_in_cents,
+                'status' => PaymentStatus::Pending,
+                'due_date' => now(),
+            ]);
+            $pendingPayment = $applyDiscountService->recalculateForPayment(
+                $pendingPayment,
+                $plan->price_in_cents,
+                $this->appliedDiscount,
+            );
+        }
+
+        unset($this->pendingPayment, $this->appliedDiscount);
+
         $discount = $this->appliedDiscount;
+        if ($discount && $discount->is_expired) {
+            $discount = null;
+        }
 
         $stripeSub = $stripeService->createSubscription($this->tenant, $plan, $discount);
 
@@ -177,29 +243,15 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
             ]);
         }
 
-        $amountInCents = $pendingPayment?->amount_in_cents ?? $plan->price_in_cents;
-
-        if ($pendingPayment) {
-            $pendingPayment->update([
-                'amount_in_cents' => $amountInCents,
-                'status' => PaymentStatus::Paid,
-                'paid_at' => now(),
-                'gateway_transaction_id' => $stripeSub['latest_invoice_id'] ?? null,
-            ]);
-            $paidPayment = $pendingPayment;
-        } else {
-            $paidPayment = $this->tenant->payments()->create([
-                'amount_in_cents' => $amountInCents,
-                'status' => PaymentStatus::Paid,
-                'paid_at' => now(),
-                'due_date' => now(),
-                'gateway_transaction_id' => $stripeSub['latest_invoice_id'] ?? null,
-            ]);
-        }
+        $pendingPayment->update([
+            'status' => PaymentStatus::Paid,
+            'paid_at' => now(),
+            'gateway_transaction_id' => $stripeSub['latest_invoice_id'] ?? null,
+        ]);
 
         if ($discount && ! $discount->is_applied) {
             $discount->update([
-                'applied_payment_id' => $paidPayment->id,
+                'applied_payment_id' => $pendingPayment->id,
                 'applied_at' => now(),
             ]);
         }
