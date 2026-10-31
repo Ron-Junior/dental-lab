@@ -1,8 +1,9 @@
 # Especificação: Bloqueio de Acesso e Ciclo de Vida de Inadimplência, Expiração (Trial/Isenção) e Cancelamento
 
 - **Identificador:** `2026-10-tenant-access-enforcement-and-lifecycle`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Rotas Tenant (`routes/tenant.php`), Middleware (`EnsureTenantIsOperational`), Limites do Plano (`TenantLimitChecker`, `ResourceUsage`), Isenções (`ExemptionService`), Agendamento/Console (`routes/console.php`, `ExpireSubscriptionsAndExemptions`, `ExpireSubscriptionsCommand`), Perfil e Faturamento (`subscription-billing`, `plan-usage`).
 
 ---

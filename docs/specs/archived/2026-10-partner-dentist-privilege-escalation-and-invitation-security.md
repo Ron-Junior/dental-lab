@@ -1,8 +1,9 @@
 # Especificação: Prevenção de Escalação de Privilégio na Gestão de Parceiros/Dentistas e Isolamento de Convites
 
 - **Identificador:** `2026-10-partner-dentist-privilege-escalation-and-invitation-security`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Gestão de Parceiros (`resources/views/components/partners/store.blade.php`, `Partner`), Gestão de Dentistas (`resources/views/components/dentists/store.blade.php`, `Dentist`), Autenticação e Convites Tenant (`resources/views/livewire/pages/auth/complete-registration.blade.php`, `SendInvitation`, `ResendFirstAccessLink`, `InvitationToken`, `User`), Onboarding (`Tenant`).
 
 ---

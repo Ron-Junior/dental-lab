@@ -1,8 +1,9 @@
 # Especificação: Preservação e Recálculo de Desconto ao Trocar Plano no Checkout
 
 - **Identificador:** `2026-10-checkout-discount-recalculation`
-- **Status:** Implementado
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Checkout Público (`resources/views/livewire/pages/central/checkout.blade.php`), Serviço de Descontos (`app/Services/ApplyDiscountService.php`), Modelos Centrais (`Payment`, `Discount`, `Plan`).
 
 ---

@@ -1,8 +1,9 @@
 # Especificação: Onboarding do Laboratório, Checkout Stripe e Primeiro Acesso Protegido
 
 - **Identificador:** `2026-10-tenant-onboarding-and-billing`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Banco Central (`tenants`, `subscriptions`, `plans`, `payments`), Onboarding (`CreateLaboratory`, `ProvisionTenant`), Autenticação Tenant (`complete-registration`), Checkout Stripe (`StripeService`, `PaymentWebhookController`), Perfil Tenant (`subscription-billing`).
 
 ---

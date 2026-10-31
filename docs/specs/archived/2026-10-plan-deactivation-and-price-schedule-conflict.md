@@ -1,8 +1,9 @@
 # Especificação: Resolução de Conflitos entre Desativação de Plano e Reajuste de Preço Agendado
 
 - **Identificador:** `2026-10-plan-deactivation-and-price-schedule-conflict`
-- **Status:** Ativo / Implementado
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Ações de Planos (`DeactivatePlan`, `ReactivatePlan`, `UpdatePlan`, `ApplyScheduledPlanPrices`), Notificações (`PlanDeactivatedMigrationNotification`), Painel Central (`resources/views/livewire/pages/central/plans/index.blade.php`), Modelos Centrais (`Plan`, `Subscription`).
 
 ---

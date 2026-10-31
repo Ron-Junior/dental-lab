@@ -1,8 +1,9 @@
 # Especificação: Segurança de Assinatura e Trava de Ciclo de Vida no Webhook de Pagamento
 
 - **Identificador:** `2026-10-webhook-security-and-lifecycle`
-- **Status:** Implementado
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:** Cobrança e Webhooks (`PaymentWebhookController`, `config/services.php`), Modelos Centrais (`Subscription`, `Payment`, `Plan`, `Tenant`), Provisionamento (`ProvisionTenant`).
 
 ---
