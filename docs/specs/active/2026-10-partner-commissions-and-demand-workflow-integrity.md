@@ -3,7 +3,7 @@
 - **Identificador:** `2026-10-partner-commissions-and-demand-workflow-integrity`
 - **Status:** Ativo / Em Especificação
 - **Data:** Outubro de 2026
-- **Módulos Afetados:** Terceirização & Parceiros (`PartnerDemand`, `PartnerDemandPolicy`, `start-demand.blade.php`, `finish-demand.blade.php`, `assign-demand.blade.php`), Ordens & Serviços Solicitados (`RequestService`, `RequestServicePolicy`, `planned.blade.php`, `progress.blade.php`, `CompleteService`), Relatórios Gerenciais (`reports/index.blade.php`), Migrations Tenant (`database/migrations/tenant/`).
+- **Módulos Afetados:** Terceirização & Parceiros (`PartnerDemand`, `PartnerDemandPolicy`, `resources/views/components/partners/start-demand.blade.php`, `resources/views/components/partners/finish-demand.blade.php`, `resources/views/livewire/pages/dentists/demands.blade.php`), Ordens & Serviços Solicitados (`RequestService`, `RequestServicePolicy`, `resources/views/livewire/pages/services/planned.blade.php`, `resources/views/components/service/progress.blade.php`, `CompleteService`), Relatórios Gerenciais (`resources/views/livewire/pages/reports/index.blade.php`), Migrations Tenant (`database/migrations/tenant/`).
 
 ---
 
@@ -12,27 +12,23 @@
 Durante a operação diária do laboratório e a gestão de etapas terceirizadas delegadas a protéticos parceiros (`LabPartner`), foram detectadas cinco falhas críticas no fluxo de trabalho e na precisão financeira:
 
 1. **Perda de Centavos/Decimais na Comissão de Parceiros:**
-   - Na tabela de configuração de etapas e parceiros (`service_step_partner`), a coluna `commission` é armazenada como `string`, permitindo tanto percentuais fracionados (ex.: `12.5%`) quanto valores fixos em reais com centavos (ex.: `R$ 45,50`).
-   - Contudo, na tabela tenant `partner_demands`, a coluna `partner_commission` foi modelada como **`integer`** sem mutator de centavos.
-   - Quando o parceiro ou laboratório inicia a demanda em `start-demand.blade.php`, o valor `45.50` é truncado para `45` pelo banco de dados. No relatório gerencial (`reports/index.blade.php`), a expressão SQL multiplica a comissão fixa por 100 (`45 * 100 = 4500` centavos = R$ 45,00), causando perda irreversível de centavos em comissões fixas e truncamento de percentuais (ex.: `12.5%` vira `12%`).
+   - Na tabela pivô `service_step_partner`, a coluna `commission` é armazenada como `string`, permitindo tanto percentuais fracionados (ex.: `12.5%`) quanto valores fixos em reais com centavos (ex.: `R$ 45.50`).
+   - Contudo, na tabela tenant `partner_demands` (`database/migrations/tenant/2026_09_27_140710_create_partner_demands_table.php`), a coluna `partner_commission` foi modelada como **`integer`** sem mutator de centavos.
+   - Quando o parceiro inicia a demanda em `resources/views/components/partners/start-demand.blade.php`, o valor `45.50` vira `45` no banco de dados. No relatório gerencial (`resources/views/livewire/pages/reports/index.blade.php`), a comissão fixa é multiplicada por 100 (`45 * 100 = R$ 45,00`), gerando perda financeira de todos os centavos nas comissões fixas e percentuais fracionados (ex.: `12.5%` vira `12%`).
 
-2. **Bloqueio Indevido de Protéticos Parceiros (`LabPartner`) na UI:**
-   - Em `resources/views/livewire/pages/dentists/demands.blade.php` (tanto na tabela desktop quanto nos cards da visualização mobile), os botões de **Iniciar** (`play`) e **Completar** (`document-check`) foram condicionados a `:disabled="!Auth::user()->can('assign', $demand)"`.
-   - O parceiro logado possui autorização válida para `start` e `complete` sobre sua própria demanda (`PartnerDemandPolicy`), mas não possui permissão para `assign` (atribuir demandas a outros). O botão é renderizado desabilitado na interface, impedindo que o protético inicie ou conclua seu trabalho.
+2. **Parceiro (`LabPartner`) Impedido de Iniciar ou Concluir suas Próprias Demandas na UI:**
+   - Em `resources/views/livewire/pages/dentists/demands.blade.php` (linhas 198, 211, 303 e 316, tanto na tabela desktop quanto nos cards mobile), os botões de **Iniciar** (`start`) e **Completar** (`complete`) estão com `:disabled="!Auth::user()->can('assign', $demand)"` em vez de `can('start', $demand)` / `can('complete', $demand)`.
+   - Como `PartnerDemandPolicy::assign` exige que o parceiro ainda conste na relação atual `serviceStep->partners` (ou perfil interno de gestão), e a semântica correta das ações operacionais é `start` e `complete` (que validam se a demanda está atribuída ao `user_id` do parceiro e na vez de execução), o parceiro fica bloqueado indevidamente na interface.
 
-3. **Exceção 500 ao Iniciar Demanda com Parceiro Desvinculado do Catálogo:**
-   - Em `start-demand.blade.php`, o método `openModal` busca a comissão da etapa na coleção de parceiros do serviço:
-     `$partnerDemand->serviceServiceStep->serviceStep->partners->where('id', $this->partnerDemand->partner_id)->first()->pivot`.
-   - Se uma demanda foi atribuída a um parceiro e posteriormente a equipe de gestão do laboratório desvinculou esse parceiro da etapa em `manage-partners`, a busca retorna `null`. O acesso a `->pivot` dispara `Error: Call to a member function pivot on null`, quebrando a aplicação com erro 500.
+3. **Crash se o Parceiro for Desvinculado da Etapa Antes de Iniciar a Demanda:**
+   - Em `resources/views/components/partners/start-demand.blade.php`, se uma demanda foi atribuída a um parceiro e depois esse parceiro foi removido da etapa em `manage-partners`, o encadeamento `->where('id', $this->partnerDemand->partner_id)->first()->pivot` tenta acessar `->pivot` em `null`, gerando erro 500.
 
-4. **Incompletude no Fechamento Automático de Serviços e Falta de Listener para Cancelamento:**
-   - Ao concluir a última etapa de uma solicitação em `finish-demand.blade.php`, o método `ended_at = now()` é registrado, mas a action `CompleteService::handle` **não é chamada**. O serviço e o pedido só são concluídos se um operador abrir manualmente o modal de progresso (`progress.blade.php`) e clicar em "Completar".
-   - Na listagem de serviços solicitados (`planned.blade.php`), o menu de ações e o botão mobile disparam o evento `service::canceled` passando `$requestService->id`. Contudo, **não existe nenhum listener** para este evento em toda a aplicação, tornando a opção de cancelamento inoperante.
+4. **Demandas Não Concluem o Serviço Automaticamente e Botão Cancelar Inoperante:**
+   - Quando a última etapa é concluída em `resources/views/components/partners/finish-demand.blade.php`, `CompleteService::handle` **não é chamado** (só é chamado se alguém abrir manualmente a modal de progresso em `resources/views/components/service/progress.blade.php` e clicar no botão "Completar").
+   - Além disso, o botão "Cancelar" serviço em `resources/views/livewire/pages/services/planned.blade.php` (linhas 203 e 300) dispara o evento `service::canceled`, mas **não existe nenhum listener** para esse evento em todo o projeto (o botão não faz nada).
 
-5. **Exceção `DivisionByZeroError` na Listagem de Serviços Solicitados:**
-   - Na view `planned.blade.php`, o cálculo do tooltip de progresso executa diretamente:
-     `number_format($completedSteps / $totalSteps * 100, 0, ',', '.') . '%'`.
-   - Caso um serviço cadastrado no catálogo não possua etapas cadastradas (`$totalSteps === 0`), ocorre divisão por zero (`DivisionByZeroError`), impedindo a renderização de toda a página de serviços.
+5. **Divisão por Zero na Listagem de Serviços Solicitados:**
+   - Em `resources/views/livewire/pages/services/planned.blade.php`, nos cálculos de progresso do cabeçalho da requisição (`$completedSteps / $totalSteps * 100` nas linhas 92 e 139) e na linha individual do serviço (`$requestService->demands_completed / $requestService->service->serviceSteps->count() * 100` na linha 160), se um serviço tiver `0` etapas vinculadas (`$totalSteps === 0` ou `serviceSteps->count() === 0`), ocorre `DivisionByZeroError` ao renderizar a página. Além disso, na visualização mobile do item (linha 267), o tooltip estava com texto fixo `content="test"`.
 
 ---
 
@@ -67,23 +63,23 @@ Durante a operação diária do laboratório e a gestão de etapas terceirizadas
     - Fixo: `currency_from_int((int) round((float) $demand->partner_commission * 100), true)`
     - Percentual: `number_format((float) $demand->partner_commission, 2, ',', '.') . '%'`
 
-### 3.2. Autorização e Habilitação de Botões (`demands.blade.php`)
+### 3.2. Autorização e Habilitação de Botões (`resources/views/livewire/pages/dentists/demands.blade.php`)
 
-- **Correção dos Botões na Tabela Desktop:**
+- **Correção dos Botões na Tabela Desktop (linhas 198 e 211):**
   - Botão Iniciar:
     - De: `:disabled="!Auth::user()->can('assign', $demand)"`
     - Para: `:disabled="!Auth::user()->can('start', $demand)"`
   - Botão Completar:
     - De: `:disabled="!Auth::user()->can('assign', $demand)"`
     - Para: `:disabled="!Auth::user()->can('complete', $demand)"`
-- **Correção dos Botões nos Cards Mobile:**
-  - Replicar a mesma correção nas linhas equivalentes da visualização mobile.
-- **Garantia de Regra:** Um usuário com role `LabPartner` atribuído à demanda conseguirá acionar Iniciar e Completar diretamente pela interface sem ser barrado por checagens de atribuição.
+- **Correção dos Botões nos Cards Mobile (linhas 303 e 316):**
+  - Replicar a mesma correção nas linhas equivalentes da visualização mobile (`can('start', $demand)` e `can('complete', $demand)`).
+- **Garantia de Regra:** Um usuário com role `LabPartner` atribuído à demanda conseguirá acionar Iniciar e Completar diretamente pela interface sem ser barrado por checagens de atribuição (`assign`).
 
-### 3.3. Resiliência Cadastral na Inicialização de Demandas (`start-demand.blade.php`)
+### 3.3. Resiliência Cadastral na Inicialização de Demandas (`resources/views/components/partners/start-demand.blade.php`)
 
 - **Navegação Segura de Coleção:**
-  - Substituir o encadeamento direto por verificação explícita do parceiro vinculado:
+  - Substituir o encadeamento direto `->where('id', $this->partnerDemand->partner_id)->first()->pivot` por verificação explícita do parceiro vinculado:
     ```php
     $stepPartner = $partnerDemand->serviceServiceStep
         ?->serviceStep
@@ -105,7 +101,7 @@ Durante a operação diária do laboratório e a gestão de etapas terceirizadas
 
 ### 3.4. Conclusão Automática de Serviços & Listener de Cancelamento
 
-#### 3.4.1. Conclusão Automática (`finish-demand.blade.php`)
+#### 3.4.1. Conclusão Automática (`resources/views/components/partners/finish-demand.blade.php`)
 - Imediatamente após a finalização da demanda (após a transação de upload e preenchimento de `ended_at`):
   - Chamar `CompleteService::handle($this->partnerDemand->request_service_id)`.
   - A action `CompleteService::handle`:
@@ -116,22 +112,22 @@ Durante a operação diária do laboratório e a gestão de etapas terceirizadas
   - Emitir eventos de UI: `$this->dispatch('demand::refresh')` e `$this->dispatch('requests::refresh')`.
 
 #### 3.4.2. Fluxo de Cancelamento de Serviço (`service::canceled`)
-- **Listener:** Implementar método listener `#[On('service::canceled')]` em `planned.blade.php` (ou componente modal associado).
-- **Autorização:** Validar permissão através de `RequestServicePolicy::updateStatus` ou política correspondente (`Owner`, `Lab`, `LabManager`).
+- **Listener:** Implementar método listener `#[On('service::canceled')]` em `resources/views/livewire/pages/services/planned.blade.php` (ou componente modal associado).
+- **Autorização:** Validar permissão através de `RequestServicePolicy::updateStatus` (`$this->authorize('updateStatus', $requestService)` — restrito a `Owner`, `Lab` e `LabManager`).
 - **Validação de Negócio:**
   - Rejeitar cancelamento de serviço com `completed_at !== null`.
-  - Caso haja demandas em andamento ou concluídas (`started_at !== null` ou `ended_at !== null`), exigir confirmação explícita ou bloquear conforme a regra de cancelamento.
+  - Caso haja demandas em andamento ou concluídas (`started_at !== null` ou `ended_at !== null`), bloquear ou tratar conforme a regra de integridade produtiva.
 - **Ações ao Cancelar o Serviço:**
   - Se insumos foram consumidos em estoque (`RequestServiceConsumption`): estornar as quantidades correspondentes nos lotes (`StockBatch`) criando movimentações de entrada (`In`) com motivo `Return` / `Correction`.
   - Cancelar ou remover as `PartnerDemand` pendentes associadas.
-  - Excluir o registro de `RequestService` (ou registrar status cancelado caso a ordem já esteja em produção).
-  - Caso a ordem de serviço (`DentistRequest`) fique sem serviços ativos restantes ou todos os demais estejam concluídos, avaliar o encerramento do pedido pai.
-  - Notificar o usuário via toast de sucesso e atualizar a tela (`$this->dispatch('requests::refresh')`).
+  - Excluir o registro de `RequestService` (ou registrar status cancelado).
+  - Caso a ordem de serviço (`DentistRequest`) tenha todos os demais serviços restantes já concluídos (`completed_at !== null`), acionar o fechamento da ordem pai; caso não restem mais serviços na ordem, remover ou encerrar a solicitação conforme regra de domínio.
+  - Notificar o usuário via toast de sucesso e atualizar a tela (`$this->dispatch('requests::refresh')` e `$this->dispatch('demand::refresh')`).
 
-### 3.5. Proteção Numérica Contra Divisão por Zero (`planned.blade.php`)
+### 3.5. Proteção Numérica Contra Divisão por Zero (`resources/views/livewire/pages/services/planned.blade.php`)
 
-- **Cálculo Seguro da Porcentagem:**
-  - Substituir o cálculo inline desprotegido por variável sanitizada:
+- **Cálculo Seguro da Porcentagem (Ordem Pai e Item Individual):**
+  - No nível da requisição (`DentistRequest`, desktop linha 92 e mobile linha 139):
     ```blade
     @php
         $completedSteps = (int) $dentistRequest->requestServices->sum('demands_completed');
@@ -139,10 +135,19 @@ Durante a operação diária do laboratório e a gestão de etapas terceirizadas
         $progressPercentage = $totalSteps > 0 ? (int) round(($completedSteps / $totalSteps) * 100) : 0;
     @endphp
     ```
+  - No nível do item (`RequestService`, desktop linha 160 e mobile linha 267):
+    ```blade
+    @php
+        $serviceTotalSteps = (int) ($requestService->service->service_steps_count ?? $requestService->service->serviceSteps->count());
+        $serviceCompletedSteps = (int) $requestService->demands_completed;
+        $serviceProgressPercentage = $serviceTotalSteps > 0 ? (int) round(($serviceCompletedSteps / $serviceTotalSteps) * 100) : 0;
+    @endphp
+    ```
 - **Apresentação Visual:**
-  - Tooltip: `content="{{ $progressPercentage }}%"`
-  - `<flux:progress :value="$completedSteps" :max="$totalSteps > 0 ? $totalSteps : 1" ... />`
-  - Método `getColor(int $completed, int $total)`: Retorna `zinc` ou `blue` quando `$total === 0` sem disparar warnings.
+  - Tooltip da ordem: `content="{{ $progressPercentage }}%"`
+  - Tooltip do item (desktop e mobile, corrigindo também o placeholder `content="test"` no mobile): `content="{{ $serviceProgressPercentage }}%"`
+  - `<flux:progress :value="$completedSteps" :max="$totalSteps > 0 ? $totalSteps : 1" ... />` (e equivalente `:max="$serviceTotalSteps > 0 ? $serviceTotalSteps : 1"` no item).
+  - Método `getColor(int $completed, int $total)`: Retorna `blue` quando `$total === 0` ou `$completed === 0`, e `green` apenas quando `$total > 0 && $completed === $total`.
 
 ---
 
@@ -169,9 +174,10 @@ Durante a operação diária do laboratório e a gestão de etapas terceirizadas
    - Teste de componente / política garantindo que usuário com perfil `LabPartner` tem acesso liberado aos botões de Iniciar e Concluir em suas demandas.
 3. **Resiliência a Desvinculação de Parceiro:**
    - Chamar `start-demand::open` para uma demanda cujo parceiro foi removido da tabela pivô `service_step_partner` não lança 500, exibe toast de aviso e mantém o estado limpo.
-4. **Conclusão Automática da Ordem:**
-   - Ao finalizar a última `PartnerDemand` em `finish-demand.blade.php`, o `RequestService` pai tem seu campo `completed_at` preenchido automaticamente.
+4. **Conclusão Automática e Cancelamento de Serviço:**
+   - Ao finalizar a última `PartnerDemand` em `finish-demand.blade.php`, o `RequestService` pai tem seu campo `completed_at` preenchido automaticamente via `CompleteService::handle`.
    - Havendo apenas este serviço na solicitação, a ordem `DentistRequest` também é marcada como concluída (`completed_at !== null`) e a notificação é despachada.
+   - Acionar o evento `service::canceled` em `planned.blade.php` executa o listener autorizado, bloqueia serviços já concluídos e estorna/cancela demandas e insumos pendentes.
 5. **Divisão por Zero em Serviços sem Etapas:**
-   - Renderizar `planned.blade.php` para uma requisição com serviço que possua 0 etapas não lança exceção e exibe 0% de progresso.
+   - Renderizar `planned.blade.php` para uma requisição com serviço que possua 0 etapas não lança `DivisionByZeroError` nem no progresso consolidado da requisição nem no progresso individual do serviço, exibindo `0%`.
 
