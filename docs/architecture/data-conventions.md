@@ -34,6 +34,13 @@ Disponíveis em `app/Helpers/currency.php`:
 - `currency_to_float($value)`: Converte string monetária formatada (ex.: `R$ 1.500.000,50`) em float decimal em reais (`1500000.50`), com suporte resiliente a múltiplos separadores de milhar e símbolos de moeda.
 - `currency_from_int($value, $formatted = false)`: Converte centavos para float ou string formatada em moeda brasileira (`R$ 150,50`).
 
+### Comissões Híbridas de Parceiros (Percentual vs. Valor Fixo):
+O sistema permite configurar comissões de técnicos parceiros como percentual (ex.: `12.5%`) ou quantia fixa em reais (ex.: `R$ 45,50`).
+- **Persistência em `partner_demands.partner_commission`:** Armazenada como `DECIMAL(10, 2)` (com cast Eloquent `'decimal:2'`) para prevenir o truncamento indevido de centavos e frações decimais de porcentagem decorrentes de tipos inteiros.
+- **Cálculo Consolidado em Relatórios:** 
+  - Fixo: convertido para centavos via SQL `ROUND(partner_demands.partner_commission * 100)`.
+  - Percentual: calculado sobre o montante em centavos via `ROUND(partner_demands.partner_commission * request_services.unit_price * request_services.quantity / 100.0)`.
+
 ---
 
 ## 2. Datas, Horários e Timezone
