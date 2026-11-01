@@ -1,7 +1,13 @@
 <?php
 
+use App\Enums\Rules;
 use App\Livewire\Actions\Logout;
+use App\Models\InvitationToken;
+use App\Models\PartnerDemand;
+use App\Models\User;
+use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -17,7 +23,66 @@ new class extends Component
             'password' => ['required', 'string', 'current_password'],
         ]);
 
-        tap(Auth::user(), $logout(...))->delete();
+        /** @var User $user */
+        $user = Auth::user();
+        $user->loadMissing(['rule', 'partner', 'dentist']);
+
+        if (in_array($user->rule?->name, [Rules::Owner, Rules::Lab], true)) {
+            $otherAdminsCount = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereHas('rule', fn ($q) => $q->whereIn('name', [Rules::Owner->value, Rules::Lab->value]))
+                ->count();
+
+            $remainingLabAdminsCount = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereHas('rule', fn ($q) => $q->where('name', Rules::Lab->value))
+                ->count();
+
+            if ($otherAdminsCount === 0 || $remainingLabAdminsCount === 0) {
+                Flux::toast(variant: 'danger', heading: 'Erro!', text: 'Não é possível excluir a conta do único administrador do laboratório.');
+                $this->addError('password', 'Não é possível excluir a conta do único administrador do laboratório.');
+
+                return;
+            }
+        }
+
+        if ($user->partner) {
+            $hasActiveDemands = PartnerDemand::where('partner_id', $user->partner->id)
+                ->whereNotNull('started_at')
+                ->whereNull('ended_at')
+                ->exists();
+
+            if ($hasActiveDemands) {
+                Flux::toast(variant: 'danger', heading: 'Erro!', text: 'Não é possível excluir a conta enquanto houver demandas em andamento.');
+                $this->addError('password', 'Não é possível excluir a conta enquanto houver demandas em andamento.');
+
+                return;
+            }
+        }
+
+        DB::transaction(function () use ($user) {
+            if ($user->dentist) {
+                $user->dentist->delete();
+            }
+
+            if ($user->partner) {
+                PartnerDemand::where('partner_id', $user->partner->id)
+                    ->whereNull('started_at')
+                    ->whereNull('ended_at')
+                    ->update(['partner_id' => null]);
+
+                $user->partner->serviceSteps()->detach();
+                $user->partner->delete();
+            }
+
+            $userId = $user->id;
+            $user->delete();
+
+            DB::table('sessions')->where('user_id', $userId)->delete();
+            InvitationToken::where('user_id', $userId)->delete();
+        });
+
+        $logout();
 
         $this->redirect('/', navigate: true);
     }

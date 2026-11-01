@@ -75,7 +75,7 @@ O sistema permite configurar comissões de técnicos parceiros como percentual (
 
 ## 5. Soft Deletes, Unicidade Ativa e Integridade Relacional
 
-- **Proibição de Hard Delete (`SoftDeletes` Obrigatório) ([spec](../specs/active/2026-10-deletion-integrity-and-authorization.md)):**
+- **Proibição de Hard Delete (`SoftDeletes` Obrigatório) ([spec](../specs/archived/2026-10-deletion-integrity-and-authorization.md)):**
   - As entidades `User`, `Dentist`, `Partner`, `Service`, `ServiceStep`, `Product` e `ProductCategory` utilizam obrigatoriamente `SoftDeletes` (`deleted_at`), nunca sendo removidas fisicamente do banco de dados (`forceDelete` retorna `false` nas Policies).
   - Relacionamentos `BelongsTo` que partem de registros históricos/transacionais (`DentistRequest`, `RequestService`, `PartnerDemand`, `ServiceServiceStep`, `StockBatch`, `StockMovement`, `RequestServiceConsumption`) declaram `->withTrashed()` para preservar a exibição de nomes e cálculos em pedidos concluídos e relatórios gerenciais.
 - **Unicidade Escopada a Registros Ativos (`whereNull('deleted_at')`):**

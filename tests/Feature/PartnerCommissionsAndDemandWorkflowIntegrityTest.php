@@ -7,6 +7,7 @@ use App\Enums\CommissionTypes;
 use App\Enums\Rules;
 use App\Enums\StockMovementsReasons;
 use App\Enums\StockMovementsTypes;
+use App\Enums\UnitMeasure;
 use App\Models\Dentist;
 use App\Models\DentistRequest;
 use App\Models\Partner;
@@ -298,7 +299,7 @@ class PartnerCommissionsAndDemandWorkflowIntegrityTest extends TestCase
         $product = Product::create([
             'name' => 'Resina Bisacrílica',
             'product_category_id' => $category->id,
-            'unit_of_measure' => \App\Enums\UnitMeasure::Unit->value,
+            'unit_of_measure' => UnitMeasure::Unit->value,
             'min_stock' => 5,
             'current_stock' => 10,
             'has_batches' => true,

@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\Product;
 use App\Models\ProductCategory;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -24,7 +26,17 @@ new class extends Component
 
     public function delete(): void
     {
-        $this->category->delete();
+        if (! $this->category) {
+            return;
+        }
+
+        $this->authorize('delete', $this->category);
+
+        DB::transaction(function () {
+            Product::withTrashed()->where('category_id', $this->category->id)->update(['category_id' => null]);
+            $this->category->delete();
+        });
+
         $this->dispatch('category::refresh');
         Flux::toast(variant: 'success', text: 'Categoria excluída com sucesso!');
         $this->closeModal();

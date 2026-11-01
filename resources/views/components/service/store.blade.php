@@ -46,11 +46,11 @@ new class extends Component
                 'string',
                 'min:3',
                 'max:255',
-                Rule::unique('services', 'name')->ignore($this->serviceId),
+                Rule::unique('services', 'name')->whereNull('deleted_at')->ignore($this->serviceId),
             ],
             'steps.*.service_step_id' => [
                 'required',
-                'exists:service_steps,id',
+                Rule::exists('service_steps', 'id')->whereNull('deleted_at'),
             ],
             'steps.*.order' => [
                 'required',

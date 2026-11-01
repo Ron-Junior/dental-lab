@@ -63,7 +63,7 @@ O módulo de estoque gerencia os materiais odontológicos e insumos utilizados n
    - O dashboard e alertas de compras destacam imediatamente materiais que atingem essa condição.
 6. **Precisão Fracionada:**
    - As quantidades utilizam 2 casas decimais (`DECIMAL(10,2)`), permitindo baixar por exemplo `0.25` gramas de maquiagem cerâmica ou `1.50` litros de líquido diluente.
-7. **Histórico Imutável de Movimentações e Soft Delete de Produtos/Categorias ([spec](../specs/active/2026-10-deletion-integrity-and-authorization.md)):**
+7. **Histórico Imutável de Movimentações e Soft Delete de Produtos/Categorias ([spec](../specs/archived/2026-10-deletion-integrity-and-authorization.md)):**
    - Movimentações de estoque não são editadas nem excluídas fisicamente. Correções de contagem são realizadas através de novos registros de ajuste (`StockMovement` com tipo `Adjustment` e motivos `AdjustmentIn` ou `AdjustmentOut`).
    - A exclusão de produtos (`Product`) e categorias (`ProductCategory`) exige autorização via Policy (`Owner`, `Lab`, `LabManager`) e utiliza exclusivamente **Soft Delete (`SoftDeletes`)**, sendo proibido o hard delete (`forceDelete` bloqueado e `restrictOnDelete` em `stock_batches.product_id`, `stock_movements.product_id` e `request_service_consumptions.product_id`).
    - As relações `StockBatch::product()`, `StockMovement::product()`, `RequestServiceConsumption::product()` e `Product::category()` utilizam `->withTrashed()` para preservar a rastreabilidade sanitária e o histórico de CMV mesmo para produtos ou categorias excluídos via Soft Delete.

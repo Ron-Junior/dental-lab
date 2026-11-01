@@ -37,9 +37,7 @@ new class extends Component
                 'string',
                 'email',
                 'max:255',
-                $editingUserId
-                    ? ValidationRule::unique('users', 'email')->ignore($editingUserId)
-                    : ValidationRule::unique('users', 'email'),
+                ValidationRule::unique('users', 'email')->whereNull('deleted_at')->ignore($editingUserId),
             ],
         ];
     }

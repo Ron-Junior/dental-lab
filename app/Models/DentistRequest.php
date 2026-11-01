@@ -30,7 +30,7 @@ class DentistRequest extends Model
 
     public function dentist(): BelongsTo
     {
-        return $this->belongsTo(Dentist::class);
+        return $this->belongsTo(Dentist::class)->withTrashed();
     }
 
     public function requestServices(): HasMany

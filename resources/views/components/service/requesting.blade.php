@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
@@ -25,7 +26,6 @@ new class extends Component
 {
     use EnforcesPlanLimits;
 
-    #[Validate(['required', 'exists:dentists,id'])]
     public ?int $dentistId = null;
 
     public array $uploadedFiles = [];
@@ -48,8 +48,9 @@ new class extends Component
     public function rules(): array
     {
         return [
+            'dentistId' => ['required', Rule::exists('dentists', 'id')->whereNull('deleted_at')],
             'services' => 'array|min:1',
-            'services.*.service_id' => 'required|exists:services,id',
+            'services.*.service_id' => ['required', Rule::exists('services', 'id')->whereNull('deleted_at')],
             'services.*.unit_price' => 'required',
             'services.*.quantity' => 'required|integer|min:1|max:1000000',
         ];
@@ -58,6 +59,8 @@ new class extends Component
     public function messages(): array
     {
         return [
+            'dentistId.required' => 'O dentista é obrigatório.',
+            'dentistId.exists' => 'O dentista selecionado é inválido.',
             'services.*.service_id.required' => 'O serviço é obrigatório.',
             'services.*.service_id.exists' => 'O serviço selecionado é inválido.',
             'services.*.unit_price.required' => 'O preço unitário é obrigatório.',

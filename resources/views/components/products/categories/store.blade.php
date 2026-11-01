@@ -2,16 +2,27 @@
 
 use App\Models\ProductCategory;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
-    #[Validate('required|min:3|max:255')]
     public ?string $name = null;
 
     public ?ProductCategory $category = null;
+
+    protected function rules(): array
+    {
+        return [
+            'name' => [
+                'required',
+                'min:3',
+                'max:255',
+                Rule::unique('product_categories', 'name')->whereNull('deleted_at')->ignore($this->category?->id),
+            ],
+        ];
+    }
 
     #[On('category::edit')]
     public function edit(?int $id = null): void

@@ -3,17 +3,26 @@
 use App\Models\Partner;
 use App\Models\PartnerDemand;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
     public ?PartnerDemand $partnerDemand = null;
 
-    #[Validate('required|exists:partners,id')]
     public ?int $partnerId = null;
+
+    protected function rules(): array
+    {
+        return [
+            'partnerId' => [
+                'required',
+                Rule::exists('partners', 'id')->whereNull('deleted_at'),
+            ],
+        ];
+    }
 
     #[On('assign-demand::open')]
     public function openModal(int $partnerDemandId): void

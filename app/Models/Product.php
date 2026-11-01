@@ -3,19 +3,23 @@
 namespace App\Models;
 
 use App\Enums\UnitMeasure;
+use App\Policies\ProductPolicy;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+#[UsePolicy(ProductPolicy::class)]
 #[Fillable(['category_id', 'name', 'barcode', 'unit_of_measure', 'current_stock', 'min_stock', 'unit_cost', 'has_batches', 'is_active'])]
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $casts = [
         'unit_of_measure' => UnitMeasure::class,
@@ -27,7 +31,7 @@ class Product extends Model
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(ProductCategory::class);
+        return $this->belongsTo(ProductCategory::class, 'category_id')->withTrashed();
     }
 
     public function batches(): HasMany

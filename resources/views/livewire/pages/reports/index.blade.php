@@ -73,8 +73,8 @@ new class extends Component
     #[Computed]
     public function dentists(): Collection
     {
-        return Dentist::query()
-            ->with('user:id,name')
+        return Dentist::withTrashed()
+            ->with(['user' => fn ($q) => $q->withTrashed()])
             ->join('users', 'dentists.user_id', '=', 'users.id')
             ->orderBy('users.name')
             ->get(['dentists.id', 'dentists.user_id']);
@@ -83,7 +83,7 @@ new class extends Component
     #[Computed]
     public function services(): Collection
     {
-        return Service::query()->orderBy('name')->get(['id', 'name']);
+        return Service::withTrashed()->orderBy('name')->get(['id', 'name']);
     }
 
     #[Computed]

@@ -29,7 +29,7 @@ class PartnerDemand extends Model
 
     public function partner(): BelongsTo
     {
-        return $this->belongsTo(Partner::class);
+        return $this->belongsTo(Partner::class)->withTrashed();
     }
 
     public function requestService(): BelongsTo

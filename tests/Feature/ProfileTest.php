@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Rules;
+use App\Models\Rule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,7 +21,7 @@ class ProfileTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/profile');
+        $response = $this->actingAs($user)->get(route('profile'));
 
         $response
             ->assertOk()
@@ -180,7 +182,9 @@ class ProfileTest extends TestCase
 
     public function test_user_can_delete_their_account(): void
     {
-        $user = User::factory()->create();
+        $labRule = Rule::firstOrCreate(['name' => Rules::Lab->value]);
+        $user = User::factory()->for($labRule)->create();
+        User::factory()->for($labRule)->create();
 
         $this->actingAs($user);
 
@@ -193,7 +197,7 @@ class ProfileTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
-        $this->assertNull($user->fresh());
+        $this->assertSoftDeleted($user);
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void

@@ -26,7 +26,7 @@ Fluxo (feature `UserImpersonation` do `stancl/tenancy`, tabela central `tenant_u
 
 O domínio do tenant vem de `domains`, nunca hardcoded.
 
-> **Proteção do Usuário Alvo de Impersonation ([spec](../specs/active/2026-10-deletion-integrity-and-authorization.md)):** O formulário de exclusão da própria conta (`resources/views/livewire/profile/delete-user-form.blade.php`) realiza `SoftDelete` no `User` (e no `Dentist` ou `Partner` vinculado, quando aplicável), mas bloqueia a autoexclusão quando o usuário autenticado é o único administrador ativo do laboratório (`Rules::Lab` / `Rules::Owner`). Isso garante que o tenant jamais fique órfão e preserva a disponibilidade de um usuário `Rules::Lab` ativo para `ImpersonateTenantService`.
+> **Proteção do Usuário Alvo de Impersonation ([spec](../specs/archived/2026-10-deletion-integrity-and-authorization.md)):** O formulário de exclusão da própria conta (`resources/views/livewire/profile/delete-user-form.blade.php`) realiza `SoftDelete` no `User` (e no `Dentist` ou `Partner` vinculado, quando aplicável), mas bloqueia a autoexclusão quando o usuário autenticado é o único administrador ativo do laboratório (`Rules::Lab` / `Rules::Owner`). Isso garante que o tenant jamais fique órfão e preserva a disponibilidade de um usuário `Rules::Lab` ativo para `ImpersonateTenantService`.
 
 ---
 

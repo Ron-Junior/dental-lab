@@ -6,11 +6,11 @@ use App\Models\Service;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
@@ -18,14 +18,24 @@ new class extends Component
     #[Locked]
     public ?int $requestServiceId = null;
 
-    #[Validate('required|integer|exists:services,id')]
     public ?int $serviceId = null;
 
-    #[Validate('required', 'Preço da Unidade', onUpdate: false)]
     public ?string $unitPrice = null;
 
-    #[Validate('required|integer|min:1|max:1000000')]
     public ?int $quantity = null;
+
+    protected $validationAttributes = [
+        'unitPrice' => 'Preço da Unidade',
+    ];
+
+    protected function rules(): array
+    {
+        return [
+            'serviceId' => ['required', 'integer', Rule::exists('services', 'id')->whereNull('deleted_at')],
+            'unitPrice' => ['required'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
+        ];
+    }
 
     #[On('service::update')]
     public function open(int $requestServiceId): void

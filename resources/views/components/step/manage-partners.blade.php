@@ -4,6 +4,7 @@ use App\Models\Partner;
 use App\Models\ServiceStep;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
@@ -19,7 +20,7 @@ new class extends Component
     protected function rules(): array
     {
         return [
-            'selectedPartners.*.partner_id' => 'required|distinct|exists:partners,id',
+            'selectedPartners.*.partner_id' => ['required', 'distinct', Rule::exists('partners', 'id')->whereNull('deleted_at')],
             'selectedPartners.*.commission' => 'required|numeric',
             'selectedPartners.*.commission_type' => 'required|in:percentage,fixed',
         ];

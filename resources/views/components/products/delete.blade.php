@@ -19,7 +19,13 @@ new class extends Component
 
     public function delete(): void
     {
-        Product::whereId($this->product->id)->delete();
+        if (! $this->product) {
+            return;
+        }
+
+        $this->authorize('delete', $this->product);
+
+        $this->product->delete();
 
         $this->dispatch('products::refresh');
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Produto deletado com sucesso!');

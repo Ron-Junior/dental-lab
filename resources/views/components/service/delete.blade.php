@@ -20,9 +20,14 @@ new class extends Component
 
     public function delete(): void
     {
-        $this->authorize('delete', Service::class);
-        
-        Service::find($this->serviceId)->delete();
+        $service = Service::find($this->serviceId);
+        if (! $service) {
+            return;
+        }
+
+        $this->authorize('delete', $service);
+
+        $service->delete();
         $this->dispatch('service::refresh');
         Flux::modals()->close();
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Serviço deletado com sucesso!');

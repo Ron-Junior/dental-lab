@@ -14,12 +14,12 @@ class ServiceServiceStep extends Pivot
 
     public function service(): BelongsTo
     {
-        return $this->belongsTo(Service::class);
+        return $this->belongsTo(Service::class)->withTrashed();
     }
 
     public function serviceStep(): BelongsTo
     {
-        return $this->belongsTo(ServiceStep::class);
+        return $this->belongsTo(ServiceStep::class)->withTrashed();
     }
 
     public function partnerDemands(): HasMany

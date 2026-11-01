@@ -35,4 +35,9 @@ class ServicePolicy
 
         return $user->rule->name == Rules::Owner || $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
     }
+
+    public function forceDelete(User $user, ?Service $service = null): bool
+    {
+        return false;
+    }
 }

@@ -2,19 +2,31 @@
 
 use App\Models\ServiceStep;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
     public ?ServiceStep $editingStep = null;
 
-    #[Validate('required|string|min:3|max:255')]
     public ?string $name = null;
 
-    #[Validate('required|string|min:3|max:255')]
     public ?string $description = null;
+
+    protected function rules(): array
+    {
+        return [
+            'name' => [
+                'required',
+                'string',
+                'min:3',
+                'max:255',
+                Rule::unique('service_steps', 'name')->whereNull('deleted_at')->ignore($this->editingStep?->id),
+            ],
+            'description' => ['required', 'string', 'min:3', 'max:255'],
+        ];
+    }
 
     #[On('step::edit')]
     public function edit(int $id): void

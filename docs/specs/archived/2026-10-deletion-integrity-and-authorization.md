@@ -1,7 +1,8 @@
 # Especificação: Soft Delete Obrigatório, Autorização, Integridade Referencial e Regras de Negócio na Exclusão
 
 - **Identificador:** `2026-10-deletion-integrity-and-authorization`
-- **Status:** Em Planejamento / Ativo
+- **Status:** Concluído / Implementado
+- **Data de Conclusão:** 2026-10-31
 - **Data:** Outubro de 2026
 - **Módulos Afetados:**
   - Modelos Eloquent (`User`, `Dentist`, `Partner`, `Service`, `ServiceStep`, `Product`, `ProductCategory`, `DentistRequest`, `RequestService`, `PartnerDemand`, `ServiceServiceStep`, `StockBatch`, `StockMovement`, `RequestServiceConsumption`)
