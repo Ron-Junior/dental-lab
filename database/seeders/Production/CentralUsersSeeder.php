@@ -6,34 +6,51 @@ use App\Models\CentralUser;
 use App\Notifications\CentralUserInviteNotification;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class CentralUsersSeeder extends Seeder
 {
     public function run(): void
     {
-        $ronaldoUser = CentralUser::create([
-            'name' => 'Ronaldo Costa',
-            'email' => 'ronaldoj.w2007@gmail.com',
-        ]);
-
-        $elmoUser = CentralUser::create([
-            'name' => 'Elmo Neto',
-            'email' => 'elminho90@gmail.com',
-        ]);
-
-        $urlCadastroRonaldo = URL::temporarySignedRoute(
-            'invite.registration',
-            now()->addHours(24),
-            ['email' => $ronaldoUser->email]
+        $ronaldoUser = CentralUser::firstOrCreate(
+            ['email' => 'ronaldoj.w2007@gmail.com'],
+            ['name' => 'Ronaldo Costa']
         );
 
-        $urlCadastroElmo = URL::temporarySignedRoute(
-            'invite.registration',
-            now()->addHours(24),
-            ['email' => $elmoUser->email]
+        $elmoUser = CentralUser::firstOrCreate(
+            ['email' => 'elminho90@gmail.com'],
+            ['name' => 'Elmo Neto']
         );
 
-        $ronaldoUser->notify(new CentralUserInviteNotification($urlCadastroRonaldo));
-        $elmoUser->notify(new CentralUserInviteNotification($urlCadastroElmo));
+        $this->issueInvite($ronaldoUser);
+        $this->issueInvite($elmoUser);
+    }
+
+    protected function issueInvite(CentralUser $centralUser): void
+    {
+        if ($centralUser->password !== null || $centralUser->email_verified_at !== null) {
+            return;
+        }
+
+        $centralUser->invitationToken()->delete();
+
+        $token = Str::random(64);
+        $expiresAt = now()->addHours(24);
+
+        $centralUser->invitationToken()->create([
+            'token' => $token,
+            'expires_at' => $expiresAt,
+        ]);
+
+        $urlCadastro = URL::temporarySignedRoute(
+            'invite.registration',
+            $expiresAt,
+            [
+                'email' => $centralUser->email,
+                'token' => $token,
+            ]
+        );
+
+        $centralUser->notify(new CentralUserInviteNotification($urlCadastro));
     }
 }

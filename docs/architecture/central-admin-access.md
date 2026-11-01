@@ -13,6 +13,14 @@ Define como os sócios acessam o painel central e inspecionam laboratórios com 
 - Interface exclusivamente Volt em `resources/views/livewire/pages/central/` (`laboratories/index.blade.php` unificando filtros de status/inadimplência e ações).
 - Gestão de planos (`/planos`, `central.plans.index`) e rentabilidade/custos operacionais (`/planos/rentabilidade`, `central.plans.profitability`) ficam no mesmo grupo protegido. Reajustes de preço são registrados em `plan_price_changes` com o sócio responsável. Ver [spec](../specs/archived/2026-10-plan-management-and-profitability.md).
 
+### 1.1. Convite e Conclusão de Cadastro de Sócios (`register-invite`)
+
+- Novos sócios (`CentralUser`) são criados inicialmente sem senha (`password = null`, `email_verified_at = null`) e recebem um link assinado (`/convite/registrar`, rota `invite.registration` sob middleware `signed`) via `CentralUserInviteNotification`.
+- **Proteção contra Account Takeover ([spec](../specs/archived/2026-10-central-register-invite-account-takeover-protection.md)):**
+  - As propriedades públicas de contexto e controle em `resources/views/livewire/pages/auth/register-invite.blade.php` (`$email`, `$token` e `$isExpired`) utilizam obrigatoriamente o atributo `#[Locked]` (`Livewire\Attributes\Locked`), impedindo mutação de `$email` ou `$token` em requisições `POST /livewire/update`.
+  - Todo convite gera um token de uso único com expiração de 24 horas persistido na tabela central `central_invitation_tokens` (`App\Models\CentralInvitationToken`), vinculado a `central_user_id`.
+  - Tanto no `mount()` quanto no `register()`, o componente valida se o `CentralInvitationToken` pertence ao `CentralUser` alvo (`where('central_user_id', $user->id)->whereNull('used_at')->where('expires_at', '>', now())`) e **impede a sobrescrita** caso o `CentralUser` já tenha finalizado o cadastro (`password !== null` ou `email_verified_at !== null`). Após a conclusão, o token é imediatamente invalidado/removido no banco central.
+
 ---
 
 ## 2. Impersonation
