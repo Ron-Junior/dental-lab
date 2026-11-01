@@ -9,16 +9,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Validate;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.guest')] class extends Component
 {
-    #[Url()]
+    #[Url, Locked]
     public string $token = '';
 
-    #[Url()]
+    #[Url, Locked]
     #[Validate('required|email|max:255')]
     public string $email = '';
 
@@ -27,6 +28,7 @@ new #[Layout('layouts.guest')] class extends Component
 
     public string $password_confirmation = '';
 
+    #[Locked]
     public bool $isExpired = false;
 
     public bool $resent = false;
@@ -75,26 +77,29 @@ new #[Layout('layouts.guest')] class extends Component
             return redirect()->route('login');
         }
 
-        $invitation = InvitationToken::query()
-            ->with('user.rule')
-            ->where('token', $this->token)
-            ->whereNull('used_at')
-            ->where('expires_at', '>', now())
-            ->first();
+        $user = ! empty($this->email)
+            ? User::query()->with('rule')->where('email', $this->email)->first()
+            : null;
 
-        if (! $invitation || ! $invitation->user) {
-            if (! empty($this->email)) {
-                $existingUser = User::query()->where('email', $this->email)->first();
-                if ($existingUser && ! $this->isOwnerFirstAccess($existingUser, $this->email)) {
-                    if ($existingUser->email_verified_at !== null && $existingUser->password !== null) {
-                        Flux::toast(variant: 'info', text: 'Seu cadastro já foi concluído anteriormente. Acesse sua conta.');
+        $invitation = $user && ! empty($this->token)
+            ? InvitationToken::query()
+                ->where('token', $this->token)
+                ->where('user_id', $user->id)
+                ->whereNull('used_at')
+                ->where('expires_at', '>', now())
+                ->first()
+            : null;
 
-                        return redirect()->route('login');
-                    }
+        if (! $user || ! $invitation) {
+            if ($user && ! $this->isOwnerFirstAccess($user, $this->email)) {
+                if ($user->email_verified_at !== null && $user->password !== null) {
+                    Flux::toast(variant: 'info', text: 'Seu cadastro já foi concluído anteriormente. Acesse sua conta.');
+
+                    return redirect()->route('login');
                 }
             }
 
-            $isOwner = $this->isOwnerFirstAccess(null, $this->email);
+            $isOwner = $this->isOwnerFirstAccess($user, $this->email);
             if ($isOwner && $currentTenant && $currentTenant->isVerified()) {
                 Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
 
@@ -106,15 +111,9 @@ new #[Layout('layouts.guest')] class extends Component
             return;
         }
 
-        if (! empty($this->email) && strcasecmp($this->email, $invitation->user->email) !== 0) {
-            $this->isExpired = true;
+        $this->email = $user->email;
 
-            return;
-        }
-
-        $this->email = $invitation->user->email;
-
-        $isOwner = $this->isOwnerFirstAccess($invitation->user, $this->email);
+        $isOwner = $this->isOwnerFirstAccess($user, $this->email);
         if ($isOwner && $currentTenant && $currentTenant->isVerified()) {
             Flux::toast(variant: 'warning', text: 'O primeiro acesso deste laboratório já foi realizado.');
 
@@ -153,24 +152,24 @@ new #[Layout('layouts.guest')] class extends Component
 
         $this->validate();
 
-        $invitation = InvitationToken::query()
-            ->with('user.rule')
-            ->where('token', $this->token)
-            ->whereNull('used_at')
-            ->where('expires_at', '>', now())
-            ->first();
+        $user = ! empty($this->email)
+            ? User::query()->with('rule')->where('email', $this->email)->first()
+            : null;
 
-        if (! $invitation || ! $invitation->user) {
+        $invitation = $user && ! empty($this->token)
+            ? InvitationToken::query()
+                ->where('token', $this->token)
+                ->where('user_id', $user->id)
+                ->whereNull('used_at')
+                ->where('expires_at', '>', now())
+                ->first()
+            : null;
+
+        if (! $user || ! $invitation) {
             $this->isExpired = true;
             Flux::toast(variant: 'danger', text: 'Token de convite inválido ou expirado.');
 
             return;
-        }
-
-        $user = $invitation->user;
-
-        if (! empty($this->email) && strcasecmp($this->email, $user->email) !== 0) {
-            abort(403, 'Acesso não autorizado para o e-mail informado.');
         }
 
         $currentTenant = tenant();
@@ -263,7 +262,7 @@ new #[Layout('layouts.guest')] class extends Component
             </div>
 
             <form class="flex flex-col gap-4" wire:submit="completeRegistration">
-                <flux:input type="email" label="E-mail" wire:model="email" readonly />
+                <flux:input type="email" label="E-mail" :value="$email" readonly />
 
                 <flux:input
                     type="password"

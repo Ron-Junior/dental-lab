@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -296,28 +297,115 @@ class PartnerDentistSecurityAndInvitationTest extends TestCase
 
         $ownerOriginalPasswordHash = $this->ownerUser->password;
 
-        // Cenário 1: Convidado passa e-mail adulterado para o dono do laboratório no mount
+        // Cenário 1: Convidado passa e-mail adulterado para o dono do laboratório no mount (validação cruzada token + user_id)
         Volt::test('pages.auth.complete-registration', [
             'token' => $partnerToken,
             'email' => 'proprietario@lab.test',
         ])
             ->assertSet('isExpired', true);
 
-        // Cenário 2: Convidado tenta chamar completeRegistration forçando o e-mail do proprietário
-        Volt::test('pages.auth.complete-registration', [
+        // Cenário 2: Convidado tenta adulterar $email (propriedade #[Locked]) após o mount
+        $component = Volt::test('pages.auth.complete-registration', [
             'token' => $partnerToken,
             'email' => 'parceiro@lab.test',
-        ])
-            ->set('email', 'proprietario@lab.test')
-            ->set('password', 'HackedPassword123!')
-            ->set('password_confirmation', 'HackedPassword123!')
-            ->call('completeRegistration')
-            ->assertStatus(403);
+        ])->assertSet('isExpired', false);
+
+        try {
+            $component->set('email', 'proprietario@lab.test');
+            $this->fail('Expected CannotUpdateLockedPropertyException when mutating locked property $email.');
+        } catch (CannotUpdateLockedPropertyException) {
+            // Exceção esperada pelo atributo #[Locked]
+        }
+
+        // Cenário 3: Tentativa de adulterar $token (propriedade #[Locked])
+        try {
+            $component->set('token', 'forged_token');
+            $this->fail('Expected CannotUpdateLockedPropertyException when mutating locked property $token.');
+        } catch (CannotUpdateLockedPropertyException) {
+            // Exceção esperada pelo atributo #[Locked]
+        }
+
+        // Cenário 4: Tentativa de adulterar $isExpired (propriedade #[Locked])
+        $expiredComponent = Volt::test('pages.auth.complete-registration', [
+            'token' => $partnerToken,
+            'email' => 'proprietario@lab.test',
+        ])->assertSet('isExpired', true);
+
+        try {
+            $expiredComponent->set('isExpired', false);
+            $this->fail('Expected CannotUpdateLockedPropertyException when mutating locked property $isExpired.');
+        } catch (CannotUpdateLockedPropertyException) {
+            // Exceção esperada pelo atributo #[Locked]
+        }
 
         // A senha do proprietário deve permanecer intacta
         $this->ownerUser->refresh();
         $this->assertSame($ownerOriginalPasswordHash, $this->ownerUser->password);
         $this->assertTrue(Hash::check('OwnerOldPassword123!', $this->ownerUser->password));
+    }
+
+    public function test_complete_registration_revalidates_token_and_user_id_if_token_expires_after_mount(): void
+    {
+        $partnerRule = Rule::firstOrCreate(['name' => Rules::LabPartner->value]);
+        $partnerUser = User::factory()->create([
+            'name' => 'Parceiro Token Revogado',
+            'email' => 'revogado@lab.test',
+            'rule_id' => $partnerRule->id,
+            'password' => null,
+            'email_verified_at' => null,
+        ]);
+
+        $token = 'valid_at_mount_token';
+        $invitation = $partnerUser->invitationToken()->create([
+            'token' => $token,
+            'expires_at' => now()->addHours(48),
+        ]);
+
+        $component = Volt::test('pages.auth.complete-registration', [
+            'token' => $token,
+            'email' => 'revogado@lab.test',
+        ])->assertSet('isExpired', false);
+
+        // Token expira ou é removido antes da submissão do formulário
+        $invitation->update(['expires_at' => now()->subMinute()]);
+
+        $component
+            ->set('password', 'NewPassword123!')
+            ->set('password_confirmation', 'NewPassword123!')
+            ->call('completeRegistration')
+            ->assertSet('isExpired', true);
+
+        $partnerUser->refresh();
+        $this->assertNull($partnerUser->password);
+        $this->assertNull($partnerUser->email_verified_at);
+    }
+
+    public function test_owner_completing_registration_marks_tenant_as_verified(): void
+    {
+        $this->assertNull($this->testTenant->verified_at);
+
+        $token = 'valid_owner_first_access_token';
+        $this->ownerUser->invitationToken()->create([
+            'token' => $token,
+            'expires_at' => now()->addHours(48),
+        ]);
+
+        Volt::test('pages.auth.complete-registration', [
+            'token' => $token,
+            'email' => $this->ownerUser->email,
+        ])
+            ->assertSet('isExpired', false)
+            ->set('password', 'OwnerNewPassword123!')
+            ->set('password_confirmation', 'OwnerNewPassword123!')
+            ->call('completeRegistration')
+            ->assertHasNoErrors()
+            ->assertRedirect(route('dashboard'));
+
+        $this->ownerUser->refresh();
+        $this->assertTrue(Hash::check('OwnerNewPassword123!', $this->ownerUser->password));
+        $this->assertNotNull($this->ownerUser->email_verified_at);
+        $this->assertNotNull($this->testTenant->fresh()->verified_at);
+        $this->assertTrue($this->testTenant->fresh()->isVerified());
     }
 
     public function test_complete_registration_fails_and_does_not_change_password_with_invalid_or_expired_token(): void

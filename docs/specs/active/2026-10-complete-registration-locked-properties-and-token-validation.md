@@ -1,8 +1,9 @@
 # Especificação: Proteção de Propriedades Livewire (`#[Locked]`) e Validação Cruzada de Token em `complete-registration`
 
 - **Identificador:** `2026-10-complete-registration-locked-properties-and-token-validation`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:**
   - Autenticação e Convites Tenant (`resources/views/livewire/pages/auth/complete-registration.blade.php`)
   - Modelos Eloquent (`App\Models\InvitationToken`, `App\Models\User`)
@@ -14,7 +15,7 @@
 
 A demanda **2.1 ([CRÍTICA] Account Takeover em `complete-registration` via Propriedades Livewire Desprotegidas)** aponta três pontos de vulnerabilidade na tela de conclusão de cadastro de usuários convidados e primeiro acesso do laboratório (`resources/views/livewire/pages/auth/complete-registration.blade.php`).
 
-Parte desta demanda já foi endereçada na especificação arquivada [`2026-10-partner-dentist-privilege-escalation-and-invitation-security`](../archived/2026-10-partner-dentist-privilege-escalation-and-invitation-security.md), restando lacunas específicas de blindagem do estado Livewire e de consulta explícita por `user_id`.
+Parte desta demanda já foi endereçada na especificação arquivada [`2026-10-partner-dentist-privilege-escalation-and-invitation-security`](./2026-10-partner-dentist-privilege-escalation-and-invitation-security.md), restando lacunas específicas de blindagem do estado Livewire e de consulta explícita por `user_id`.
 
 ### 1.1. O que JÁ FOI implementado
 - **Isolamento do `$currentTenant->markAsVerified()`:** Em `completeRegistration()` (linhas 177-196), a marcação do laboratório como verificado já está restrita exclusivamente ao proprietário/admin inicial (`if ($isOwner && $currentTenant && ! $currentTenant->isVerified())`). Convidados (`Dentist` ou `LabPartner`) não marcam mais o tenant como verificado.
@@ -132,6 +133,6 @@ Parte desta demanda já foi endereçada na especificação arquivada [`2026-10-p
 
 - [Domínio: Cobrança & Assinaturas — §6 Primeiro Acesso Protegido e Convites de Usuários](../../domain/billing.md)
 - [Arquitetura: Tech Stack & Convenções Técnicas — §3.3 Livewire & Volt](../../architecture/tech-stack.md)
-- [Especificação Arquivada: Prevenção de Escalação de Privilégio na Gestão de Parceiros/Dentistas e Isolamento de Convites](../archived/2026-10-partner-dentist-privilege-escalation-and-invitation-security.md)
-- [Especificação Arquivada: Onboarding do Laboratório, Checkout Stripe e Primeiro Acesso Protegido](../archived/2026-10-tenant-onboarding-and-billing.md)
+- [Especificação Arquivada: Prevenção de Escalação de Privilégio na Gestão de Parceiros/Dentistas e Isolamento de Convites](./2026-10-partner-dentist-privilege-escalation-and-invitation-security.md)
+- [Especificação Arquivada: Onboarding do Laboratório, Checkout Stripe e Primeiro Acesso Protegido](./2026-10-tenant-onboarding-and-billing.md)
 
