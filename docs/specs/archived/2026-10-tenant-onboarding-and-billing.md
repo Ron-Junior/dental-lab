@@ -79,8 +79,9 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
    - Altera o status do tenant para `active`.
    - Envia e-mail de boas-vindas com o link de primeiro acesso (`TenantWelcomeNotification`).
 2. **Tela de Boas-Vindas (`/bem-vindo/{tenant}`):**
+   - Protegida contra acesso público não autorizado (exige sessão do criador do laboratório, assinatura de URL válida ou sócio central autenticado, conforme [2026-10-onboarding-checkout-and-first-access-url-protection](../active/2026-10-onboarding-checkout-and-first-access-url-protection.md)).
    - Polling reativo a cada 3 segundos (`wire:poll.3s`).
-   - Quando o status atinge `active`, libera o botão **"Acessar plataforma e criar senha"** apontando para a URL assinada no subdomínio.
+   - Quando o status atinge `active`, orienta o proprietário a utilizar o link seguro enviado ao `owner_email` e libera o botão de acesso direcionando para a tela de login do subdomínio (`route('login', ['tenant' => $tenant->id])`), sem jamais armazenar ou expor a URL assinada de `/completar-cadastro` (`first_access_url`) no HTML ou nos metadados do tenant.
 
 ### 3.4. Etapa 4: Conclusão do Primeiro Acesso e Convites no Subdomínio
 
@@ -111,8 +112,7 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
 1. **Ação Centralizada (`ResendFirstAccessLink`):**
    - Valida se o laboratório não foi verificado (`!$tenant->isVerified()`). Se já verificado, lança exceção e bloqueia o reenvio.
    - Executa no banco isolado do tenant: invalida tokens anteriores do usuário dono (`$user->invitationToken()->delete()`), gera novo token e cria nova URL assinada temporária válida por 48 horas (`URL::temporarySignedRoute('complete-signup.show', ...)`).
-   - Atualiza `first_access_url` nos metadados do `Tenant` no banco central.
-   - Reenvia a notificação por e-mail `TenantWelcomeNotification` para o `owner_email`.
+   - Reenvia a notificação por e-mail `TenantWelcomeNotification` para o `owner_email` sem persistir a `first_access_url` nos metadados públicos do `Tenant` ([2026-10-onboarding-checkout-and-first-access-url-protection](../active/2026-10-onboarding-checkout-and-first-access-url-protection.md)).
 2. **Ponto de Entrada 1: Tela de Primeiro Acesso (`/completar-cadastro`):**
    - Se o token da URL estiver expirado (`expires_at < now()`) ou inexistente, a tela não exibe o formulário de senha e mostra card amigável avisando da expiração com botão reativo para **"Reenviar novo link para meu e-mail"**.
 3. **Ponto de Entrada 2: Tela de Login do Laboratório (`/login`):**
