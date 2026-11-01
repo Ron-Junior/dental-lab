@@ -72,6 +72,7 @@ O sistema é um **SaaS B2B Multitenant** projetado para atender laboratórios de
 ### 3.3. Livewire & Volt
 - Componentes single-file em `resources/views/livewire/`.
 - Priorize manter o estado e as validações no lado do servidor.
+- **Proteção de Estado Sensível com `#[Locked]` ([spec](../specs/active/2026-10-complete-registration-locked-properties-and-token-validation.md)):** Propriedades públicas que armazenam identificadores, tokens de convite/autenticação, e-mails de contexto validados via URL assinada (`signed`) ou flags de controle de segurança/expiração (como `$token`, `$email` e `$isExpired` em `complete-registration.blade.php`) devem utilizar obrigatoriamente o atributo `#[Locked]` (`Livewire\Attributes\Locked`) para impedir adulteração no payload de requisições `POST /livewire/update`.
 - Use componentes Flux UI para botões, modais, formulários e dropdowns, preservando acessibilidade e estados de loading.
 
 ### 3.4. Pint & Formatação
