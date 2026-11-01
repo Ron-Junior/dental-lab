@@ -53,10 +53,6 @@ class ResendFirstAccessLink
             );
         });
 
-        // Atualiza a URL mais recente nos metadados do tenant
-        $tenant->first_access_url = $firstAccessUrl;
-        $tenant->save();
-
         // Dispara o e-mail de notificação com o novo link
         Notification::route('mail', $userEmail)
             ->notify(new TenantWelcomeNotification(

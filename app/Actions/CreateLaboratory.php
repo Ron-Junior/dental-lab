@@ -174,6 +174,8 @@ class CreateLaboratory
             ]);
         }
 
+        Tenant::authorizeOnboardingSession($tenant->id);
+
         return $tenant;
     }
 

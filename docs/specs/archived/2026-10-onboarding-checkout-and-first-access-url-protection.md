@@ -1,8 +1,9 @@
 # Especificação: Proteção das Rotas de Onboarding/Checkout e Eliminação da Exposição Pública de `first_access_url`
 
 - **Identificador:** `2026-10-onboarding-checkout-and-first-access-url-protection`
-- **Status:** Planejado / Em Andamento
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-10-31
 - **Módulos Afetados:**
   - Rotas Centrais e Middleware (`routes/web.php`, `app/Http/Middleware/EnsureTenantIsOperational.php`)
   - Fluxo Central de Onboarding e Checkout (`resources/views/livewire/pages/central/onboarding.blade.php`, `resources/views/livewire/pages/central/checkout.blade.php`, `resources/views/livewire/pages/auth/central-registration.blade.php`, `resources/views/livewire/pages/central/admin/laboratories/create.blade.php`)

@@ -30,4 +30,3 @@ class CentralInvitationToken extends Model
         return $this->belongsTo(CentralUser::class, 'central_user_id');
     }
 }
-

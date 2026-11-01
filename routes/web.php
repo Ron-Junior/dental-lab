@@ -26,9 +26,12 @@ Route::domain(config('tenancy.central_domain'))->group(function () {
     });
 
     Volt::route('/cadastro', 'pages.auth.central-registration')->name('onboarding.create');
-    Volt::route('/checkout/{tenant}', 'pages.central.checkout')->name('onboarding.checkout');
+    Volt::route('/checkout/{tenant}', 'pages.central.checkout')
+        ->name('onboarding.checkout')
+        ->middleware('onboarding.access');
     Volt::route('/bem-vindo/{tenant}', 'pages.central.onboarding')
-        ->name('onboarding.show');
+        ->name('onboarding.show')
+        ->middleware('onboarding.access');
 
     Route::post('/webhook/payment', [PaymentWebhookController::class, 'handle'])
         ->name('webhook.payment');

@@ -150,10 +150,6 @@ class ProvisionTenant implements ShouldQueue
             );
         });
 
-        // Salvar a URL de primeiro acesso nos metadados do tenant para a tela de boas-vindas
-        if ($firstAccessUrl !== null) {
-            $tenant->first_access_url = $firstAccessUrl;
-        }
         $tenant->status = TenantStatus::Active;
         $tenant->save();
 

@@ -68,9 +68,9 @@ class ResendFirstAccessTest extends TestCase
         $this->assertNotNull($newToken);
         $this->assertTrue($newToken->expires_at->isFuture());
 
-        // Tenant metadata must be updated
+        // Tenant metadata must NOT contain first_access_url
         $this->testTenant->refresh();
-        $this->assertSame($newUrl, $this->testTenant->first_access_url);
+        $this->assertNull($this->testTenant->first_access_url);
 
         // Notification must be dispatched
         Notification::assertSentOnDemand(

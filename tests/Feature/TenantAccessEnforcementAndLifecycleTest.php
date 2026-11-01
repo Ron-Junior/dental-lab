@@ -114,17 +114,19 @@ class TenantAccessEnforcementAndLifecycleTest extends TestCase
     {
         $user = $this->userWithRule(Rules::LabManager);
 
-        // PendingPayment redireciona para onboarding.checkout
+        // PendingPayment redireciona para onboarding.checkout com URL assinada temporária
         $this->testTenant->update(['status' => TenantStatus::PendingPayment]);
-        $this->actingAs($user)
-            ->get(route('dashboard'))
-            ->assertRedirect(route('onboarding.checkout', ['tenant' => $this->testTenant->getTenantKey()]));
+        $responseCheckout = $this->actingAs($user)
+            ->get(route('dashboard'));
+        $this->assertStringStartsWith(route('onboarding.checkout', ['tenant' => $this->testTenant->getTenantKey()]), $responseCheckout->headers->get('Location'));
+        $this->assertTrue(request()->create($responseCheckout->headers->get('Location'))->hasValidSignature());
 
-        // Provisioning redireciona para onboarding.show
+        // Provisioning redireciona para onboarding.show com URL assinada temporária
         $this->testTenant->update(['status' => TenantStatus::Provisioning]);
-        $this->actingAs($user)
-            ->get(route('dashboard'))
-            ->assertRedirect(route('onboarding.show', ['tenant' => $this->testTenant->getTenantKey()]));
+        $responseShow = $this->actingAs($user)
+            ->get(route('dashboard'));
+        $this->assertStringStartsWith(route('onboarding.show', ['tenant' => $this->testTenant->getTenantKey()]), $responseShow->headers->get('Location'));
+        $this->assertTrue(request()->create($responseShow->headers->get('Location'))->hasValidSignature());
 
         // Failed retorna 403
         $this->testTenant->update(['status' => TenantStatus::Failed]);

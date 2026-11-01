@@ -92,6 +92,8 @@ class TenantRegistrationFlowTest extends TestCase
             'current_period_end' => now()->addMonth(),
         ]);
 
+        Tenant::authorizeOnboardingSession($tenant->id);
+
         Volt::test('pages.central.checkout', ['tenant' => $tenant])
             ->assertDontSee('14 DIAS DE TESTE GRÁTIS')
             ->assertDontSee('após o trial')
@@ -148,6 +150,8 @@ class TenantRegistrationFlowTest extends TestCase
             'due_date' => now(),
         ]);
 
+        Tenant::authorizeOnboardingSession($tenant->id);
+
         Volt::test('pages.central.checkout', ['tenant' => $tenant])
             ->assertSee($this->plan->name)
             ->assertSee($secondPlan->name)
@@ -191,6 +195,8 @@ class TenantRegistrationFlowTest extends TestCase
             'value_in_cents' => 20,
             'expires_at' => now()->addDays(5),
         ]);
+
+        Tenant::authorizeOnboardingSession($tenant->id);
 
         Volt::test('pages.central.checkout', ['tenant' => $tenant])
             ->assertSee('Finalizar Assinatura')

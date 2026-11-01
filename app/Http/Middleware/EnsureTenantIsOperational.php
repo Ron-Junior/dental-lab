@@ -6,6 +6,7 @@ use App\Enums\TenantStatus;
 use App\Models\Tenant;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureTenantIsOperational
@@ -29,13 +30,13 @@ class EnsureTenantIsOperational
             if ($tenant->status === TenantStatus::PendingPayment) {
                 return $request->expectsJson()
                     ? response()->json(['message' => 'Pagamento pendente para ativação do laboratório.'], 402)
-                    : redirect()->route('onboarding.checkout', ['tenant' => $tenant->getTenantKey()]);
+                    : redirect()->to(URL::temporarySignedRoute('onboarding.checkout', now()->addMinutes(30), ['tenant' => $tenant->getTenantKey()]));
             }
 
             if ($tenant->status === TenantStatus::Provisioning) {
                 return $request->expectsJson()
                     ? response()->json(['message' => 'Laboratório em processo de provisionamento.'], 403)
-                    : redirect()->route('onboarding.show', ['tenant' => $tenant->getTenantKey()]);
+                    : redirect()->to(URL::temporarySignedRoute('onboarding.show', now()->addMinutes(30), ['tenant' => $tenant->getTenantKey()]));
             }
 
             return $request->expectsJson()

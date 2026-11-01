@@ -4,25 +4,36 @@ use App\Enums\TenantStatus;
 use App\Models\Tenant;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.guest')] class extends Component
 {
+    #[Locked]
     public Tenant $tenant;
 
     public function mount(Tenant $tenant): void
     {
+        abort_unless(Tenant::isOnboardingAuthorizedForCurrentRequest(request(), $tenant), 403);
+
         $this->tenant = $tenant;
 
         if ($this->tenant->status === TenantStatus::Active) {
-            $this->redirect($this->firstAccessUrl);
+            $this->redirect($this->loginUrl);
+        }
+    }
+
+    public function booted(): void
+    {
+        if (isset($this->tenant)) {
+            abort_unless(Tenant::isOnboardingAuthorizedForCurrentRequest(request(), $this->tenant), 403);
         }
     }
 
     #[Computed]
-    public function firstAccessUrl(): string
+    public function loginUrl(): string
     {
-        return $this->tenant->first_access_url ?? $this->tenant->data['first_access_url'] ?? route('login', ['tenant' => $this->tenant->id]);
+        return route('login', ['tenant' => $this->tenant->id]);
     }
 
     public function refreshStatus(): void
@@ -45,9 +56,9 @@ new #[Layout('layouts.guest')] class extends Component
             @if ($tenant->status === TenantStatus::Active)
                 <div class="flex flex-col items-center gap-4">
                     <flux:badge color="green" size="lg" icon="check-circle">Configuração Concluída!</flux:badge>
-                    <flux:text class="text-sm">Seu ambiente está pronto. Clique no botão abaixo para criar sua senha e realizar seu primeiro acesso.</flux:text>
-                    <flux:button href="{{ $this->firstAccessUrl }}" variant="primary" icon:trailing="arrow-right">
-                        Acessar plataforma e criar senha
+                    <flux:text class="text-sm">Seu ambiente está pronto. O link seguro para definição de senha foi enviado para <strong>{{ $tenant->owner_email }}</strong>.</flux:text>
+                    <flux:button href="{{ $this->loginUrl }}" variant="primary" icon:trailing="arrow-right">
+                        Acessar plataforma
                     </flux:button>
                 </div>
             @elseif ($tenant->status === TenantStatus::Failed)

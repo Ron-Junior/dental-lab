@@ -9,7 +9,9 @@ use App\Policies\TenantPolicy;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Stancl\Tenancy\Contracts\TenantWithDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDatabase;
 use Stancl\Tenancy\Database\Concerns\HasDomains;
@@ -50,7 +52,55 @@ class Tenant extends BaseTenant implements TenantWithDatabase
 
     public function markAsVerified(): void
     {
-        $this->update(['verified_at' => now()]);
+        $this->verified_at = now();
+
+        if (isset($this->first_access_url)) {
+            unset($this->first_access_url);
+        }
+
+        if (isset($this->data['first_access_url'])) {
+            $data = $this->data;
+            unset($data['first_access_url']);
+            $this->data = $data;
+        }
+
+        $this->save();
+    }
+
+    public static function authorizeOnboardingSession(string $tenantId): void
+    {
+        try {
+            session()->put("onboarding_authorized_tenants.{$tenantId}", true);
+        } catch (\Throwable) {
+            // Fallback or ignore in non-session environments
+        }
+    }
+
+    public static function isOnboardingAuthorizedForCurrentRequest(Request $request, self $tenant): bool
+    {
+        if (Auth::guard('central')->check()) {
+            return true;
+        }
+
+        try {
+            if ($request->hasSession() && $request->session()->get("onboarding_authorized_tenants.{$tenant->id}") === true) {
+                return true;
+            }
+
+            if (session()->get("onboarding_authorized_tenants.{$tenant->id}") === true) {
+                return true;
+            }
+        } catch (\Throwable) {
+            // Ignore session errors
+        }
+
+        if ($request->hasValidSignature()) {
+            static::authorizeOnboardingSession($tenant->id);
+
+            return true;
+        }
+
+        return false;
     }
 
     public function subscriptions(): HasMany

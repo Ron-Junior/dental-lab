@@ -14,10 +14,12 @@ use App\Services\StripeService;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] class extends Component
 {
+    #[Locked]
     public Tenant $tenant;
 
     public ?Subscription $subscription = null;
@@ -35,12 +37,13 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         StripeService $stripeService,
         ApplyDiscountService $applyDiscountService,
     ): void {
+        abort_unless(Tenant::isOnboardingAuthorizedForCurrentRequest(request(), $tenant), 403);
+
         $this->tenant = $tenant;
 
         // Se já está ativo, redirecionar
         if ($this->tenant->status === TenantStatus::Active) {
-            $url = $this->tenant->first_access_url ?? $this->tenant->data['first_access_url'] ?? route('login', ['tenant' => $this->tenant->id]);
-            $this->redirect($url, navigate: true);
+            $this->redirect(route('login', ['tenant' => $this->tenant->id]), navigate: true);
 
             return;
         }
@@ -51,6 +54,7 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
                 CreateLaboratory::dispatchProvisioning($this->tenant);
             }
 
+            Tenant::authorizeOnboardingSession($this->tenant->id);
             $this->redirectRoute('onboarding.show', ['tenant' => $this->tenant->id], navigate: true);
 
             return;
@@ -259,7 +263,15 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         // Inicia o provisionamento
         CreateLaboratory::dispatchProvisioning($this->tenant);
 
+        Tenant::authorizeOnboardingSession($this->tenant->id);
         $this->redirectRoute('onboarding.show', ['tenant' => $this->tenant->id], navigate: true);
+    }
+
+    public function booted(): void
+    {
+        if (isset($this->tenant)) {
+            abort_unless(Tenant::isOnboardingAuthorizedForCurrentRequest(request(), $this->tenant), 403);
+        }
     }
 }; ?>
 

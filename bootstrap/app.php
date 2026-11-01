@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureCentralAdmin;
+use App\Http\Middleware\EnsureOnboardingAccess;
 use App\Http\Middleware\EnsurePlanLimit;
 use App\Http\Middleware\EnsureTenantIsOperational;
 use Illuminate\Foundation\Application;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'central.admin' => EnsureCentralAdmin::class,
             'plan.limit' => EnsurePlanLimit::class,
             'tenant.operational' => EnsureTenantIsOperational::class,
+            'onboarding.access' => EnsureOnboardingAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
