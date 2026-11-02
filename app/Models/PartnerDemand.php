@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Facades\Storage;
 
 #[UsePolicy(PartnerDemandPolicy::class)]
-#[Fillable(['partner_id', 'request_service_id', 'service_service_step_id', 'order', 'partner_commission', 'partner_commission_type', 'result_photo_path', 'started_at', 'ended_at'])]
+#[Fillable(['partner_id', 'request_service_id', 'service_service_step_id', 'order', 'partner_commission', 'partner_commission_type', 'result_photo_path', 'started_at', 'ended_at', 'cancelled_at'])]
 class PartnerDemand extends Model
 {
     use HasFactory;
@@ -25,6 +25,7 @@ class PartnerDemand extends Model
         'partner_commission' => 'decimal:2',
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     public function partner(): BelongsTo
@@ -71,16 +72,20 @@ class PartnerDemand extends Model
     #[Scope]
     protected function withStatus(Builder $query, ?string $status): void
     {
-        $query->when($status === 'pending', fn ($q) => $q->whereNull('partner_id')->whereNull('started_at')->whereNull('ended_at'))
-            ->when($status === 'assigned', fn ($q) => $q->whereNotNull('partner_id')->whereNull('started_at')->whereNull('ended_at'))
-            ->when($status === 'in_progress', fn ($q) => $q->whereNotNull('partner_id')->whereNotNull('started_at')->whereNull('ended_at'))
-            ->when($status === 'done', fn ($q) => $q->whereNotNull('partner_id')->whereNotNull('started_at')->whereNotNull('ended_at'));
+        $query->when($status === 'cancelled', fn ($q) => $q->whereNotNull('cancelled_at'))
+            ->when($status === 'pending', fn ($q) => $q->whereNull('cancelled_at')->whereNull('partner_id')->whereNull('started_at')->whereNull('ended_at'))
+            ->when($status === 'assigned', fn ($q) => $q->whereNull('cancelled_at')->whereNotNull('partner_id')->whereNull('started_at')->whereNull('ended_at'))
+            ->when($status === 'in_progress', fn ($q) => $q->whereNull('cancelled_at')->whereNotNull('partner_id')->whereNotNull('started_at')->whereNull('ended_at'))
+            ->when($status === 'done', fn ($q) => $q->whereNull('cancelled_at')->whereNotNull('partner_id')->whereNotNull('started_at')->whereNotNull('ended_at'));
     }
 
     protected function status(): Attribute
     {
         return Attribute::make(
             get: function () {
+                if ($this->cancelled_at) {
+                    return DemandStatus::Cancelled;
+                }
                 if ($this->ended_at) {
                     return DemandStatus::Done;
                 }

@@ -8,6 +8,7 @@ enum DemandStatus: string
     case Assigned = 'assigned';
     case InProgress = 'in_progress';
     case Done = 'done';
+    case Cancelled = 'cancelled';
 
     public static function label(self $status): string
     {
@@ -16,6 +17,7 @@ enum DemandStatus: string
             self::Assigned => 'Atribuído',
             self::InProgress => 'Em Andamento',
             self::Done => 'Concluído',
+            self::Cancelled => 'Cancelado',
         };
     }
 }

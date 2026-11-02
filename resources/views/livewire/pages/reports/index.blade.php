@@ -318,6 +318,7 @@ new class extends Component
     private function ordersQuery(): Builder
     {
         return DentistRequest::query()
+            ->whereNull('cancelled_at')
             ->whereBetween('created_at', [
                 Carbon::parse($this->appliedDateFrom)->startOfDay(),
                 Carbon::parse($this->appliedDateTo)->endOfDay(),
@@ -329,6 +330,7 @@ new class extends Component
     {
         return RequestService::query()
             ->join('dentist_requests', 'request_services.dentist_request_id', '=', 'dentist_requests.id')
+            ->whereNull('dentist_requests.cancelled_at')
             ->whereBetween('dentist_requests.created_at', [
                 Carbon::parse($this->appliedDateFrom)->startOfDay(),
                 Carbon::parse($this->appliedDateTo)->endOfDay(),

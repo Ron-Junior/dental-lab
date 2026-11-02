@@ -98,10 +98,15 @@ new class extends Component
                 @endphp
                 <flux:card x-data="{open: false}" class="!p-0 overflow-hidden">
                     
-                    <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_40px]  items-center w-full gap-4 px-6 py-4">
-                        <div>
-                            <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
-                            <flux:text class="text-xs">{{ $dentistRequest->code }}</flux:text>
+                    <div class="hidden md:grid grid-cols-[minmax(180px,2fr)_minmax(140px,1.5fr)_100px_minmax(110px,1.2fr)_auto] items-center w-full gap-4 px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <div>
+                                <flux:text class="font-medium truncate">{{ $dentistRequest->dentist->user->name }}</flux:text>
+                                <flux:text class="text-xs">{{ $dentistRequest->code }}</flux:text>
+                            </div>
+                            @if ($dentistRequest->isCancelled())
+                                <flux:badge color="red" size="sm">Cancelada</flux:badge>
+                            @endif
                         </div>
                         
                         <div></div>
@@ -109,16 +114,31 @@ new class extends Component
                         <flux:text class="truncate">{{ currency_from_int($dentistRequest->total_price, true) }}</flux:text>
                                                 
                         <div class="pr-2">
-                            <flux:tooltip content="{{ $progressPercentage }}%" class="w-full">
-                                <flux:progress 
-                                    color="{{ $this->getColor($completedSteps, $totalSteps) }}"
-                                    value="{{ $completedSteps }}" 
-                                    max="{{ $totalSteps > 0 ? $totalSteps : 1 }}"
-                                />
-                            </flux:tooltip>
+                            @if ($dentistRequest->isCancelled())
+                                <flux:badge color="red" size="sm">Cancelada</flux:badge>
+                            @else
+                                <flux:tooltip content="{{ $progressPercentage }}%" class="w-full">
+                                    <flux:progress 
+                                        color="{{ $this->getColor($completedSteps, $totalSteps) }}"
+                                        value="{{ $completedSteps }}" 
+                                        max="{{ $totalSteps > 0 ? $totalSteps : 1 }}"
+                                    />
+                                </flux:tooltip>
+                            @endif
                         </div>
                         
-                        <div class="justify-self-end">
+                        <div class="justify-self-end flex items-center gap-1">
+                            @can('cancel', $dentistRequest)
+                                <flux:button
+                                    size="xs"
+                                    variant="danger"
+                                    icon="no-symbol"
+                                    wire:click="dispatch('service-request::cancel::open', { requestId: {{ $dentistRequest->id }} })"
+                                >
+                                    Cancelar OS
+                                </flux:button>
+                            @endcan
+
                             <flux:button
                                 size="xs"
                                 icon="chevron-down" 
@@ -132,16 +152,33 @@ new class extends Component
                     <div class="md:hidden p-4 space-y-3">
                         <div class="flex items-center justify-between gap-2 cursor-pointer" x-on:click="open = !open">
                             <div>
-                                <flux:heading size="base"># {{ $dentistRequest->code }}</flux:heading>
+                                <div class="flex items-center gap-2">
+                                    <flux:heading size="base"># {{ $dentistRequest->code }}</flux:heading>
+                                    @if ($dentistRequest->isCancelled())
+                                        <flux:badge color="red" size="sm">Cancelada</flux:badge>
+                                    @endif
+                                </div>
                                 <flux:text size="sm" class="text-zinc-500">{{ $dentistRequest->dentist->user->name }} - {{ $dentistRequest->requestServices->count() }} {{ $dentistRequest->requestServices->count() === 1 ? 'serviço' : 'serviços' }}</flux:text>
                             </div>
-                            <flux:button 
-                                size="xs"
-                                icon="chevron-down" 
-                                variant="ghost" 
-                                x-on:click.stop="open = !open"
-                                ::class="open ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'"
-                            ></flux:button>
+                            <div class="flex items-center gap-1">
+                                @can('cancel', $dentistRequest)
+                                    <flux:button
+                                        size="xs"
+                                        variant="danger"
+                                        icon="no-symbol"
+                                        x-on:click.stop="$wire.dispatch('service-request::cancel::open', { requestId: {{ $dentistRequest->id }} })"
+                                    >
+                                        Cancelar
+                                    </flux:button>
+                                @endcan
+                                <flux:button 
+                                    size="xs"
+                                    icon="chevron-down" 
+                                    variant="ghost" 
+                                    x-on:click.stop="open = !open"
+                                    ::class="open ? 'rotate-180 transition-transform duration-200' : 'transition-transform duration-200'"
+                                ></flux:button>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-2 text-sm">
@@ -156,17 +193,39 @@ new class extends Component
                                 <flux:text size="xs" class="text-zinc-500">Progresso</flux:text>
                                 <flux:text size="xs" class="font-medium">{{ $completedSteps }} / {{ $totalSteps }}</flux:text>
                             </div>
-                            <flux:tooltip content="{{ $progressPercentage }}%" class="w-full">
-                                <flux:progress 
-                                    color="{{ $this->getColor($completedSteps, $totalSteps) }}"
-                                    value="{{ $completedSteps }}" 
-                                    max="{{ $totalSteps > 0 ? $totalSteps : 1 }}"
-                                />
-                            </flux:tooltip>
+                            @if ($dentistRequest->isCancelled())
+                                <flux:badge color="red" size="sm">Cancelada</flux:badge>
+                            @else
+                                <flux:tooltip content="{{ $progressPercentage }}%" class="w-full">
+                                    <flux:progress 
+                                        color="{{ $this->getColor($completedSteps, $totalSteps) }}"
+                                        value="{{ $completedSteps }}" 
+                                        max="{{ $totalSteps > 0 ? $totalSteps : 1 }}"
+                                    />
+                                </flux:tooltip>
+                            @endif
                         </div>
                     </div>
 
                     <div x-show="open" x-collapse.duration.300ms style="display: none;" class="border-t border-zinc-100 dark:border-zinc-800">
+                        @if ($dentistRequest->isCancelled())
+                            <div class="px-6 py-4 bg-red-50/50 dark:bg-red-950/20 border-b border-red-100 dark:border-red-900/30 text-sm space-y-1">
+                                <div class="flex items-center gap-2 text-red-700 dark:text-red-400 font-medium">
+                                    <flux:icon name="x-circle" class="size-4" />
+                                    <span>Ordem de Serviço Cancelada em {{ $dentistRequest->cancelled_at?->format('d/m/Y H:i') }}</span>
+                                </div>
+                                @if ($dentistRequest->cancellation_category)
+                                    <flux:text size="xs" class="text-zinc-600 dark:text-zinc-400">
+                                        <strong class="font-medium text-zinc-700 dark:text-zinc-300">Categoria:</strong> {{ $dentistRequest->cancellation_category }}
+                                    </flux:text>
+                                @endif
+                                @if ($dentistRequest->cancellation_reason)
+                                    <flux:text size="xs" class="text-zinc-600 dark:text-zinc-400">
+                                        <strong class="font-medium text-zinc-700 dark:text-zinc-300">Motivo:</strong> {{ $dentistRequest->cancellation_reason }}
+                                    </flux:text>
+                                @endif
+                            </div>
+                        @endif
                         @foreach ($dentistRequest->requestServices as $requestService)
                             @php
                                 $serviceTotalSteps = (int) ($requestService->service->service_steps_count ?? $requestService->service->serviceSteps->count());
@@ -228,7 +287,7 @@ new class extends Component
 
                                             @can('updateStatus', $requestService)
                                                 <flux:menu.item
-                                                    :disabled="(bool)$requestService->completed_at"
+                                                    :disabled="(bool)($requestService->completed_at || $dentistRequest->isCancelled())"
                                                     icon="no-symbol"
                                                     variant="danger"
                                                     wire:click="dispatch('service::canceled', '{{ $requestService->id }}')"
@@ -241,7 +300,7 @@ new class extends Component
                                             @can('viewAny', \App\Models\Dentist::class)
                                                 @php
                                                     $hasStartedDemands = ($requestService->demands_started ?? 0) > 0 || ($requestService->demands_completed ?? 0) > 0;
-                                                    $cannotEdit = (bool) ($requestService->completed_at || $hasStartedDemands);
+                                                    $cannotEdit = (bool) ($requestService->completed_at || $hasStartedDemands || $dentistRequest->isCancelled());
                                                 @endphp
                                                 @if ($hasStartedDemands)
                                                     <flux:tooltip content="Não é possível editar este serviço pois as etapas já foram iniciadas pelos técnicos parceiros">
@@ -328,7 +387,7 @@ new class extends Component
 
                                     @can('updateStatus', $requestService)
                                         <flux:button
-                                            :disabled="$requestService->completed_at"
+                                            :disabled="(bool)($requestService->completed_at || $dentistRequest->isCancelled())"
                                             size="xs"
                                             icon="no-symbol"
                                             variant="ghost"
@@ -339,7 +398,7 @@ new class extends Component
                                     @can('viewAny', \App\Models\Dentist::class)
                                         @php
                                             $hasStartedDemands = ($requestService->demands_started ?? 0) > 0 || ($requestService->demands_completed ?? 0) > 0;
-                                            $cannotEdit = (bool) ($requestService->completed_at || $hasStartedDemands);
+                                            $cannotEdit = (bool) ($requestService->completed_at || $hasStartedDemands || $dentistRequest->isCancelled());
                                         @endphp
                                         @if ($hasStartedDemands)
                                             <flux:tooltip content="Não é possível editar este serviço pois as etapas já foram iniciadas pelos técnicos parceiros">
@@ -389,4 +448,5 @@ new class extends Component
     <livewire:service.request-files />
     <livewire:service.requesting />
     <livewire:service.progress />
+    <livewire:service.cancel-order />
 </div>

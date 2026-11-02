@@ -1,8 +1,9 @@
 # Especificação: Cancelamento de Ordens de Serviço (Order Cancellation)
 
 - **Identificador:** `2026-10-order-cancellation`
-- **Status:** Ativo / Em Especificação
+- **Status:** Concluído / Implementado
 - **Data:** Outubro de 2026
+- **Data de Conclusão:** 2026-11-02
 - **Módulos Afetados:**
   - Ordens de Serviço (`DentistRequest`, `RequestService`)
   - Estoque (`StockMovement`, `RequestServiceConsumption`, `StockBatch`)

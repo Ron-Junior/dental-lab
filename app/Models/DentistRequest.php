@@ -13,11 +13,16 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Symfony\Component\Uid\Ulid;
 
-#[Fillable('dentist_id', 'code', 'completed_at')]
+#[Fillable(['dentist_id', 'code', 'completed_at', 'cancelled_at', 'cancelled_by_user_id', 'cancellation_category', 'cancellation_reason'])]
 #[UsePolicy(DentistRequestPolicy::class)]
 class DentistRequest extends Model
 {
     use HasFactory;
+
+    protected $casts = [
+        'cancelled_at' => 'datetime',
+        'completed_at' => 'datetime',
+    ];
 
     protected static function booted(): void
     {
@@ -31,6 +36,11 @@ class DentistRequest extends Model
     public function dentist(): BelongsTo
     {
         return $this->belongsTo(Dentist::class)->withTrashed();
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by_user_id');
     }
 
     public function requestServices(): HasMany
@@ -51,5 +61,21 @@ class DentistRequest extends Model
     public function files(): MorphMany
     {
         return $this->morphMany(File::class, 'fileable');
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->cancelled_at !== null;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->completed_at !== null;
+    }
+
+    public function hasStartedProduction(): bool
+    {
+        return $this->partnerDemands()->whereNotNull('started_at')->exists()
+            || $this->requestServices()->whereHas('consumptions')->exists();
     }
 }

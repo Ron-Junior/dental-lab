@@ -56,4 +56,31 @@ class DentistRequestPolicy
     {
         return $this->update($user, $dentistRequest);
     }
+
+    public function cancel(User $user, DentistRequest $dentistRequest): bool
+    {
+        $user->loadMissing('rule');
+
+        // Não pode cancelar se já estiver cancelada ou concluída
+        if ($dentistRequest->isCancelled() || $dentistRequest->isCompleted()) {
+            return false;
+        }
+
+        // Administração do laboratório
+        if (in_array($user->rule?->name, [Rules::Owner, Rules::Lab, Rules::LabManager], true)) {
+            return true;
+        }
+
+        // Dentista só pode cancelar suas próprias ordens antes do início da produção
+        if ($user->rule?->name === Rules::Dentist) {
+            $dentistRequest->loadMissing('dentist');
+
+            $isOwnRequest = $dentistRequest->dentist !== null
+                && $dentistRequest->dentist->user_id === $user->id;
+
+            return $isOwnRequest && ! $dentistRequest->hasStartedProduction();
+        }
+
+        return false;
+    }
 }
