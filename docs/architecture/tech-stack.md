@@ -87,3 +87,8 @@ O sistema é um **SaaS B2B Multitenant** projetado para atender laboratórios de
 ### 3.5. Logs de Aplicação e Minimização de Dados (LGPD)
 - Chamadas a `Log::*` em controladores e webhooks públicos (como `PaymentWebhookController`) nunca devem despejar payloads integrais (`$payload`, `$request->all()`) nos arquivos de log da aplicação.
 - O contexto de logging deve registrar estritamente identificadores de correlação técnica (`event_id`, `type`, `tenant_id`, `payment_id`), preservando a privacidade de clientes e a conformidade com a LGPD e PCI-DSS ([spec](../specs/archived/2026-11-webhook-payment-log-pii-sanitization.md)).
+
+### 3.6. Consultas SQL Raw e Prevenção de Injeção (Bindings Obrigatórios - OWASP A03:2021)
+- É estritamente vedada a interpolação direta de variáveis, parâmetros de requisição ou constantes de Enums em strings SQL passadas para métodos `Raw` do Query Builder (`whereRaw`, `orderByRaw`, `selectRaw`, `havingRaw`, `groupByRaw` ou `DB::raw`).
+- Toda consulta com predicados ou projeções condicionais deve utilizar *parameter bindings* posicionais (`?`) com passagem de valores pelo array de bindings do Eloquent (ex.: `$batchQuery->orderByRaw('id = ? DESC', [$batchId])`, `$query->whereRaw('LOWER(name) LIKE ?', ['%'.$search.'%'])`, ou `->selectRaw('SUM('.$expression.') AS total', $bindings)`).
+- O uso de parameter bindings garante conformidade com as diretrizes de segurança contra injeção SQL (OWASP A03:2021), assegurando que o PostgreSQL trate todos os valores exclusivamente como dados primitivos, independentemente de provirem de inputs do usuário ou de enums internos ([spec](../specs/active/2026-11-sql-injection-prevention-and-parameter-bindings.md)).
