@@ -21,6 +21,7 @@ use App\Services\StripeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Volt\Volt;
+use Stancl\Tenancy\Database\Models\ImpersonationToken;
 use Tests\TestCase;
 
 class TenantAccessEnforcementAndLifecycleTest extends TestCase
@@ -167,6 +168,106 @@ class TenantAccessEnforcementAndLifecycleTest extends TestCase
             ->assertOk()
             ->assertSee('Modo de Suporte: Você está navegando como administrador central', false)
             ->assertSee('Laboratório bloqueado para usuários comuns', false);
+    }
+
+    public function test_impersonation_token_for_different_tenant_aborts_403_and_does_not_mutate_session(): void
+    {
+        $tenantB = Tenant::query()->create([
+            'id' => 'other-lab-b',
+            'name' => 'Other Lab B',
+            'status' => TenantStatus::Active,
+        ]);
+
+        $token = ImpersonationToken::query()->create([
+            'token' => 'token-tenant-b',
+            'tenant_id' => $tenantB->id,
+            'user_id' => '999',
+            'auth_guard' => 'web',
+            'redirect_url' => '/dashboard',
+            'created_at' => Carbon::now(),
+        ]);
+
+        $response = $this->get(route('tenant.impersonate', ['token' => $token->token]));
+
+        $response->assertForbidden();
+        $response->assertSessionMissing('impersonated_by_central');
+        $this->assertDatabaseHas('tenant_user_impersonation_tokens', [
+            'token' => 'token-tenant-b',
+        ], config('tenancy.database.central_connection'));
+    }
+
+    public function test_expired_impersonation_token_aborts_403_and_does_not_mutate_session(): void
+    {
+        $user = $this->userWithRule(Rules::LabManager);
+
+        $token = ImpersonationToken::query()->create([
+            'token' => 'expired-token-val',
+            'tenant_id' => $this->testTenant->id,
+            'user_id' => (string) $user->id,
+            'auth_guard' => 'web',
+            'redirect_url' => '/dashboard',
+            'created_at' => Carbon::now()->subSeconds(65),
+        ]);
+
+        $response = $this->get(route('tenant.impersonate', ['token' => $token->token]));
+
+        $response->assertForbidden();
+        $response->assertSessionMissing('impersonated_by_central');
+    }
+
+    public function test_invalid_impersonation_attempt_does_not_bypass_operational_block_for_blocked_tenant(): void
+    {
+        $user = $this->userWithRule(Rules::LabManager);
+        $this->setTenantSubscription(SubscriptionStatus::Overdue);
+
+        $tenantB = Tenant::query()->create([
+            'id' => 'other-lab-c',
+            'name' => 'Other Lab C',
+            'status' => TenantStatus::Active,
+        ]);
+
+        $token = ImpersonationToken::query()->create([
+            'token' => 'token-tenant-c',
+            'tenant_id' => $tenantB->id,
+            'user_id' => '999',
+            'auth_guard' => 'web',
+            'redirect_url' => '/dashboard',
+            'created_at' => Carbon::now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('tenant.impersonate', ['token' => $token->token]))
+            ->assertForbidden()
+            ->assertSessionMissing('impersonated_by_central');
+
+        // O usuário autenticado continua sendo bloqueado ao tentar navegar para rotas operacionais
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('profile'))
+            ->assertSessionHas('operational_block');
+    }
+
+    public function test_valid_impersonation_token_consumes_token_sets_session_and_redirects(): void
+    {
+        $user = $this->userWithRule(Rules::LabManager);
+
+        $token = ImpersonationToken::query()->create([
+            'token' => 'valid-legit-token',
+            'tenant_id' => $this->testTenant->id,
+            'user_id' => (string) $user->id,
+            'auth_guard' => 'web',
+            'redirect_url' => '/dashboard',
+            'created_at' => Carbon::now(),
+        ]);
+
+        $response = $this->get(route('tenant.impersonate', ['token' => $token->token]));
+
+        $response->assertRedirect('/dashboard');
+        $response->assertSessionHas('impersonated_by_central', true);
+        $this->assertAuthenticatedAs($user, 'web');
+        $this->assertDatabaseMissing('tenant_user_impersonation_tokens', [
+            'token' => 'valid-legit-token',
+        ], config('tenancy.database.central_connection'));
     }
 
     public function test_tenant_limit_checker_blocks_creation_and_is_not_unlimited_for_blocked_tenants(): void

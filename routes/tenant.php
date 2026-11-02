@@ -32,9 +32,14 @@ Route::domain('{tenant}.'.config('tenancy.central_domain'))
 
         Route::get('/impersonate/{token}', function (string $tenant, string $token) {
             $tokenModel = ImpersonationToken::findOrFail($token);
+
+            abort_unless((string) $tokenModel->tenant_id === (string) tenant('id'), 403);
+
+            $response = UserImpersonation::makeResponse($tokenModel);
+
             session()->put('impersonated_by_central', true);
 
-            return UserImpersonation::makeResponse($tokenModel);
+            return $response;
         })->name('tenant.impersonate');
 
         require __DIR__.'/auth.php';

@@ -30,7 +30,7 @@ Fluxo (feature `UserImpersonation` do `stancl/tenancy`, tabela central `tenant_u
 1. Ação Livewire valida `Gate::authorize('impersonate', $tenant)` (tenant precisa estar `Active`) e rate limit por sócio.
 2. `ImpersonateTenantService` localiza, via `$tenant->run()`, o primeiro usuário `Rules::Lab`.
 3. Cria token de uso único (TTL 60s) com guard `web` e grava o `AuditLog`.
-4. Redireciona para `{scheme}://{domínio-do-tenant}/impersonate/{token}`, rota em `routes/tenant.php` (sob `InitializeTenancyByDomain`) que valida explicitamente `abort_unless((string) $tokenModel->tenant_id === (string) tenant('id'), 403)` **antes** de modificar a sessão e só grava `session()->put('impersonated_by_central', true)` após a execução bem-sucedida de `UserImpersonation::makeResponse($tokenModel)` ([spec](../specs/active/2026-11-impersonation-token-tenant-validation-before-session.md)), impedindo contaminação de sessão ou bypass de `EnsureTenantIsOperational` via tokens de outros tenants ou expirados.
+4. Redireciona para `{scheme}://{domínio-do-tenant}/impersonate/{token}`, rota em `routes/tenant.php` (sob `InitializeTenancyByDomain`) que valida explicitamente `abort_unless((string) $tokenModel->tenant_id === (string) tenant('id'), 403)` **antes** de modificar a sessão e só grava `session()->put('impersonated_by_central', true)` após a execução bem-sucedida de `UserImpersonation::makeResponse($tokenModel)` ([spec](../specs/archived/2026-11-impersonation-token-tenant-validation-before-session.md)), impedindo contaminação de sessão ou bypass de `EnsureTenantIsOperational` via tokens de outros tenants ou expirados.
 
 O domínio do tenant vem de `domains`, nunca hardcoded.
 

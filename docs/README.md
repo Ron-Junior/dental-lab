@@ -13,8 +13,6 @@
 ## Especificações (`specs/`)
 - Ativas:
   - [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
-  - [Restrição de autorização de faturamento e cartão em `/perfil`](specs/active/2026-11-profile-subscription-billing-authorization.md).
-  - [Validação antecipada de tenant no token de impersonation antes de mutar a sessão](specs/active/2026-11-impersonation-token-tenant-validation-before-session.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).

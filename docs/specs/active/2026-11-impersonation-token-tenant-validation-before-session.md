@@ -1,8 +1,9 @@
 # Especificação: Validação Antecipada de Tenant e Expiração no Token de Impersonation Antes de Mutar a Sessão
 
 - **Identificador:** `2026-11-impersonation-token-tenant-validation-before-session`
-- **Status:** Em Andamento
+- **Status:** Concluído / Implementado
 - **Data:** Novembro de 2026
+- **Data de Conclusão:** 2026-11-02
 - **Módulos Afetados:**
   - Rotas de Impersonação do Tenant (`routes/tenant.php`)
   - Middleware de Elegibilidade Operacional (`app/Http/Middleware/EnsureTenantIsOperational.php`)
