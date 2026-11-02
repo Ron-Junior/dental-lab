@@ -212,46 +212,87 @@ new class extends Component
 
         $this->authorize('update', $dentistRequest);
 
+        if ($files === []) {
+            return;
+        }
+
         $tenantId = tenant('id') ?? 'default';
         $tenantPrefix = "requests/{$tenantId}/";
+        $defaultDisk = config('filesystems.default', 's3');
+        $allowedDisks = array_unique(['s3', $defaultDisk]);
+
+        $verifiedFiles = [];
+        $totalBytes = 0;
 
         foreach ($files as $fileData) {
-            $size = (int) ($fileData['size'] ?? 0);
-            $path = (string) ($fileData['path'] ?? '');
-
-            if ($size <= 0 || ! str_starts_with($path, $tenantPrefix) || str_contains($path, '..')) {
+            if (! is_array($fileData)) {
                 throw ValidationException::withMessages([
                     'uploadedFiles' => 'Arquivo inválido ou fora do escopo do laboratório.',
                 ]);
             }
+
+            $path = (string) ($fileData['path'] ?? '');
+            $diskName = (string) ($fileData['disk'] ?? $defaultDisk);
+
+            if (
+                $path === ''
+                || ! str_starts_with($path, $tenantPrefix)
+                || str_contains($path, '..')
+                || ! in_array($diskName, $allowedDisks, true)
+            ) {
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'Arquivo inválido ou fora do escopo do laboratório.',
+                ]);
+            }
+
+            $disk = Storage::disk($diskName);
+
+            if (! $disk->exists($path)) {
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'Arquivo inválido ou não encontrado no armazenamento.',
+                ]);
+            }
+
+            $actualSize = (int) $disk->size($path);
+
+            if ($actualSize <= 0) {
+                $disk->delete($path);
+
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'O arquivo enviado está vazio ou é inválido.',
+                ]);
+            }
+
+            $reportedOriginalSize = isset($fileData['original_size']) ? (int) $fileData['original_size'] : null;
+            $originalSize = ($reportedOriginalSize !== null && $reportedOriginalSize >= $actualSize)
+                ? $reportedOriginalSize
+                : $actualSize;
+
+            $verifiedFiles[] = [
+                'name' => (string) ($fileData['name'] ?? basename($path)),
+                'path' => $path,
+                'disk' => $diskName,
+                'size' => $actualSize,
+                'original_size' => $originalSize,
+                'extension' => $fileData['extension'] ?? null,
+                'mime_type' => $fileData['mime_type'] ?? 'application/zip',
+            ];
+
+            $totalBytes += $actualSize;
         }
 
-        $totalBytes = collect($files)->sum(fn (array $file) => max(0, (int) ($file['size'] ?? 0)));
         $incomingGb = $totalBytes / (1024 ** 3);
 
         if (! $this->guardPlanLimit(PlanResource::Storage, $incomingGb)) {
-            foreach ($files as $fileData) {
-                $path = (string) ($fileData['path'] ?? '');
-                $diskName = $fileData['disk'] ?? config('filesystems.default', 's3');
-
-                if ($path !== '' && str_starts_with($path, $tenantPrefix) && ! str_contains($path, '..')) {
-                    Storage::disk($diskName)->delete($path);
-                }
+            foreach ($verifiedFiles as $verifiedFile) {
+                Storage::disk($verifiedFile['disk'])->delete($verifiedFile['path']);
             }
 
             return;
         }
 
-        foreach ($files as $fileData) {
-            $dentistRequest->files()->create([
-                'name' => $fileData['name'],
-                'path' => $fileData['path'],
-                'disk' => $fileData['disk'] ?? config('filesystems.default', 's3'),
-                'size' => (int) $fileData['size'],
-                'original_size' => $fileData['original_size'] ?? null,
-                'extension' => $fileData['extension'] ?? null,
-                'mime_type' => $fileData['mime_type'] ?? 'application/zip',
-            ]);
+        foreach ($verifiedFiles as $verifiedFile) {
+            $dentistRequest->files()->create($verifiedFile);
         }
     }
 

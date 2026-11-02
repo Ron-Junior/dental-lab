@@ -67,6 +67,16 @@ class DentistRequestFileUploadTest extends TestCase
         ]);
     }
 
+    protected function createFakeS3File(string $path, int $sizeInBytes): void
+    {
+        Storage::disk('s3')->put($path, '');
+        $fullPath = Storage::disk('s3')->path($path);
+        $fp = fopen($fullPath, 'r+');
+        ftruncate($fp, $sizeInBytes);
+        fclose($fp);
+        clearstatcache(true, $fullPath);
+    }
+
     public function test_component_generates_presigned_upload_url_for_valid_3d_and_dicom_formats(): void
     {
         Storage::fake('s3');
@@ -179,11 +189,16 @@ class DentistRequestFileUploadTest extends TestCase
         $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
         $tenantId = tenant('id');
 
+        $path1 = "requests/{$tenantId}/test-ulid_arcada_superior.zip";
+        $path2 = "requests/{$tenantId}/test-ulid_tomografia.zip";
+        $this->createFakeS3File($path1, 3145728);
+        $this->createFakeS3File($path2, 15728640);
+
         $uploadedFiles = [
             [
                 'name' => 'arcada_superior.stl',
                 'zip_name' => 'arcada_superior.stl.zip',
-                'path' => "requests/{$tenantId}/test-ulid_arcada_superior.zip",
+                'path' => $path1,
                 'size' => 3145728,
                 'original_size' => 10485760,
                 'extension' => 'stl',
@@ -193,7 +208,7 @@ class DentistRequestFileUploadTest extends TestCase
             [
                 'name' => 'tomografia.dcm',
                 'zip_name' => 'tomografia.dcm.zip',
-                'path' => "requests/{$tenantId}/test-ulid_tomografia.zip",
+                'path' => $path2,
                 'size' => 15728640,
                 'original_size' => 52428800,
                 'extension' => 'dcm',
@@ -256,7 +271,7 @@ class DentistRequestFileUploadTest extends TestCase
         ]);
 
         $orphanPath = "requests/{$tenantId}/orphan_upload.zip";
-        Storage::disk('s3')->put($orphanPath, 'zip-content');
+        $this->createFakeS3File($orphanPath, 100 * 1024 * 1024);
         Storage::disk('s3')->assertExists($orphanPath);
 
         Livewire::actingAs($dentistUser)
@@ -508,5 +523,197 @@ class DentistRequestFileUploadTest extends TestCase
 
         $dentistRequest = DentistRequest::where('dentist_id', $dentist->id)->first();
         $component->assertSet('createdRequestId', $dentistRequest->id);
+    }
+
+    public function test_add_files_to_request_ignores_client_provided_size_and_uses_s3_size(): void
+    {
+        Storage::fake('s3');
+        config(['filesystems.default' => 's3']);
+
+        $dentistUser = $this->userWithRule(Rules::Dentist);
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
+        $tenantId = tenant('id');
+
+        $path = "requests/{$tenantId}/real_3mb_scan.zip";
+        $realSize = 3145728; // 3 MB
+        $this->createFakeS3File($path, $realSize);
+
+        // Cliente tenta falsificar 'size' => 1 e 'original_size' => 500 (menor que o real)
+        Livewire::actingAs($dentistUser)
+            ->test('service.requesting')
+            ->call('addFilesToRequest', $dentistRequest->id, [
+                [
+                    'name' => 'arcada.stl',
+                    'path' => $path,
+                    'size' => 1,
+                    'original_size' => 500,
+                    'extension' => 'stl',
+                    'disk' => 's3',
+                    'mime_type' => 'application/zip',
+                ],
+            ])
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('files', [
+            'fileable_type' => DentistRequest::class,
+            'fileable_id' => $dentistRequest->id,
+            'name' => 'arcada.stl',
+            'path' => $path,
+            'size' => $realSize,
+            'original_size' => $realSize, // Sanitizado para max(actualSize, reportedOriginalSize)
+        ]);
+    }
+
+    public function test_add_files_to_request_blocks_quota_bypass_attempt_with_spoofed_size(): void
+    {
+        Storage::fake('s3');
+        config(['filesystems.default' => 's3']);
+
+        $this->subscribeWithLimits([PlanResource::Storage->value => 1]); // 1 GB limite
+
+        $dentistUser = $this->userWithRule(Rules::Dentist);
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
+        $tenantId = tenant('id');
+
+        // Ocupa 950 MB
+        $dentistRequest->files()->create([
+            'name' => 'anterior.stl',
+            'path' => "requests/{$tenantId}/anterior.zip",
+            'disk' => 's3',
+            'size' => 950 * 1024 * 1024,
+            'original_size' => 950 * 1024 * 1024,
+            'extension' => 'stl',
+            'mime_type' => 'application/zip',
+        ]);
+
+        // Arquivo real de 100 MB no S3 (950 + 100 = 1050 MB > 1024 MB)
+        $spoofedPath = "requests/{$tenantId}/malicious_large_file.zip";
+        $this->createFakeS3File($spoofedPath, 100 * 1024 * 1024);
+        Storage::disk('s3')->assertExists($spoofedPath);
+
+        // Cliente envia 'size' => 1 tentando burlar a cota
+        Livewire::actingAs($dentistUser)
+            ->test('service.requesting')
+            ->call('addFilesToRequest', $dentistRequest->id, [
+                [
+                    'name' => 'malicious.stl',
+                    'path' => $spoofedPath,
+                    'size' => 1,
+                    'original_size' => 1,
+                    'extension' => 'stl',
+                    'disk' => 's3',
+                    'mime_type' => 'application/zip',
+                ],
+            ]);
+
+        // Verificações: não salva em banco e apaga objeto órfão do S3
+        $this->assertDatabaseMissing('files', ['path' => $spoofedPath]);
+        Storage::disk('s3')->assertMissing($spoofedPath);
+    }
+
+    public function test_add_files_to_request_rejects_non_existent_s3_files(): void
+    {
+        Storage::fake('s3');
+        config(['filesystems.default' => 's3']);
+
+        $dentistUser = $this->userWithRule(Rules::Dentist);
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
+        $tenantId = tenant('id');
+
+        $nonExistentPath = "requests/{$tenantId}/ghost_file.zip";
+
+        Livewire::actingAs($dentistUser)
+            ->test('service.requesting')
+            ->call('addFilesToRequest', $dentistRequest->id, [
+                [
+                    'name' => 'ghost.stl',
+                    'path' => $nonExistentPath,
+                    'size' => 1024,
+                    'disk' => 's3',
+                ],
+            ])
+            ->assertHasErrors(['uploadedFiles']);
+
+        $this->assertDatabaseMissing('files', ['path' => $nonExistentPath]);
+    }
+
+    public function test_add_files_to_request_rejects_empty_s3_files_and_cleans_them_up(): void
+    {
+        Storage::fake('s3');
+        config(['filesystems.default' => 's3']);
+
+        $dentistUser = $this->userWithRule(Rules::Dentist);
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
+        $tenantId = tenant('id');
+
+        $emptyPath = "requests/{$tenantId}/empty_file.zip";
+        Storage::disk('s3')->put($emptyPath, ''); // 0 bytes
+        Storage::disk('s3')->assertExists($emptyPath);
+
+        Livewire::actingAs($dentistUser)
+            ->test('service.requesting')
+            ->call('addFilesToRequest', $dentistRequest->id, [
+                [
+                    'name' => 'empty.stl',
+                    'path' => $emptyPath,
+                    'size' => 1024,
+                    'disk' => 's3',
+                ],
+            ])
+            ->assertHasErrors(['uploadedFiles']);
+
+        // Deve apagar o arquivo vazio e não salvar no banco
+        Storage::disk('s3')->assertMissing($emptyPath);
+        $this->assertDatabaseMissing('files', ['path' => $emptyPath]);
+    }
+
+    public function test_storage_consumption_ignores_non_positive_file_sizes(): void
+    {
+        $dentistUser = $this->userWithRule(Rules::Dentist);
+        $dentist = Dentist::factory()->for($dentistUser)->create();
+        $dentistRequest = DentistRequest::create(['dentist_id' => $dentist->id]);
+        $tenantId = tenant('id');
+
+        // Cria um arquivo legítimo de 1 MB (1048576 bytes)
+        $dentistRequest->files()->create([
+            'name' => 'legit.stl',
+            'path' => "requests/{$tenantId}/legit.zip",
+            'disk' => 's3',
+            'size' => 1048576,
+            'original_size' => 1048576,
+            'extension' => 'stl',
+            'mime_type' => 'application/zip',
+        ]);
+
+        // Cria arquivo com size = 0
+        $dentistRequest->files()->create([
+            'name' => 'zero.stl',
+            'path' => "requests/{$tenantId}/zero.zip",
+            'disk' => 's3',
+            'size' => 0,
+            'original_size' => 0,
+            'extension' => 'stl',
+            'mime_type' => 'application/zip',
+        ]);
+
+        // Cria arquivo com size = -500 (caso anômalo legado)
+        $dentistRequest->files()->create([
+            'name' => 'negative.stl',
+            'path' => "requests/{$tenantId}/negative.zip",
+            'disk' => 's3',
+            'size' => -500,
+            'original_size' => 0,
+            'extension' => 'stl',
+            'mime_type' => 'application/zip',
+        ]);
+
+        $consumptionGb = app(TenantLimitChecker::class)->consumptionFor(PlanResource::Storage);
+
+        $expectedGb = 1048576 / (1024 ** 3);
+        $this->assertEqualsWithDelta($expectedGb, $consumptionGb, 0.0000001);
     }
 }

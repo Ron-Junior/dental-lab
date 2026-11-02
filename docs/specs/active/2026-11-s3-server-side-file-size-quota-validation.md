@@ -1,7 +1,8 @@
 # Especificação: Validação Server-Side do Tamanho Real de Objetos no S3 (`Storage::size`) para Cálculo Autoritativo de Cota de Armazenamento
 
 - **Identificador:** `2026-11-s3-server-side-file-size-quota-validation`
-- **Status:** Em Planejamento / Ativa
+- **Status:** Concluído / Implementado
+- **Data de Conclusão:** 2026-11-02
 - **Data:** Novembro de 2026
 - **Módulos Afetados:**
   - Solicitação de Serviços e Upload Direto S3 (`resources/views/components/service/requesting.blade.php`)

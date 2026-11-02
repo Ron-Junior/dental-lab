@@ -197,7 +197,7 @@ class TenantLimitChecker
     {
         return match ($resource) {
             PlanResource::Users => (float) $this->activeTeamUsersQuery()->count(),
-            PlanResource::Storage => (float) File::query()->sum('size') / 1024 ** 3,
+            PlanResource::Storage => max(0.0, (float) File::query()->where('size', '>', 0)->sum('size') / (1024 ** 3)),
             PlanResource::MonthlyItems => (float) RequestService::query()
                 ->whereBetween('created_at', [now()->utc()->startOfMonth(), now()->utc()->endOfMonth()])
                 ->count(),
