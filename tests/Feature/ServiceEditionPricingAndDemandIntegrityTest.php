@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Enums\Rules;
 use App\Models\Dentist;
 use App\Models\DentistRequest;
-use App\Models\PartnerDemand;
 use App\Models\RequestService;
 use App\Models\Rule;
 use App\Models\Service;
@@ -349,6 +348,163 @@ class ServiceEditionPricingAndDemandIntegrityTest extends TestCase
         $this->assertDatabaseHas('request_services', [
             'id' => $requestService->id,
             'quantity' => 100000,
+        ]);
+    }
+
+    public function test_dentist_cannot_tamper_with_unit_price_in_service_requesting(): void
+    {
+        $dentist = $this->dentistWithUser();
+        $dentistUser = $dentist->user;
+        $step = ServiceStep::factory()->create();
+
+        $service = Service::create([
+            'name' => 'Coroa E-Max',
+            'description' => 'Coroa cerâmica pura',
+            'price' => 450.00,
+        ]);
+        $service->serviceSteps()->attach($step->id, ['order' => 1]);
+
+        foreach (['0,01', '0,00'] as $tamperedPrice) {
+            Livewire::actingAs($dentistUser)
+                ->test('service.requesting')
+                ->set('services', [
+                    [
+                        'service_id' => $service->id,
+                        'unit_price' => $tamperedPrice,
+                        'quantity' => 2,
+                    ],
+                ])
+                ->call('save')
+                ->assertHasNoErrors();
+        }
+
+        $requestServices = RequestService::where('service_id', $service->id)->get();
+        $this->assertCount(2, $requestServices);
+
+        foreach ($requestServices as $requestService) {
+            $this->assertEquals(450.00, $requestService->unit_price);
+            $this->assertDatabaseHas('request_services', [
+                'id' => $requestService->id,
+                'service_id' => $service->id,
+                'unit_price' => 45000,
+                'quantity' => 2,
+            ]);
+        }
+    }
+
+    public function test_multiple_services_in_requesting_ignore_tampered_or_empty_unit_prices_across_roles(): void
+    {
+        $owner = $this->userWithRule(Rules::Owner);
+        $dentist = $this->dentistWithUser();
+        $step = ServiceStep::factory()->create();
+
+        $serviceA = Service::create([
+            'name' => 'Inlay Cerâmico',
+            'description' => 'Inlay estético',
+            'price' => 380.50,
+        ]);
+        $serviceA->serviceSteps()->attach($step->id, ['order' => 1]);
+
+        $serviceB = Service::create([
+            'name' => 'Protocolo Acrílico',
+            'description' => 'Prótese sobre implante',
+            'price' => 1850.00,
+        ]);
+        $serviceB->serviceSteps()->attach($step->id, ['order' => 1]);
+
+        Livewire::actingAs($owner)
+            ->test('service.requesting')
+            ->set('dentistId', $dentist->id)
+            ->set('services', [
+                [
+                    'service_id' => $serviceA->id,
+                    'unit_price' => '0,01',
+                    'quantity' => 1,
+                ],
+                [
+                    'service_id' => $serviceB->id,
+                    'unit_price' => '',
+                    'quantity' => 3,
+                ],
+            ])
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('request_services', [
+            'service_id' => $serviceA->id,
+            'unit_price' => 38050,
+            'quantity' => 1,
+        ]);
+
+        $this->assertDatabaseHas('request_services', [
+            'service_id' => $serviceB->id,
+            'unit_price' => 185000,
+            'quantity' => 3,
+        ]);
+    }
+
+    public function test_service_update_ignores_tampered_unit_price_and_preserves_historical_or_new_catalog_price(): void
+    {
+        $owner = $this->userWithRule(Rules::Owner);
+        $dentist = $this->dentistWithUser();
+        $step = ServiceStep::factory()->create();
+
+        $serviceA = Service::create([
+            'name' => 'Provisório Fresado',
+            'description' => 'PMMA',
+            'price' => 200.00,
+        ]);
+        $serviceA->serviceSteps()->attach($step->id, ['order' => 1]);
+
+        $serviceB = Service::create([
+            'name' => 'Zircônia Translúcida',
+            'description' => 'Monolítica',
+            'price' => 650.00,
+        ]);
+        $serviceB->serviceSteps()->attach($step->id, ['order' => 1]);
+
+        $dentistRequest = DentistRequest::factory()->for($dentist)->create();
+        $requestService = RequestService::create([
+            'dentist_request_id' => $dentistRequest->id,
+            'service_id' => $serviceA->id,
+            'unit_price' => 200.00,
+            'quantity' => 1,
+        ]);
+
+        // Catalog price changes afterwards; historical price on $requestService is still 200.00 (20000 cents)
+        $serviceA->update(['price' => 290.00]);
+
+        // Case 1: Only quantity changed, unitPrice tampered to '0,01' -> preserves historical price (20000 cents)
+        Livewire::actingAs($owner)
+            ->test('service.update')
+            ->call('open', $requestService->id)
+            ->set('unitPrice', '0,01')
+            ->set('quantity', 4)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('request_services', [
+            'id' => $requestService->id,
+            'service_id' => $serviceA->id,
+            'unit_price' => 20000,
+            'quantity' => 4,
+        ]);
+
+        // Case 2: Service switched to $serviceB, unitPrice tampered to '0,00' -> uses official catalog price of $serviceB (65000 cents)
+        Livewire::actingAs($owner)
+            ->test('service.update')
+            ->call('open', $requestService->id)
+            ->set('serviceId', $serviceB->id)
+            ->set('unitPrice', '0,00')
+            ->set('quantity', 2)
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('request_services', [
+            'id' => $requestService->id,
+            'service_id' => $serviceB->id,
+            'unit_price' => 65000,
+            'quantity' => 2,
         ]);
     }
 

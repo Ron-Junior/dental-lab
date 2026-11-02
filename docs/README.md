@@ -13,7 +13,6 @@
 ## Especificações (`specs/`)
 - Ativas:
   - [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
-  - [Prevenção de adulteração de preços na solicitação e edição de serviços](specs/active/2026-11-dentist-request-service-price-tampering-protection.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).

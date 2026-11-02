@@ -32,7 +32,6 @@ new class extends Component
     {
         return [
             'serviceId' => ['required', 'integer', Rule::exists('services', 'id')->whereNull('deleted_at')],
-            'unitPrice' => ['required'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
         ];
     }
@@ -95,6 +94,7 @@ new class extends Component
 
         DB::transaction(function () use ($requestService) {
             $serviceChanged = (int) $requestService->service_id !== (int) $this->serviceId;
+            $newService = null;
 
             if ($serviceChanged) {
                 $requestService->partnerDemands()->delete();
@@ -112,8 +112,12 @@ new class extends Component
                 );
             }
 
+            $officialUnitPrice = $serviceChanged
+                ? $newService->price
+                : ($requestService->unit_price ?? Service::whereKey($this->serviceId)->value('price'));
+
             $requestService->update([
-                'unit_price' => currency_to_float($this->unitPrice),
+                'unit_price' => $officialUnitPrice,
                 'quantity' => $this->quantity,
                 'service_id' => $this->serviceId,
             ]);

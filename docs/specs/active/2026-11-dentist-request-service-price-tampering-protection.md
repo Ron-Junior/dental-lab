@@ -1,8 +1,9 @@
 # Especificação: Prevenção de Adulteração de Preços (Price Tampering) na Solicitação e Edição de Serviços
 
 - **Identificador:** `2026-11-dentist-request-service-price-tampering-protection`
-- **Status:** Em Planejamento / Ativo
+- **Status:** Concluído / Implementado
 - **Data:** Novembro de 2026
+- **Data de Conclusão:** 2026-11-01
 - **Módulos Afetados:**
   - Solicitação e Edição de Serviços em Ordens de Serviço (`resources/views/components/service/requesting.blade.php`, `resources/views/components/service/update.blade.php`)
   - Modelos de Catálogo e Itens de Pedido (`app/Models/Service.php`, `app/Models/RequestService.php`)

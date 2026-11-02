@@ -48,7 +48,7 @@ As ordens de serviço (no código modeladas como `DentistRequest`) representam o
 
 1. **Imutabilidade do Identificador:**
    - O campo `code` (ULID) nunca deve ser alterado após a criação, garantindo que QR codes impressos e links enviados ao dentista permaneçam válidos.
-2. **Preço Histórico no Item e Prevenção contra Adulteração Client-Side ([spec](../specs/active/2026-11-dentist-request-service-price-tampering-protection.md)):**
+2. **Preço Histórico no Item e Prevenção contra Adulteração Client-Side ([spec](../specs/archived/2026-11-dentist-request-service-price-tampering-protection.md)):**
    - O `unit_price` gravado em `request_services` deve refletir o valor cobrado no momento do pedido. Alterações futuras na tabela de preços do laboratório (`services`) não devem retroagir sobre ordens já emitidas.
    - Os campos de preço unitário nos modais de solicitação (`requesting.blade.php`) e edição de item (`update.blade.php`) são estritamente informativos (`readonly`). O servidor ignora qualquer valor monetário enviado pelo front-end no payload Livewire (`services.*.unit_price` ou `unitPrice`) e resolve o preço exclusivamente no banco de dados (`Service::whereKey(...)->value('price')` na criação ou troca de serviço, e preservação do `$requestService->unit_price` histórico quando apenas a quantidade é editada).
 3. **Consumo Rastreável:**

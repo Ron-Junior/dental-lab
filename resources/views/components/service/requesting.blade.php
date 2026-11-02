@@ -29,6 +29,7 @@ new class extends Component
     public ?int $dentistId = null;
 
     public array $uploadedFiles = [];
+
     public array $services = [
         [
             'service_id' => '',
@@ -51,7 +52,6 @@ new class extends Component
             'dentistId' => ['required', Rule::exists('dentists', 'id')->whereNull('deleted_at')],
             'services' => 'array|min:1',
             'services.*.service_id' => ['required', Rule::exists('services', 'id')->whereNull('deleted_at')],
-            'services.*.unit_price' => 'required',
             'services.*.quantity' => 'required|integer|min:1|max:1000000',
         ];
     }
@@ -63,7 +63,6 @@ new class extends Component
             'dentistId.exists' => 'O dentista selecionado é inválido.',
             'services.*.service_id.required' => 'O serviço é obrigatório.',
             'services.*.service_id.exists' => 'O serviço selecionado é inválido.',
-            'services.*.unit_price.required' => 'O preço unitário é obrigatório.',
             'services.*.quantity.required' => 'A quantidade é obrigatória.',
             'services.*.quantity.integer' => 'A quantidade deve ser um número inteiro.',
             'services.*.quantity.min' => 'A quantidade deve ser maior ou igual a 1.',
@@ -265,10 +264,10 @@ new class extends Component
     public function closeUploadModal(): void
     {
         $this->createdRequestId = null;
-        Flux::toast(variant: 'success', text: "Arquivos adicionados!");
+        Flux::toast(variant: 'success', text: 'Arquivos adicionados!');
         $this->dispatch('requests::refresh');
     }
-    
+
     public function save(): void
     {
         $this->authorize('create', DentistRequest::class);
@@ -289,10 +288,12 @@ new class extends Component
             ]);
 
             foreach ($this->services as $service) {
+                $officialPrice = Service::whereKey($service['service_id'])->value('price');
+
                 RequestService::create([
                     'dentist_request_id' => $dentistRequest->id,
                     'service_id' => $service['service_id'],
-                    'unit_price' => currency_to_float($service['unit_price']),
+                    'unit_price' => $officialPrice,
                     'quantity' => $service['quantity'],
                 ]);
             }
