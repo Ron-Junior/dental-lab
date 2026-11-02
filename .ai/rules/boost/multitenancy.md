@@ -11,6 +11,7 @@
 
 - Cadastre landing page, cadastro e acompanhamento de onboarding em `routes/web.php`; cadastre autenticação e funcionalidades do laboratório em `routes/tenant.php`.
 - Rotas tenant devem inicializar o contexto via middleware do pacote antes de acessar modelos operacionais. Não confie somente no slug enviado pelo cliente para determinar um tenant.
+- Na rota de impersonação (`/impersonate/{token}` em `routes/tenant.php`), valide explicitamente `abort_unless((string) $tokenModel->tenant_id === (string) tenant('id'), 403)` e conclua `UserImpersonation::makeResponse($tokenModel)` **antes** de gravar `session()->put('impersonated_by_central', true)`, evitando contaminação de sessão e bypass do middleware `EnsureTenantIsOperational` em caso de token de outro tenant ou expirado.
 - Use `route()` e nomes de rota para gerar URLs. O domínio central vem de `CENTRAL_DOMAIN`; nunca hardcode hostnames de produção, sandbox ou laboratórios.
 - Não faça joins entre conexão central e tenant. Para uma operação central sobre um tenant específico, use os mecanismos do pacote para executar no contexto desse tenant e mantenha explícito o limite da operação.
 
