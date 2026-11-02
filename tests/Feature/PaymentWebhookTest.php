@@ -14,6 +14,7 @@ use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Stripe\WebhookSignature;
@@ -685,5 +686,101 @@ class PaymentWebhookTest extends TestCase
                 'success' => true,
                 'message' => 'Assinatura já se encontra cancelada.',
             ]);
+    }
+
+    public function test_webhook_log_sanitizes_pii_and_records_strictly_correlation_identifiers(): void
+    {
+        Log::spy();
+
+        $tenant = Tenant::query()->create([
+            'id' => 'lab-log-privacy',
+            'name' => 'Lab Privacidade',
+            'status' => TenantStatus::Active,
+        ]);
+
+        $payload = [
+            'id' => 'evt_test_123456789',
+            'type' => 'invoice.payment_succeeded',
+            'data' => [
+                'payment_id' => 'pay_abc_999',
+                'tenant_id' => $tenant->id,
+                'user' => [
+                    'name' => 'Dr. Carlos Santos',
+                    'email' => 'carlos@labprivacy.com',
+                    'password' => 'super_secret_password',
+                ],
+                'customer_email' => 'financeiro@labprivacy.com',
+                'customer_phone' => '+5511999998888',
+                'billing_details' => [
+                    'address' => 'Av. Paulista, 1000',
+                    'city' => 'São Paulo',
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook($payload);
+        $response->assertOk();
+
+        Log::shouldHaveReceived('info')
+            ->with(
+                'Webhook de pagamento recebido',
+                \Mockery::on(function (array $context): bool {
+                    $this->assertSame(['event_id', 'type', 'tenant_id', 'payment_id'], array_keys($context));
+                    $this->assertSame('evt_test_123456789', $context['event_id']);
+                    $this->assertSame('invoice.payment_succeeded', $context['type']);
+                    $this->assertSame('lab-log-privacy', $context['tenant_id']);
+                    $this->assertSame('pay_abc_999', $context['payment_id']);
+
+                    $this->assertArrayNotHasKey('payload', $context);
+                    $this->assertArrayNotHasKey('user', $context);
+                    $this->assertArrayNotHasKey('email', $context);
+                    $this->assertArrayNotHasKey('customer_email', $context);
+                    $this->assertArrayNotHasKey('billing_details', $context);
+
+                    return true;
+                })
+            );
+    }
+
+    public function test_ignored_webhook_event_records_identifiers_without_pii(): void
+    {
+        Log::spy();
+
+        $payload = [
+            'id' => 'evt_unsupported_001',
+            'type' => 'customer.created',
+            'tenant_id' => 'lab-ignored',
+            'payment_id' => 'pay_ignored_123',
+            'customer_email' => 'sensivel@exemplo.com',
+            'data' => [
+                'user' => [
+                    'email' => 'sensivel@exemplo.com',
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook($payload);
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Evento ignorado.',
+            ]);
+
+        Log::shouldHaveReceived('info')
+            ->with(
+                'Webhook de pagamento recebido',
+                \Mockery::on(function (array $context): bool {
+                    $this->assertSame(['event_id', 'type', 'tenant_id', 'payment_id'], array_keys($context));
+                    $this->assertSame('evt_unsupported_001', $context['event_id']);
+                    $this->assertSame('customer.created', $context['type']);
+                    $this->assertSame('lab-ignored', $context['tenant_id']);
+                    $this->assertSame('pay_ignored_123', $context['payment_id']);
+
+                    $this->assertArrayNotHasKey('payload', $context);
+                    $this->assertArrayNotHasKey('customer_email', $context);
+
+                    return true;
+                })
+            );
     }
 }

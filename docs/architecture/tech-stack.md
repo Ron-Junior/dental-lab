@@ -11,7 +11,7 @@ Este documento reúne a stack tecnológica oficial do sistema SaaS Dental Lab, o
 - **Framework:** Laravel 13.x
 - **Multitenancy:** `stancl/tenancy` v3 (Estratégia **Multi-schema no PostgreSQL**)
 - **Fila & Cache:** Redis (`predis/predis`), Driver de fila assíncrono via Redis / Database
-- **Monitoramento & Logs:** Sentry (`sentry/sentry-laravel`), Laravel Telescope (dev), Laravel Pail, Barryvdh Debugbar (dev). Logs de aplicação e webhooks operam sob o princípio de minimização de dados da LGPD: é vedado registrar payloads integrais ou dados pessoais identificáveis (PII, e-mails, endereços, cartões), registrando apenas identificadores de correlação (`event_id`, `type`, `tenant_id`, `payment_id`) ([spec](../specs/active/2026-11-webhook-payment-log-pii-sanitization.md)).
+- **Monitoramento & Logs:** Sentry (`sentry/sentry-laravel`), Laravel Telescope (dev), Laravel Pail, Barryvdh Debugbar (dev). Logs de aplicação e webhooks operam sob o princípio de minimização de dados da LGPD: é vedado registrar payloads integrais ou dados pessoais identificáveis (PII, e-mails, endereços, cartões), registrando apenas identificadores de correlação (`event_id`, `type`, `tenant_id`, `payment_id`) ([spec](../specs/archived/2026-11-webhook-payment-log-pii-sanitization.md)).
 - **Storage:** League Flysystem AWS S3 v3 (arquivos, uploads e anexos)
 
 ### Frontend & UI
@@ -86,4 +86,4 @@ O sistema é um **SaaS B2B Multitenant** projetado para atender laboratórios de
 
 ### 3.5. Logs de Aplicação e Minimização de Dados (LGPD)
 - Chamadas a `Log::*` em controladores e webhooks públicos (como `PaymentWebhookController`) nunca devem despejar payloads integrais (`$payload`, `$request->all()`) nos arquivos de log da aplicação.
-- O contexto de logging deve registrar estritamente identificadores de correlação técnica (`event_id`, `type`, `tenant_id`, `payment_id`), preservando a privacidade de clientes e a conformidade com a LGPD e PCI-DSS ([spec](../specs/active/2026-11-webhook-payment-log-pii-sanitization.md)).
+- O contexto de logging deve registrar estritamente identificadores de correlação técnica (`event_id`, `type`, `tenant_id`, `payment_id`), preservando a privacidade de clientes e a conformidade com a LGPD e PCI-DSS ([spec](../specs/archived/2026-11-webhook-payment-log-pii-sanitization.md)).

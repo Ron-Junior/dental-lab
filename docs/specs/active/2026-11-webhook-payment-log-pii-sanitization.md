@@ -1,7 +1,8 @@
 # Especificação: Sanitização de PII e Registro Restrito a Identificadores nos Logs do Webhook de Pagamento
 
 - **Identificador:** `2026-11-webhook-payment-log-pii-sanitization`
-- **Status:** Em Planejamento / Ativa
+- **Status:** Concluído / Implementado
+- **Data de Conclusão:** 2026-11-02
 - **Data:** Novembro de 2026
 - **Módulos Afetados:**
   - Controlador de Webhooks de Pagamento (`app/Http/Controllers/PaymentWebhookController.php`)

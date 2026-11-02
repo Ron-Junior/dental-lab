@@ -108,12 +108,34 @@ class PaymentWebhookController extends Controller
         }
 
         $payload = $request->all();
+        $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+        $stripeObject = is_array($data['object'] ?? null) ? $data['object'] : [];
+
+        $eventId = $payload['event_id'] ?? $payload['id'] ?? $data['event_id'] ?? null;
+        $event = $payload['event'] ?? $payload['type'] ?? null;
+        $paymentId = $data['payment_id'] ?? $payload['payment_id'] ?? $stripeObject['payment_id'] ?? $stripeObject['metadata']['payment_id'] ?? null;
+        $transactionId = $data['transaction_id'] ?? $data['id'] ?? $payload['transaction_id'] ?? $stripeObject['id'] ?? null;
+        $tenantId = $data['tenant_id'] ?? $payload['tenant_id'] ?? $stripeObject['metadata']['tenant_id'] ?? null;
+        $stripeSubscriptionId = $stripeObject['subscription'] ?? $payload['subscription'] ?? (($stripeObject['object'] ?? null) === 'subscription' ? ($stripeObject['id'] ?? null) : null);
+
+        // Se tenantId não foi passado diretamente, tentar localizar por stripe_customer_id
+        $stripeCustomerId = $stripeObject['customer'] ?? $payload['customer'] ?? null;
+        if ($tenantId === null && $stripeCustomerId !== null) {
+            $tenantId = Tenant::query()->where('stripe_customer_id', $stripeCustomerId)->value('id');
+        }
+
+        // Se ainda não localizou tenantId mas temos subscription id
+        if ($tenantId === null && $stripeSubscriptionId !== null) {
+            $tenantId = Subscription::query()->where('stripe_subscription_id', $stripeSubscriptionId)->value('tenant_id');
+        }
 
         Log::info('Webhook de pagamento recebido', [
-            'payload' => $payload,
+            'event_id' => $eventId,
+            'type' => $event,
+            'tenant_id' => $tenantId,
+            'payment_id' => $paymentId,
         ]);
 
-        $event = $payload['event'] ?? $payload['type'] ?? null;
         $isSuccess = in_array($event, self::SUCCESS_EVENTS, true);
         $isFailure = in_array($event, self::FAILURE_EVENTS, true);
         $isCancellation = in_array($event, self::CANCELLATION_EVENTS, true);
@@ -129,27 +151,9 @@ class PaymentWebhookController extends Controller
             ], 200);
         }
 
-        $data = $payload['data'] ?? [];
-        $stripeObject = $data['object'] ?? [];
-
-        $paymentId = $data['payment_id'] ?? $payload['payment_id'] ?? $stripeObject['payment_id'] ?? null;
-        $transactionId = $data['transaction_id'] ?? $data['id'] ?? $payload['transaction_id'] ?? $stripeObject['id'] ?? null;
-        $tenantId = $data['tenant_id'] ?? $payload['tenant_id'] ?? $stripeObject['metadata']['tenant_id'] ?? null;
         $planId = $data['plan_id'] ?? $payload['plan_id'] ?? $stripeObject['metadata']['plan_id'] ?? null;
         $amountInCents = $data['amount_in_cents'] ?? $data['amount'] ?? $payload['amount'] ?? $stripeObject['amount_paid'] ?? $stripeObject['amount'] ?? null;
         $userData = $data['user'] ?? $payload['user'] ?? [];
-        $stripeSubscriptionId = $stripeObject['subscription'] ?? $payload['subscription'] ?? (($stripeObject['object'] ?? null) === 'subscription' ? ($stripeObject['id'] ?? null) : null);
-
-        // Se tenantId não foi passado diretamente, tentar localizar por stripe_customer_id
-        $stripeCustomerId = $stripeObject['customer'] ?? $payload['customer'] ?? null;
-        if ($tenantId === null && $stripeCustomerId !== null) {
-            $tenantId = Tenant::query()->where('stripe_customer_id', $stripeCustomerId)->value('id');
-        }
-
-        // Se ainda não localizou tenantId mas temos subscription id
-        if ($tenantId === null && $stripeSubscriptionId !== null) {
-            $tenantId = Subscription::query()->where('stripe_subscription_id', $stripeSubscriptionId)->value('tenant_id');
-        }
 
         $centralConnection = config('tenancy.database.central_connection', 'pgsql');
 
