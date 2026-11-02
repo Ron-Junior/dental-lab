@@ -73,8 +73,7 @@ new #[Layout('layouts.central')] class extends Component
     #[Computed]
     public function plans(): Collection
     {
-        $user = Auth::guard('central')->user();
-        abort_unless($user instanceof CentralUser, 403);
+        $this->ensureCentralAdmin();
 
         return Plan::query()
             ->withCount(['billableSubscriptions as billable_subscriptions_count'])
@@ -98,6 +97,8 @@ new #[Layout('layouts.central')] class extends Component
     #[Computed]
     public function availableTargetPlans(): Collection
     {
+        $this->ensureCentralAdmin();
+
         $deactivatingPlan = $this->deactivatingPlan;
 
         return $this->plans
@@ -118,6 +119,8 @@ new #[Layout('layouts.central')] class extends Component
     #[Computed]
     public function deactivatingPlan(): ?Plan
     {
+        $this->ensureCentralAdmin();
+
         if ($this->deactivatingPlanId === null) {
             return null;
         }
@@ -127,12 +130,16 @@ new #[Layout('layouts.central')] class extends Component
 
     public function openCreatePlanModal(): void
     {
+        $this->ensureCentralAdmin();
+
         $this->resetPlanForm();
         Flux::modal('plan-form')->show();
     }
 
     public function openEditPlanModal(string $planId): void
     {
+        $this->ensureCentralAdmin();
+
         $plan = Plan::query()->findOrFail($planId);
 
         $this->resetPlanForm();
@@ -170,6 +177,8 @@ new #[Layout('layouts.central')] class extends Component
         UpdatePlan $updatePlan,
         PlanLimitImpactAnalyzer $impactAnalyzer,
     ): void {
+        $this->ensureCentralAdmin();
+
         $payload = $this->validateAndBuildPayload();
 
         if ($this->editingPlanId === null) {
@@ -209,6 +218,8 @@ new #[Layout('layouts.central')] class extends Component
 
     public function confirmSavePlan(UpdatePlan $updatePlan): void
     {
+        $this->ensureCentralAdmin();
+
         if ($this->editingPlanId === null) {
             return;
         }
@@ -232,8 +243,7 @@ new #[Layout('layouts.central')] class extends Component
         DeactivatePlan $deactivatePlan,
         ReactivatePlan $reactivatePlan,
     ): void {
-        $user = Auth::guard('central')->user();
-        abort_unless($user instanceof CentralUser, 403);
+        $this->ensureCentralAdmin();
 
         $plan = Plan::query()
             ->withCount(['billableSubscriptions as billable_subscriptions_count'])
@@ -277,8 +287,7 @@ new #[Layout('layouts.central')] class extends Component
 
     public function confirmDeactivatePlan(DeactivatePlan $deactivatePlan): void
     {
-        $user = Auth::guard('central')->user();
-        abort_unless($user instanceof CentralUser, 403);
+        $this->ensureCentralAdmin();
 
         if ($this->deactivatingPlanId === null) {
             return;
@@ -313,6 +322,14 @@ new #[Layout('layouts.central')] class extends Component
         $this->resetErrorBag();
         unset($this->availableTargetPlans, $this->deactivatingPlan);
         Flux::modal('deactivate-plan')->close();
+    }
+
+    private function ensureCentralAdmin(): CentralUser
+    {
+        $user = Auth::guard('central')->user();
+        abort_unless($user instanceof CentralUser, 403);
+
+        return $user;
     }
 
     /**

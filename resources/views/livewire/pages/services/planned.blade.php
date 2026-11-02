@@ -214,13 +214,19 @@ new class extends Component
                                                 >
                                                     Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}
                                                 </flux:menu.item>
+                                            @endcan
+
+                                            @can('view', $dentistRequest)
                                                 <flux:menu.item
                                                     icon="document-text"
                                                     icon:variant="outline"
-                                                    wire:click="dispatch('service-request::files::open', '{{ $requestService->id }}')"
+                                                    wire:click="dispatch('service-request::files::open', '{{ $dentistRequest->id }}')"
                                                 >
                                                     Ver Arquivos
                                                 </flux:menu.item>
+                                            @endcan
+
+                                            @can('updateStatus', $requestService)
                                                 <flux:menu.item
                                                     :disabled="(bool)$requestService->completed_at"
                                                     icon="no-symbol"
@@ -308,15 +314,19 @@ new class extends Component
                                             variant="ghost"
                                             wire:click="dispatch('service::step::open', '{{ $requestService->id }}')"
                                         >Ver {{ $requestService->completed_at ? 'Serviço' : 'Andamento' }}</flux:button>
-                                        
+                                    @endcan
+
+                                    @can('view', $dentistRequest)
                                         <flux:button
                                             size="xs"
                                             icon="document-text"
                                             icon:variant="outline"
                                             variant="ghost"
-                                            wire:click="dispatch('service-request::files::open', '{{ $requestService->id }}')"
+                                            wire:click="dispatch('service-request::files::open', '{{ $dentistRequest->id }}')"
                                         >Ver Arquivos</flux:button>
+                                    @endcan
 
+                                    @can('updateStatus', $requestService)
                                         <flux:button
                                             :disabled="$requestService->completed_at"
                                             size="xs"

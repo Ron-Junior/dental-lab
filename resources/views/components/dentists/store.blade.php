@@ -8,11 +8,13 @@ use App\Models\User;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule as ValidationRule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?int $dentistId = null;
 
     public ?string $name = null;
@@ -45,9 +47,10 @@ new class extends Component
     #[On('dentist::edit')]
     public function edit($id): void
     {
-        $this->dentistId = (int) $id;
-        $dentist = Dentist::with('user')->findOrFail($id);
+        $dentist = Dentist::with('user')->findOrFail((int) $id);
+        $this->authorize('update', $dentist);
 
+        $this->dentistId = (int) $id;
         $this->name = $dentist->user->name;
         $this->email = $dentist->user->email;
         $this->phone = $dentist->phone;
@@ -64,6 +67,13 @@ new class extends Component
 
     public function save(): void
     {
+        if ($this->dentistId) {
+            $dentist = Dentist::with('user')->findOrFail($this->dentistId);
+            $this->authorize('update', $dentist);
+        } else {
+            $this->authorize('create', Dentist::class);
+        }
+
         $this->validate();
 
         $isEditing = $this->dentistId !== null;

@@ -384,8 +384,8 @@ class DentistRequestFileUploadTest extends TestCase
         ]);
 
         $labUser = $this->userWithRule(Rules::Lab);
-        $partner = Partner::factory()->create(['is_active' => true]);
-        $dentist = Dentist::factory()->create();
+        $partner = Partner::factory()->for($this->userWithRule(Rules::LabPartner))->create(['is_active' => true]);
+        $dentist = Dentist::factory()->for($this->userWithRule(Rules::Dentist))->create();
         $service = Service::factory()->create();
         $stepOne = ServiceStep::factory()->create();
         $stepTwo = ServiceStep::factory()->create();

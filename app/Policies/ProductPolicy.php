@@ -43,6 +43,13 @@ class ProductPolicy
         return in_array($user->rule?->name, [Rules::Owner, Rules::Lab, Rules::LabManager], true);
     }
 
+    public function movementStock(User $user): bool
+    {
+        $user->loadMissing('rule');
+
+        return in_array($user->rule?->name, [Rules::Owner, Rules::Lab, Rules::LabManager], true);
+    }
+
     public function forceDelete(User $user, ?Product $product = null): bool
     {
         return false;

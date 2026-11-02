@@ -3,11 +3,13 @@
 use App\Models\ServiceStep;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?ServiceStep $editingStep = null;
 
     public ?string $name = null;
@@ -31,8 +33,10 @@ new class extends Component
     #[On('step::edit')]
     public function edit(int $id): void
     {
-        $this->editingStep = ServiceStep::find($id);
+        $step = ServiceStep::findOrFail($id);
+        $this->authorize('update', $step);
 
+        $this->editingStep = $step;
         $this->name = $this->editingStep->name;
         $this->description = $this->editingStep->description;
 
@@ -42,6 +46,12 @@ new class extends Component
 
     public function store(): void
     {
+        if ($this->editingStep) {
+            $this->authorize('update', $this->editingStep);
+        } else {
+            $this->authorize('create', ServiceStep::class);
+        }
+
         $this->validate();
 
         $this->editingStep 

@@ -7,6 +7,7 @@ use App\Models\PartnerDemand;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -16,6 +17,7 @@ new class extends Component
     use EnforcesPlanLimits;
     use WithFileUploads;
 
+    #[Locked]
     public ?PartnerDemand $partnerDemand = null;
 
     public $image;
@@ -23,7 +25,10 @@ new class extends Component
     #[On('finish-demand::open')]
     public function openModal(int $partnerDemandId): void
     {
-        $this->partnerDemand = PartnerDemand::with('requestService.partnerDemands')->find($partnerDemandId);
+        $partnerDemand = PartnerDemand::with('requestService.partnerDemands')->findOrFail($partnerDemandId);
+        $this->authorize('complete', $partnerDemand);
+
+        $this->partnerDemand = $partnerDemand;
 
         Flux::modal('finish-demand-modal')->show();
     }
@@ -36,6 +41,7 @@ new class extends Component
 
     public function finishDemand()
     {
+        abort_if(! $this->partnerDemand, 404);
         $this->authorize('complete', $this->partnerDemand);
 
         $this->validate([

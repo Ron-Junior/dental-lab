@@ -3,26 +3,31 @@
 use App\Models\DentistRequest;
 use Flux\Flux;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component {
+    #[Locked]
     public ?int $requestId = null;
+
+    #[Locked]
     public ?DentistRequest $dentistRequest = null;
 
     #[On('service-request::files::open')]
     public function loadRequest(int $requestId): void
     {
-        $this->requestId = $requestId;
-        $dentistRequest = DentistRequest::with('files')->find($requestId);
+        $dentistRequest = DentistRequest::with(['files', 'dentist'])->find($requestId);
 
         if (! $dentistRequest) {
             Flux::toast(variant: 'danger', heading: 'Erro', text: 'Solicitação não encontrada.');
+
             return;
         }
 
         $this->authorize('view', $dentistRequest);
 
+        $this->requestId = $requestId;
         $this->dentistRequest = $dentistRequest;
 
         Flux::modal('show-request-files-modal')->show();
@@ -30,7 +35,7 @@ new class extends Component {
 
     public function download(int $fileId)
     {
-        if (!$this->dentistRequest) {
+        if (! $this->dentistRequest) {
             return;
         }
 

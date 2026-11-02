@@ -5,6 +5,7 @@ use App\Models\Partner;
 use App\Models\PartnerDemand;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -15,16 +16,17 @@ new class extends Component
     #[On('partner::delete')]
     public function confirmDelete(int $partnerId): void
     {
-        $this->partner = Partner::find($partnerId);
+        $partner = Partner::findOrFail($partnerId);
+        $this->authorize('delete', $partner);
+
+        $this->partner = $partner;
 
         Flux::modal('delete-partner-modal')->show();
     }
 
     public function delete(): void
     {
-        if (! $this->partner) {
-            return;
-        }
+        abort_if(! $this->partner, 404);
 
         $this->authorize('delete', $this->partner);
 

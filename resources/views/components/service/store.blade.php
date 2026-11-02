@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -63,9 +64,10 @@ new class extends Component
     #[On('service::edit')]
     public function edit($id): void
     {
-        $this->serviceId = $id;
-        $service = Service::with(['serviceSteps' => fn($q) => $q->orderBy('service_service_step.order')])->find($id);
+        $service = Service::with(['serviceSteps' => fn($q) => $q->orderBy('service_service_step.order')])->findOrFail($id);
+        $this->authorize('update', $service);
 
+        $this->serviceId = (int) $id;
         $this->name = $service->name;
         $this->description = $service->description;
         $this->price = number_format($service->price, 2, ',', '.');

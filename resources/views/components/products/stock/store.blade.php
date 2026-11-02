@@ -19,6 +19,8 @@ new class extends Component
     #[On('stock-movement::create')]
     public function openForProduct(?int $productId = null): void
     {
+        $this->authorize('movementStock', Product::class);
+
         $this->form->reset();
         $this->resetValidation();
 
@@ -137,6 +139,8 @@ new class extends Component
 
     public function save(): void
     {
+        $this->authorize('movementStock', Product::class);
+
         $this->form->save();
 
         $type = $this->form->getTypeEnum();

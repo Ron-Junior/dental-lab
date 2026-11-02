@@ -43,6 +43,8 @@ class PartnerDentistSecurityAndInvitationTest extends TestCase
             'rule_id' => $ownerRule->id,
             'password' => Hash::make('OwnerOldPassword123!'),
         ]);
+
+        $this->actingAs($this->ownerUser);
     }
 
     public function test_partner_edit_keeping_same_email_succeeds_without_unique_error_or_new_user(): void

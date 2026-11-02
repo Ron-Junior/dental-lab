@@ -9,11 +9,13 @@ use App\Models\RequestService;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?DentistRequest $dentistRequest = null;
 
     public array $selectedProducts = [
@@ -61,6 +63,8 @@ new class extends Component
     #[On('product::stock-out')]
     public function open(int $requestServiceId): void
     {
+        $this->authorize('movementStock', Product::class);
+
         $requestService = RequestService::with('dentistRequest')->find($requestServiceId);
 
         $this->dentistRequest = $requestService?->dentistRequest;
@@ -145,6 +149,8 @@ new class extends Component
 
     public function save(): void
     {
+        $this->authorize('movementStock', Product::class);
+
         $this->validate();
 
         foreach ($this->selectedProducts as $product) {
@@ -162,6 +168,11 @@ new class extends Component
         Flux::toast(text: 'Produto retirado do estoque com sucesso!', variant: 'success');
 
         $this->closeModal();
+    }
+
+    public function registerOut(): void
+    {
+        $this->save();
     }
 };
 ?>

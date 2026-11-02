@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -23,6 +24,7 @@ new class extends Component
 
     public ?bool $hasBatches = false;
 
+    #[Locked]
     public ?Product $product = null;
 
     protected function rules(): array
@@ -48,7 +50,10 @@ new class extends Component
     #[On('product::edit')]
     public function edit(?int $productId = null): void
     {
-        $this->product = Product::find($productId);
+        $product = Product::findOrFail($productId);
+        $this->authorize('update', $product);
+
+        $this->product = $product;
         $this->name = $this->product->name;
         $this->minimumStock = $this->product->min_stock;
         $this->unit_of_measure = $this->product->unit_of_measure->value;
@@ -74,6 +79,12 @@ new class extends Component
 
     public function save(): void
     {
+        if ($this->product) {
+            $this->authorize('update', $this->product);
+        } else {
+            $this->authorize('create', Product::class);
+        }
+
         $this->validate();
         
         $this->product 

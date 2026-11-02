@@ -33,10 +33,10 @@ class DentistRequestPolicy
         }
 
         if ($user->rule?->name === Rules::Dentist) {
-            $user->loadMissing('dentist');
+            $dentistRequest->loadMissing('dentist');
 
-            return $dentistRequest->dentist_id !== null
-                && $dentistRequest->dentist_id === $user->dentist?->id;
+            return $dentistRequest->dentist !== null
+                && $dentistRequest->dentist->user_id === $user->id;
         }
 
         return false;

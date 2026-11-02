@@ -22,7 +22,7 @@ class RequestServicePolicy
     {
         $user->loadMissing('rule');
 
-        return in_array($user->rule->name, [
+        return in_array($user->rule?->name, [
             Rules::Owner,
             Rules::Lab,
             Rules::LabManager,

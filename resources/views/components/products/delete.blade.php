@@ -2,6 +2,7 @@
 
 use App\Models\Product;
 use Flux\Flux;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -12,16 +13,17 @@ new class extends Component
     #[On('product::delete')]
     public function confirmDelete(int $productId): void
     {
-        $this->product = Product::find($productId);
+        $product = Product::findOrFail($productId);
+        $this->authorize('delete', $product);
+
+        $this->product = $product;
 
         Flux::modal('delete-product-modal')->show();
     }
 
     public function delete(): void
     {
-        if (! $this->product) {
-            return;
-        }
+        abort_if(! $this->product, 404);
 
         $this->authorize('delete', $this->product);
 

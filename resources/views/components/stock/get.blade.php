@@ -1,22 +1,29 @@
 <?php
 
+use App\Models\Product;
 use Flux\Flux;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
-    public int $requestServiceId;
+    #[Locked]
+    public ?int $requestServiceId = null;
 
     #[On('stock::out')]
     public function open(int $requestServiceId): void
     {
+        $this->authorize('movementStock', Product::class);
+
         $this->requestServiceId = $requestServiceId;
         Flux::modal('get-stock-modal')->show();
     }
 
     public function callStockOut(): void
     {
+        $this->authorize('movementStock', Product::class);
+
         Flux::modal('get-stock-modal')->close();
         $this->dispatch('product::stock-out', $this->requestServiceId);
     }

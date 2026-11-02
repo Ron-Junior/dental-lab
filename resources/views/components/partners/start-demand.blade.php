@@ -2,13 +2,17 @@
 
 use App\Enums\CommissionTypes;
 use App\Models\PartnerDemand;
+use App\Models\Product;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?PartnerDemand $partnerDemand = null;
 
     public ?float $partnerCommissionValue = null;
@@ -18,13 +22,8 @@ new class extends Component
     #[On('start-demand::open')]
     public function openModal(int $partnerDemandId): void
     {
-        $partnerDemand = PartnerDemand::with(['partner.user', 'serviceServiceStep.serviceStep.partners'])->find($partnerDemandId);
-
-        if (! $partnerDemand) {
-            Flux::toast(heading: 'Demanda não encontrada!', variant: 'error', text: 'A demanda solicitada não foi encontrada.');
-
-            return;
-        }
+        $partnerDemand = PartnerDemand::with(['partner.user', 'serviceServiceStep.serviceStep.partners'])->findOrFail($partnerDemandId);
+        $this->authorize('start', $partnerDemand);
 
         $stepPartner = $partnerDemand->serviceServiceStep
             ?->serviceStep
@@ -74,6 +73,7 @@ new class extends Component
 
     public function startDemand()
     {
+        abort_if(! $this->partnerDemand, 404);
         $this->authorize('start', $this->partnerDemand);
 
         $this->partnerDemand->partner_commission = $this->partnerCommissionValue;
@@ -81,7 +81,9 @@ new class extends Component
         $this->partnerDemand->started_at = now();
         $this->partnerDemand->save();
 
-        $this->dispatch('stock::out', $this->partnerDemand->request_service_id);
+        if (Auth::user()?->can('movementStock', Product::class)) {
+            $this->dispatch('stock::out', $this->partnerDemand->request_service_id);
+        }
         $this->dispatch('demand::refresh');
         
         $this->closeModal();

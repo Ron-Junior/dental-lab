@@ -4,6 +4,7 @@ use App\Enums\Rules;
 use App\Models\Service;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -14,17 +15,18 @@ new class extends Component
     #[On('service::delete')]
     public function confirmDelete($id): void
     {
-        $this->serviceId = $id;
+        $service = Service::findOrFail($id);
+        $this->authorize('delete', $service);
+
+        $this->serviceId = (int) $id;
         Flux::modal('delete-service-modal')->show();
     }
 
     public function delete(): void
     {
-        $service = Service::find($this->serviceId);
-        if (! $service) {
-            return;
-        }
+        abort_if(! $this->serviceId, 404);
 
+        $service = Service::findOrFail($this->serviceId);
         $this->authorize('delete', $service);
 
         $service->delete();

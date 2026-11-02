@@ -146,7 +146,8 @@ class StockMovementTest extends TestCase
 
     public function test_stock_movement_store_component_creates_movement(): void
     {
-        $user = User::factory()->create();
+        $rule = Rule::firstOrCreate(['name' => Rules::Lab->value]);
+        $user = User::factory()->for($rule)->create();
         $this->actingAs($user);
 
         $product = Product::factory()->create([

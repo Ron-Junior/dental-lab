@@ -10,6 +10,7 @@ use App\Models\User;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule as ValidationRule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -17,6 +18,7 @@ new class extends Component
 {
     use EnforcesPlanLimits;
 
+    #[Locked]
     public ?Partner $partner = null;
 
     public ?string $name = null;
@@ -45,7 +47,10 @@ new class extends Component
     #[On('partner::edit')]
     public function edit($id): void
     {
-        $this->partner = Partner::with('user')->findOrFail($id);
+        $partner = Partner::with('user')->findOrFail($id);
+        $this->authorize('update', $partner);
+
+        $this->partner = $partner;
         $this->name = $this->partner->user->name;
         $this->email = $this->partner->user->email;
         $this->phone = $this->partner->phone;
@@ -62,6 +67,12 @@ new class extends Component
 
     public function save(): void
     {
+        if ($this->partner) {
+            $this->authorize('update', $this->partner);
+        } else {
+            $this->authorize('create', Partner::class);
+        }
+
         $this->validate();
 
         if (! $this->partner && ! $this->guardPlanLimit(PlanResource::Users)) {

@@ -3,6 +3,7 @@
 use App\Models\ServiceStep;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -13,17 +14,18 @@ new class extends Component
     #[On('step::delete')]
     public function open(int $id): void
     {
+        $step = ServiceStep::findOrFail($id);
+        $this->authorize('delete', $step);
+
         $this->deleteStepId = $id;
         Flux::modal('delete-step-modal')->show();
     }
     
     public function delete(): void
     {
-        $step = ServiceStep::find($this->deleteStepId);
-        if (! $step) {
-            return;
-        }
+        abort_if(! $this->deleteStepId, 404);
 
+        $step = ServiceStep::findOrFail($this->deleteStepId);
         $this->authorize('delete', $step);
 
         if ($step->services()->exists()) {
