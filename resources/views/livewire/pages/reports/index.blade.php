@@ -97,7 +97,8 @@ new class extends Component
                 DB::raw('quantity * unit_cost')
             )
             ->withSum(
-                ['partnerDemands as partner_commissions_cents' => fn (Builder $query) => $this->completedPartnerDemands($query)],
+                ['partnerDemands as partner_commissions_cents' => fn (Builder $query) => $this->completedPartnerDemands($query)
+                    ->addBinding($this->partnerCommissionBindings(), 'select')],
                 DB::raw($this->partnerCommissionExpression())
             )
             ->withCount([
@@ -132,7 +133,9 @@ new class extends Component
                 ->whereIn('dentist_request_id', $requestIds())
                 ->sum(DB::raw('unit_price * quantity')),
             'cmv_cents' => (int) $consumptions()->sum(DB::raw('quantity * unit_cost')),
-            'partner_commissions_cents' => (int) $completedPartnerDemands()->sum(DB::raw($this->partnerCommissionExpression())),
+            'partner_commissions_cents' => (int) $completedPartnerDemands()
+                ->selectRaw('COALESCE(SUM('.$this->partnerCommissionExpression().'), 0) AS commission_cents', $this->partnerCommissionBindings())
+                ->value('commission_cents'),
             'orders_without_consumption' => $this->ordersQuery()
                 ->whereDoesntHave('stockMovements', fn (Builder $query) => $this->serviceConsumptionMovements($query))
                 ->count(),
@@ -168,7 +171,9 @@ new class extends Component
         $completedDemands = fn (): Builder => $this->completedPartnerDemandsQuery();
 
         return [
-            'commission_cents' => (int) $completedDemands()->sum(DB::raw($this->partnerCommissionExpression())),
+            'commission_cents' => (int) $completedDemands()
+                ->selectRaw('COALESCE(SUM('.$this->partnerCommissionExpression().'), 0) AS commission_cents', $this->partnerCommissionBindings())
+                ->value('commission_cents'),
             'completed_demands_count' => $completedDemands()->count(),
             'partners_count' => $completedDemands()->distinct('partner_demands.partner_id')->count('partner_demands.partner_id'),
             'pending_demands_count' => $this->pendingPartnerDemands($this->partnerDemandsQuery())->count(),
@@ -184,7 +189,7 @@ new class extends Component
             ->join('users', 'partners.user_id', '=', 'users.id')
             ->select('partners.id as partner_id', 'users.name as partner_name')
             ->selectRaw('COUNT(*) AS completed_demands_count')
-            ->selectRaw('SUM('.$this->partnerCommissionExpression().') AS commission_cents')
+            ->selectRaw('SUM('.$this->partnerCommissionExpression().') AS commission_cents', $this->partnerCommissionBindings())
             ->groupBy('partners.id', 'users.name')
             ->orderBy('users.name')
             ->get();
@@ -195,7 +200,7 @@ new class extends Component
     {
         return $this->completedPartnerDemandsQuery()
             ->select('partner_demands.*')
-            ->selectRaw($this->partnerCommissionExpression().' AS commission_cents')
+            ->selectRaw($this->partnerCommissionExpression().' AS commission_cents', $this->partnerCommissionBindings())
             ->with([
                 'partner.user',
                 'requestService.dentistRequest.dentist.user',
@@ -400,13 +405,24 @@ new class extends Component
 
     private function partnerCommissionExpression(): string
     {
-        return "CASE
-            WHEN partner_demands.partner_commission_type = '".CommissionTypes::Percentage->value."'
+        return 'CASE
+            WHEN partner_demands.partner_commission_type = ?
                 THEN ROUND(partner_demands.partner_commission * request_services.unit_price * request_services.quantity / 100.0)
-            WHEN partner_demands.partner_commission_type = '".CommissionTypes::Fixed->value."'
+            WHEN partner_demands.partner_commission_type = ?
                 THEN ROUND(partner_demands.partner_commission * 100)
             ELSE NULL
-        END";
+        END';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function partnerCommissionBindings(): array
+    {
+        return [
+            CommissionTypes::Percentage->value,
+            CommissionTypes::Fixed->value,
+        ];
     }
 };
 ?>

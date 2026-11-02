@@ -109,6 +109,42 @@ class ReportsTest extends TestCase
             ->assertDontSee('Incluir comissão de parceiros no cálculo do lucro');
     }
 
+    public function test_order_profitability_calculates_fixed_partner_commission_accurately(): void
+    {
+        $user = $this->userWithRule(Rules::Lab);
+        $dentist = $this->dentist();
+        $service = Service::factory()->create();
+        $request = DentistRequest::factory()->for($dentist)->create();
+        $requestService = RequestService::create([
+            'dentist_request_id' => $request->id,
+            'service_id' => $service->id,
+            'unit_price' => 100,
+            'quantity' => 2,
+        ]);
+        $this->createPartnerDemand(
+            $requestService,
+            $this->partner(),
+            CommissionTypes::Fixed,
+            30,
+        );
+
+        $product = Product::factory()->create(['current_stock' => 2, 'has_batches' => false]);
+        StockMovement::create([
+            'dentist_request_id' => $request->id,
+            'product_id' => $product->id,
+            'type' => StockMovementsTypes::Out,
+            'reason' => StockMovementsReasons::ServiceConsumption,
+            'quantity' => 2,
+            'unit_cost' => 2.5,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test('pages.reports.index')
+            ->assertSee('R$ 30,00')
+            ->assertSee('R$ 165,00')
+            ->assertSee('82,5%');
+    }
+
     public function test_dentist_user_cannot_access_financial_reports(): void
     {
         $user = $this->userWithRule(Rules::Dentist);

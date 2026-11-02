@@ -13,7 +13,6 @@
 ## Especificações (`specs/`)
 - Ativas:
   - [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
-  - [Prevenção de Injeção SQL e Parametrização de Consultas Raw](specs/active/2026-11-sql-injection-prevention-and-parameter-bindings.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).
