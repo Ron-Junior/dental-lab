@@ -13,6 +13,7 @@
 ## Especificações (`specs/`)
 - Ativas:
   - [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
+  - [Sanitização de PII e registro restrito a identificadores nos logs do webhook de pagamento](specs/active/2026-11-webhook-payment-log-pii-sanitization.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).

@@ -88,7 +88,7 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
    - Laboratórios parceiros com período de teste concedido por administradores centrais possuem status `trial` e não são cobrados no checkout.
    - No perfil do laboratório (`/perfil`), o administrador acompanha quantos dias restam para o término do trial (`daysRemainingInTrial()`).
    - Permite cadastrar ou atualizar o cartão a qualquer momento antes do término do período de testes via modal com Stripe Elements.
-5. **Webhooks Idempotentes e Seguros ([spec](../specs/active/2026-10-webhook-security-and-lifecycle.md)):**
+5. **Webhooks Idempotentes e Seguros ([spec](../specs/archived/2026-10-webhook-security-and-lifecycle.md)):**
    - O endpoint central `POST /webhook/payment` valida a autenticidade criptográfica do cabeçalho `Stripe-Signature` via `\Stripe\Webhook::constructEvent` usando `config('services.stripe.webhook_secret')`. Requisições sem assinatura válida são rejeitadas com HTTP 400.
    - Processa notificações assíncronas do Stripe:
      - `invoice.payment_succeeded` (e equivalentes `charge.paid`, `payment.succeeded`): marca a cobrança como `paid`, garante status `active` na assinatura e renova `current_period_start` / `current_period_end` priorizando os timestamps do período da fatura no Stripe ou calculando via `Plan::addBillingCycles` (`+1 mês` para mensal, `+1 ano` para anual). Se houver reajuste ou migração agendada vencida (`price_change_effective_at <= now()`), promove os valores `scheduled_*` na renovação.
@@ -96,6 +96,7 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
      - `invoice.payment_failed` (e equivalentes `charge.failed`, `payment.failed`): marca a cobrança como `failed` e altera a assinatura de tenants ativos não-isentos (`! $tenant->isExempt()`) para `overdue`.
      - `customer.subscription.deleted` (e `subscription.cancelled`): marca a assinatura local como `cancelled` e limpa agendamentos futuros (`scheduled_*`).
    - O processamento de webhooks é estritamente idempotente, evitando duplicações por retransmissão de eventos.
+   - **Sanitização de Logs e Minimização de PII ([spec](../specs/active/2026-11-webhook-payment-log-pii-sanitization.md)):** O recebimento de eventos no webhook (`POST /webhook/payment`) registra exclusivamente identificadores mínimos de correlação (`event_id`, `type`, `tenant_id`, `payment_id`), sendo vedada a gravação de payloads integrais (`$payload`) ou de dados pessoais identificáveis (PII, nomes, e-mails, senhas, telefones, endereços ou metadados de cobrança) nos logs de aplicação.
 
 ---
 
