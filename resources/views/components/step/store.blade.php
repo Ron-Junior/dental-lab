@@ -2,25 +2,41 @@
 
 use App\Models\ServiceStep;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?ServiceStep $editingStep = null;
 
-    #[Validate('required|string|min:3|max:255')]
     public ?string $name = null;
 
-    #[Validate('required|string|min:3|max:255')]
     public ?string $description = null;
+
+    protected function rules(): array
+    {
+        return [
+            'name' => [
+                'required',
+                'string',
+                'min:3',
+                'max:255',
+                Rule::unique('service_steps', 'name')->whereNull('deleted_at')->ignore($this->editingStep?->id),
+            ],
+            'description' => ['required', 'string', 'min:3', 'max:255'],
+        ];
+    }
 
     #[On('step::edit')]
     public function edit(int $id): void
     {
-        $this->editingStep = ServiceStep::find($id);
+        $step = ServiceStep::findOrFail($id);
+        $this->authorize('update', $step);
 
+        $this->editingStep = $step;
         $this->name = $this->editingStep->name;
         $this->description = $this->editingStep->description;
 
@@ -30,6 +46,12 @@ new class extends Component
 
     public function store(): void
     {
+        if ($this->editingStep) {
+            $this->authorize('update', $this->editingStep);
+        } else {
+            $this->authorize('create', ServiceStep::class);
+        }
+
         $this->validate();
 
         $this->editingStep 

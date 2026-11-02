@@ -18,7 +18,8 @@
         "livewire/volt": "^1.7.0",
         "predis/predis": "^3.7",
         "sentry/sentry-laravel": "^4.28",
-        "stancl/tenancy": "^3.10"
+        "stancl/tenancy": "^3.10",
+        "stripe/stripe-php": "^22.0"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^4.4",

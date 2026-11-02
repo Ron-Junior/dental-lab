@@ -16,17 +16,28 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @fluxAppearance
     </head>
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col items-center px-4 justify-center">
-            <div>
+    <body class="font-sans text-gray-900 dark:text-zinc-100 antialiased bg-zinc-50 dark:bg-zinc-950">
+        @php
+            $maxWidth = $maxWidth ?? 'sm:max-w-md';
+            $noCard = $noCard ?? false;
+        @endphp
+
+        <div class="min-h-screen flex flex-col items-center px-4 py-8 sm:py-12 justify-start sm:justify-center">
+            <div class="mb-6 shrink-0">
                 <a href="/" wire:navigate>
-                    <x-icons.logo-name class="w-64 text-zinc-700 dark:text-white" />
+                    <x-icons.logo-name class="w-48 sm:w-64 text-zinc-700 dark:text-white" />
                 </a>
             </div>
 
-            <flux:card class="w-full sm:max-w-md mt-6 px-6 shadow-md overflow-hidden sm:rounded-lg">
-                {{ $slot }}
-            </flux:card>
+            @if (! empty($noCard))
+                <div class="w-full {{ $maxWidth }}">
+                    {{ $slot }}
+                </div>
+            @else
+                <flux:card class="w-full {{ $maxWidth }} shadow-md overflow-hidden sm:rounded-lg">
+                    {{ $slot }}
+                </flux:card>
+            @endif
         </div>
         
         @persist('toast')

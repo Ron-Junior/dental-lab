@@ -13,7 +13,7 @@ return new class extends Migration
 
             $table->foreignId('product_id')
                 ->constrained('products')
-                ->onDelete('cascade');
+                ->restrictOnDelete();
 
             $table->string('batch_number', 50);
             $table->decimal('initial_quantity', 10, 2);

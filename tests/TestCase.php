@@ -2,7 +2,9 @@
 
 namespace Tests;
 
+use App\Enums\SubscriptionStatus;
 use App\Enums\TenantStatus;
+use App\Models\Plan;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Artisan;
@@ -36,6 +38,23 @@ abstract class TestCase extends BaseTestCase
 
         $this->testTenantDomain = $tenantId.'.'.config('tenancy.central_domain');
         $this->testTenant->domains()->create(['domain' => $this->testTenantDomain]);
+
+        $defaultPlan = Plan::query()->firstOrCreate(
+            ['name' => 'Default Test Plan'],
+            [
+                'price_in_cents' => 10000,
+                'billing_cycle' => 'monthly',
+                'stripe_price_id' => 'price_test_default',
+            ]
+        );
+
+        $this->testTenant->subscriptions()->create([
+            'plan_id' => $defaultPlan->id,
+            'status' => SubscriptionStatus::Active,
+            'stripe_subscription_id' => 'sub_test_default',
+            'current_period_start' => now()->subDay(),
+            'current_period_end' => now()->addMonth(),
+        ]);
 
         CreateDatabase::dispatchSync($this->testTenant);
         Artisan::call('tenants:migrate', ['--tenants' => [$tenantId]]);

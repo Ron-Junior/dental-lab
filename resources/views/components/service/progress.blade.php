@@ -4,27 +4,33 @@ use App\Actions\CompleteService;
 use App\Models\RequestService;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?int $requestServiceId = null;
 
+    #[Locked]
     public ?RequestService $requestService = null;
 
     #[On('service::step::open')]
     public function open(int|string $requestServiceId): void
     {
-        $this->requestServiceId = (int) $requestServiceId;
-
-        $this->requestService = RequestService::with([
+        $requestService = RequestService::with([
             'service',
             'dentistRequest.dentist.user',
             'partnerDemands' => fn ($query) => $query->orderBy('order'),
             'partnerDemands.serviceServiceStep.serviceStep',
             'partnerDemands.partner.user',
-        ])->find($this->requestServiceId);
+        ])->findOrFail((int) $requestServiceId);
+
+        $this->authorize('updateStatus', $requestService);
+
+        $this->requestServiceId = (int) $requestServiceId;
+        $this->requestService = $requestService;
 
         Flux::modal('service-progress-modal')->show();
     }
@@ -70,13 +76,22 @@ new class extends Component
 
     public function complete(): void
     {
-        if (!$this->canComplete()) {
+        $requestService = $this->requestService
+            ?? ($this->requestServiceId ? RequestService::find($this->requestServiceId) : null);
+
+        $this->authorize('updateStatus', $requestService ?? RequestService::class);
+        abort_if(! $requestService, 404);
+
+        $this->requestService = $requestService;
+
+        if (! $this->canComplete()) {
             Flux::toast(text: 'Existem etapas que não foram concluídas.');
-            return ;
+
+            return;
         }
 
-        CompleteService::handle($this->requestServiceId);
-        
+        CompleteService::handle($requestService->id);
+
         $this->dispatch('demand::refresh');
         Flux::modals()->close();
         Flux::toast(text: 'Serviço concluído com sucesso!');

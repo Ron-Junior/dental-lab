@@ -2,21 +2,37 @@
 
 use App\Models\ProductCategory;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
-    #[Validate('required|min:3|max:255')]
     public ?string $name = null;
 
+    #[Locked]
     public ?ProductCategory $category = null;
+
+    protected function rules(): array
+    {
+        return [
+            'name' => [
+                'required',
+                'min:3',
+                'max:255',
+                Rule::unique('product_categories', 'name')->whereNull('deleted_at')->ignore($this->category?->id),
+            ],
+        ];
+    }
 
     #[On('category::edit')]
     public function edit(?int $id = null): void
     {
-        $this->category = ProductCategory::find($id);
+        $category = ProductCategory::findOrFail($id);
+        $this->authorize('update', $category);
+
+        $this->category = $category;
         $this->name = $this->category->name;
 
         Flux::modal('store-product-category-modal')->show();
@@ -31,6 +47,12 @@ new class extends Component
 
     public function save(): void
     {
+        if ($this->category) {
+            $this->authorize('update', $this->category);
+        } else {
+            $this->authorize('create', ProductCategory::class);
+        }
+
         $this->validate();
 
         $this->category 

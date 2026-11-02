@@ -11,12 +11,16 @@
 
 - Cadastre landing page, cadastro e acompanhamento de onboarding em `routes/web.php`; cadastre autenticação e funcionalidades do laboratório em `routes/tenant.php`.
 - Rotas tenant devem inicializar o contexto via middleware do pacote antes de acessar modelos operacionais. Não confie somente no slug enviado pelo cliente para determinar um tenant.
+- Na rota de impersonação (`/impersonate/{token}` em `routes/tenant.php`), valide explicitamente `abort_unless((string) $tokenModel->tenant_id === (string) tenant('id'), 403)` e conclua `UserImpersonation::makeResponse($tokenModel)` **antes** de gravar `session()->put('impersonated_by_central', true)`, evitando contaminação de sessão e bypass do middleware `EnsureTenantIsOperational` em caso de token de outro tenant ou expirado.
 - Use `route()` e nomes de rota para gerar URLs. O domínio central vem de `CENTRAL_DOMAIN`; nunca hardcode hostnames de produção, sandbox ou laboratórios.
 - Não faça joins entre conexão central e tenant. Para uma operação central sobre um tenant específico, use os mecanismos do pacote para executar no contexto desse tenant e mantenha explícito o limite da operação.
 
 ## Onboarding
 
 - O cadastro central deve validar o slug e persistir o estado inicial do tenant antes de enfileirar o provisionamento.
+- **Criação e Onboarding via Actions**: A criação de laboratórios (criação de tenant, subscrição, faturas/isenções e disparo de provisionamento) é centralizada na Action `App\Actions\CreateLaboratory`. Isso permite que o mesmo fluxo orquestrado seja reutilizado tanto pelo onboarding público do laboratório quanto pelo painel administrativo do sócio.
+- **Privilégios Centrais Exclusivos**: Isenção de pagamento (`exemptions`) e concessão de descontos comerciais (`discounts`) são prerrogativas restritas a `CentralUser` autenticados. Qualquer criação de conta fora do contexto de um sócio não permite isenção de pagamento nem aplicação manual de descontos.
+- **Restrição Estrita de Mock Mode do Stripe a `local`/`testing`**: O modo simulado de pagamento (`StripeService::isMock()` e `$isMockMode` em `checkout.blade.php` e `subscription-billing.blade.php`) deve ser permitido exclusivamente quando `app()->environment(['local', 'testing'])`. Fora desses ambientes (`production`, `staging`, etc.), a ausência ou presença de `'placeholder'` em `STRIPE_KEY`/`STRIPE_SECRET` deve lançar `\RuntimeException` (*fail-closed*) e rejeitar tokens `pm_mock_*`, jamais aprovando assinaturas ou provisionando tenants gratuitamente.
 - Provisionamento permanece assíncrono: criar o banco/schema, executar migrações e seeders tenant, criar o administrador, marcar o tenant como ativo e notificar o responsável.
 - Mantenha o job idempotente e trate falha terminal atualizando o estado do tenant. Não mova provisionamento para a requisição HTTP nem marque como ativo antes de concluir as etapas necessárias.
 - Segredos do responsável usados temporariamente no provisionamento devem permanecer protegidos e ser removidos assim que deixarem de ser necessários.

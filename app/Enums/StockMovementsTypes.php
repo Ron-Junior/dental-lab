@@ -22,7 +22,7 @@ enum StockMovementsTypes: string
         return match ($this) {
             self::In => StockMovementsReasons::in(),
             self::Out => StockMovementsReasons::out(),
-            self::Adjustment => StockMovementsReasons::adjustiment(),
+            self::Adjustment => StockMovementsReasons::adjustment(),
         };
     }
 }

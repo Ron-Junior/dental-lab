@@ -195,7 +195,7 @@ new class extends Component
                                             icon="play" 
                                             icon:variant="outline"
                                             variant="ghost"
-                                            :disabled="!Auth::user()->can('assign', $demand)"
+                                            :disabled="!Auth::user()->can('start', $demand)"
                                         />
                                     </flux:tooltip>
                                 @endif
@@ -207,7 +207,7 @@ new class extends Component
                                             icon="document-check"
                                             icon:variant="outline"
                                             variant="ghost"
-                                            :disabled="!Auth::user()->can('assign', $demand)"
+                                            :disabled="!Auth::user()->can('complete', $demand)"
                                         />
                                     </flux:tooltip>
                                 @endif
@@ -300,7 +300,7 @@ new class extends Component
                                 icon:variant="outline"
                                 variant="ghost"
                                 size="sm"
-                                :disabled="!Auth::user()->can('assign', $demand)"
+                                :disabled="!Auth::user()->can('start', $demand)"
                             >
                                 Iniciar
                             </flux:button>
@@ -313,7 +313,7 @@ new class extends Component
                                 icon:variant="outline"
                                 variant="ghost"
                                 size="sm"
-                                :disabled="!Auth::user()->can('assign', $demand)"
+                                :disabled="!Auth::user()->can('complete', $demand)"
                             >
                                 Complete
                             </flux:button>

@@ -13,9 +13,10 @@ return new class extends Migration
     {
         Schema::create('dentists', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->index()->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->index()->constrained()->restrictOnDelete();
             $table->string('phone');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

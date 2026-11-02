@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\PlanResource;
 use App\Enums\Rules;
+use App\Livewire\Concerns\EnforcesPlanLimits;
 use App\Models\Dentist;
 use App\Models\DentistRequest;
 use App\Models\File;
@@ -12,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
@@ -21,10 +24,12 @@ use Livewire\Component;
 
 new class extends Component
 {
-    #[Validate(['required', 'exists:dentists,id'])]
+    use EnforcesPlanLimits;
+
     public ?int $dentistId = null;
 
     public array $uploadedFiles = [];
+
     public array $services = [
         [
             'service_id' => '',
@@ -44,9 +49,9 @@ new class extends Component
     public function rules(): array
     {
         return [
+            'dentistId' => ['required', Rule::exists('dentists', 'id')->whereNull('deleted_at')],
             'services' => 'array|min:1',
-            'services.*.service_id' => 'required|exists:services,id',
-            'services.*.unit_price' => 'required',
+            'services.*.service_id' => ['required', Rule::exists('services', 'id')->whereNull('deleted_at')],
             'services.*.quantity' => 'required|integer|min:1|max:1000000',
         ];
     }
@@ -54,9 +59,10 @@ new class extends Component
     public function messages(): array
     {
         return [
+            'dentistId.required' => 'O dentista é obrigatório.',
+            'dentistId.exists' => 'O dentista selecionado é inválido.',
             'services.*.service_id.required' => 'O serviço é obrigatório.',
             'services.*.service_id.exists' => 'O serviço selecionado é inválido.',
-            'services.*.unit_price.required' => 'O preço unitário é obrigatório.',
             'services.*.quantity.required' => 'A quantidade é obrigatória.',
             'services.*.quantity.integer' => 'A quantidade deve ser um número inteiro.',
             'services.*.quantity.min' => 'A quantidade deve ser maior ou igual a 1.',
@@ -76,18 +82,23 @@ new class extends Component
     }
 
     #[On('remove-s3-file')]
-    public function removeS3File($requestId, $path)
+    public function removeS3File(int|string $requestId, string $path): void
     {
-    
-        Storage::disk('s3')->delete($path);
+        $dentistRequest = DentistRequest::findOrFail((int) $requestId);
 
-        File::where('fileable_id', $requestId)
-            ->where('fileable_type', DentistRequest::class)
-            ->where('path', $path)
-            ->first()
-            ->delete();
+        $this->authorize('update', $dentistRequest);
 
-        Flux::toast(text: 'Arquivo removido!', variant: 'success');
+        $file = $dentistRequest->files()->where('path', $path)->firstOrFail();
+
+        Storage::disk($file->disk ?: config('filesystems.default', 's3'))->delete($file->path);
+
+        $file->delete();
+
+        if (app('livewire')->current()) {
+            Flux::toast(text: 'Arquivo removido!', variant: 'success');
+        } else {
+            $this->dispatch('toast-show', duration: 5000, slots: ['text' => 'Arquivo removido!'], dataset: ['variant' => 'success']);
+        }
     }
 
     #[Computed(true)]
@@ -102,16 +113,20 @@ new class extends Component
         return Service::all();
     }
 
-    public function updatedServices($value, $key): void
+    public function updatedServices($value, $key = null): void
     {
-        [$index, $field] = explode('.', $key);
+        if (! $key || ! str_contains((string) $key, '.')) {
+            return;
+        }
+
+        [$index, $field] = explode('.', (string) $key);
 
         if ($field === 'unit_price' || $field === 'quantity') {
             return;
         }
 
         $selectedService = $this->offerServices->firstWhere('id', $value);
-        $this->services[$index]['unit_price'] = number_format($selectedService?->price, 2, ',', '.') ?? 0;
+        $this->services[$index]['unit_price'] = number_format($selectedService?->price ?? 0, 2, ',', '.');
     }
 
     public function addService(): void
@@ -131,6 +146,20 @@ new class extends Component
     public function getPreSignedUploadUrl(string $filename, string $contentType = '', ?int $fileSize = null): array
     {
         $this->authorize('create', DentistRequest::class);
+
+        if ($fileSize === null || $fileSize <= 0) {
+            throw ValidationException::withMessages([
+                'uploadedFiles' => 'O tamanho do arquivo deve ser informado e maior que zero.',
+            ]);
+        }
+
+        $incomingGb = $fileSize / (1024 ** 3);
+
+        if (! $this->guardPlanLimit(PlanResource::Storage, $incomingGb)) {
+            throw ValidationException::withMessages([
+                'uploadedFiles' => 'Não foi possível enviar arquivos no momento. Entre em contato com o laboratório.',
+            ]);
+        }
 
         $cleanName = strtolower($filename);
         $isZip = str_ends_with($cleanName, '.zip');
@@ -179,20 +208,91 @@ new class extends Component
      */
     public function addFilesToRequest(int $requestId, array $files): void
     {
-        $this->authorize('create', DentistRequest::class);
-
         $dentistRequest = DentistRequest::findOrFail($requestId);
 
+        $this->authorize('update', $dentistRequest);
+
+        if ($files === []) {
+            return;
+        }
+
+        $tenantId = tenant('id') ?? 'default';
+        $tenantPrefix = "requests/{$tenantId}/";
+        $defaultDisk = config('filesystems.default', 's3');
+        $allowedDisks = array_unique(['s3', $defaultDisk]);
+
+        $verifiedFiles = [];
+        $totalBytes = 0;
+
         foreach ($files as $fileData) {
-            $dentistRequest->files()->create([
-                'name' => $fileData['name'],
-                'path' => $fileData['path'],
-                'disk' => $fileData['disk'] ?? config('filesystems.default', 's3'),
-                'size' => $fileData['size'] ?? null,
-                'original_size' => $fileData['original_size'] ?? null,
+            if (! is_array($fileData)) {
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'Arquivo inválido ou fora do escopo do laboratório.',
+                ]);
+            }
+
+            $path = (string) ($fileData['path'] ?? '');
+            $diskName = (string) ($fileData['disk'] ?? $defaultDisk);
+
+            if (
+                $path === ''
+                || ! str_starts_with($path, $tenantPrefix)
+                || str_contains($path, '..')
+                || ! in_array($diskName, $allowedDisks, true)
+            ) {
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'Arquivo inválido ou fora do escopo do laboratório.',
+                ]);
+            }
+
+            $disk = Storage::disk($diskName);
+
+            if (! $disk->exists($path)) {
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'Arquivo inválido ou não encontrado no armazenamento.',
+                ]);
+            }
+
+            $actualSize = (int) $disk->size($path);
+
+            if ($actualSize <= 0) {
+                $disk->delete($path);
+
+                throw ValidationException::withMessages([
+                    'uploadedFiles' => 'O arquivo enviado está vazio ou é inválido.',
+                ]);
+            }
+
+            $reportedOriginalSize = isset($fileData['original_size']) ? (int) $fileData['original_size'] : null;
+            $originalSize = ($reportedOriginalSize !== null && $reportedOriginalSize >= $actualSize)
+                ? $reportedOriginalSize
+                : $actualSize;
+
+            $verifiedFiles[] = [
+                'name' => (string) ($fileData['name'] ?? basename($path)),
+                'path' => $path,
+                'disk' => $diskName,
+                'size' => $actualSize,
+                'original_size' => $originalSize,
                 'extension' => $fileData['extension'] ?? null,
                 'mime_type' => $fileData['mime_type'] ?? 'application/zip',
-            ]);
+            ];
+
+            $totalBytes += $actualSize;
+        }
+
+        $incomingGb = $totalBytes / (1024 ** 3);
+
+        if (! $this->guardPlanLimit(PlanResource::Storage, $incomingGb)) {
+            foreach ($verifiedFiles as $verifiedFile) {
+                Storage::disk($verifiedFile['disk'])->delete($verifiedFile['path']);
+            }
+
+            return;
+        }
+
+        foreach ($verifiedFiles as $verifiedFile) {
+            $dentistRequest->files()->create($verifiedFile);
         }
     }
 
@@ -205,10 +305,10 @@ new class extends Component
     public function closeUploadModal(): void
     {
         $this->createdRequestId = null;
-        Flux::toast(variant: 'success', text: "Arquivos adicionados!");
+        Flux::toast(variant: 'success', text: 'Arquivos adicionados!');
         $this->dispatch('requests::refresh');
     }
-    
+
     public function save(): void
     {
         $this->authorize('create', DentistRequest::class);
@@ -219,16 +319,22 @@ new class extends Component
 
         $this->validate();
 
+        if (! $this->guardPlanLimit(PlanResource::MonthlyItems, count($this->services))) {
+            return;
+        }
+
         DB::transaction(function () {
             $dentistRequest = DentistRequest::create([
                 'dentist_id' => $this->dentistId,
             ]);
 
             foreach ($this->services as $service) {
+                $officialPrice = Service::whereKey($service['service_id'])->value('price');
+
                 RequestService::create([
                     'dentist_request_id' => $dentistRequest->id,
                     'service_id' => $service['service_id'],
-                    'unit_price' => str($service['unit_price'])->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
+                    'unit_price' => $officialPrice,
                     'quantity' => $service['quantity'],
                 ]);
             }

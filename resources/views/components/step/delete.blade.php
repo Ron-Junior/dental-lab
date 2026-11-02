@@ -2,6 +2,8 @@
 
 use App\Models\ServiceStep;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -12,18 +14,37 @@ new class extends Component
     #[On('step::delete')]
     public function open(int $id): void
     {
+        $step = ServiceStep::findOrFail($id);
+        $this->authorize('delete', $step);
+
         $this->deleteStepId = $id;
         Flux::modal('delete-step-modal')->show();
     }
     
     public function delete(): void
-    { 
-        ServiceStep::whereId($this->deleteStepId)->delete();
+    {
+        abort_if(! $this->deleteStepId, 404);
+
+        $step = ServiceStep::findOrFail($this->deleteStepId);
+        $this->authorize('delete', $step);
+
+        if ($step->services()->exists()) {
+            Flux::modals()->close();
+            Flux::toast(variant: 'danger', heading: 'Não é possível excluir!', text: 'A etapa está vinculada a serviços ativos. Remova a etapa dos serviços ativos antes de excluí-la.');
+
+            return;
+        }
+
+        DB::transaction(function () use ($step) {
+            $step->partners()->detach();
+            $step->delete();
+        });
+
         $this->deleteStepId = null;
         $this->dispatch('step::refresh');
 
         Flux::modals()->close();
-        Flux::toast(variant: 'success', heading: 'Sucesso!', text: str('Etapa excluída com sucesso')->render());
+        Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Etapa excluída com sucesso');
     }
 
     public function closeModal(): void

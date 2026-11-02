@@ -8,53 +8,51 @@ use App\Models\User;
 
 class PartnerDemandPolicy
 {
-    public function assign(User $user, PartnerDemand $partnerDemand): bool
+    public function assign(User $user, ?PartnerDemand $partnerDemand = null): bool
     {
-        $isLab = $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
-        if ($isLab) {
+        $user->loadMissing('rule');
+
+        if (in_array($user->rule?->name, [Rules::Owner, Rules::Lab, Rules::LabManager], true)) {
             return true;
         }
 
-        $isOwner = $user->rule->name == Rules::Owner;
-        if ($isOwner) {
-            return true;
-        }
-
-        return $partnerDemand->serviceServiceStep->serviceStep->partners->pluck('user.id')->contains($user->id);
-    }
-
-    public function start(User $user, PartnerDemand $partnerDemand): bool
-    {
-        if (! $partnerDemand->canStartNow) {
+        if (! $partnerDemand) {
             return false;
         }
 
-        $isLab = $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
-        if ($isLab) {
-            return true;
+        $partnerDemand->loadMissing('serviceServiceStep.serviceStep.partners.user');
+
+        return $partnerDemand->serviceServiceStep
+            ?->serviceStep
+            ?->partners
+            ?->pluck('user.id')
+            ->contains($user->id) ?? false;
+    }
+
+    public function start(User $user, ?PartnerDemand $partnerDemand = null): bool
+    {
+        if (! $partnerDemand || ! $partnerDemand->canStartNow) {
+            return false;
         }
 
-        $isOwner = $user->rule->name == Rules::Owner;
-        if ($isOwner) {
+        $user->loadMissing('rule');
+
+        if (in_array($user->rule?->name, [Rules::Owner, Rules::Lab, Rules::LabManager], true)) {
             return true;
         }
 
         return $partnerDemand->partner?->user_id === $user->id;
     }
 
-    public function complete(User $user, PartnerDemand $partnerDemand): bool
+    public function complete(User $user, ?PartnerDemand $partnerDemand = null): bool
     {
-        if (! $partnerDemand->canCompleteNow) {
+        if (! $partnerDemand || ! $partnerDemand->canCompleteNow) {
             return false;
         }
 
-        $isLab = $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
-        if ($isLab) {
-            return true;
-        }
+        $user->loadMissing('rule');
 
-        $isOwner = $user->rule->name == Rules::Owner;
-        if ($isOwner) {
+        if (in_array($user->rule?->name, [Rules::Owner, Rules::Lab, Rules::LabManager], true)) {
             return true;
         }
 

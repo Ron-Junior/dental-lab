@@ -79,14 +79,33 @@ class StockMovement
             }
         }
 
-        return DB::transaction(function () use ($product, $type, $reason, $totalQuantity, $unitCost, $data) {
-            $isIncoming = $type === StockMovementsTypes::In || in_array($reason, StockMovementsReasons::in(), true);
-            $isOutgoing = $type === StockMovementsTypes::Out || in_array($reason, StockMovementsReasons::out(), true);
+        $isIncoming = $type === StockMovementsTypes::In
+            || ($type === StockMovementsTypes::Adjustment && $reason && in_array($reason, StockMovementsReasons::in(), true));
+        $isOutgoing = $type === StockMovementsTypes::Out
+            || ($type === StockMovementsTypes::Adjustment && $reason && in_array($reason, StockMovementsReasons::out(), true));
+
+        if ($type === StockMovementsTypes::In && $reason !== null && in_array($reason, StockMovementsReasons::out(), true)) {
+            $isIncoming = false;
+        }
+        if ($type === StockMovementsTypes::Out && $reason !== null && in_array($reason, StockMovementsReasons::in(), true)) {
+            $isOutgoing = false;
+        }
+
+        if ((! $isIncoming && ! $isOutgoing) || ($isIncoming && $isOutgoing)) {
+            throw ValidationException::withMessages([
+                'form.reason' => 'O motivo selecionado é incompatível com o tipo de movimentação.',
+                'reason' => 'O motivo selecionado é incompatível com o tipo de movimentação.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($product, $type, $reason, $totalQuantity, $unitCost, $data, $isIncoming, $isOutgoing) {
+            $product = Product::whereKey($product->id)->lockForUpdate()->firstOrFail();
 
             // Validação de estoque total do produto para saídas
             if ($isOutgoing && (float) $product->current_stock < $totalQuantity) {
                 throw ValidationException::withMessages([
                     'form.amount' => "Estoque insuficiente. O produto possui apenas {$product->current_stock} {$product->unit_of_measure?->value} disponíveis.",
+                    'amount' => "Estoque insuficiente. O produto possui apenas {$product->current_stock} {$product->unit_of_measure?->value} disponíveis.",
                 ]);
             }
 
@@ -95,31 +114,61 @@ class StockMovement
             if ($product->has_batches || ! empty($data['batchNumber']) || ! empty($data['stockBatchId'])) {
                 if ($isIncoming) {
                     $stockBatch = null;
-                    $batchNumber = $data['batchNumber'] ?? null;
+                    $batchNumber = ! empty($data['batchNumber']) ? trim($data['batchNumber']) : null;
+                    $stockBatchId = ! empty($data['stockBatchId']) ? $data['stockBatchId'] : null;
                     $expirationDate = $data['expirationDate'] ?? null;
 
-                    if (! empty($batchNumber)) {
-                        $stockBatch = StockBatch::firstOrNew([
-                            'product_id' => $product->id,
-                            'batch_number' => trim($batchNumber),
-                        ]);
+                    if ($stockBatchId) {
+                        $stockBatch = StockBatch::where('product_id', $product->id)
+                            ->whereKey($stockBatchId)
+                            ->lockForUpdate()
+                            ->first();
+                    }
 
-                        if (! $stockBatch->exists) {
-                            $stockBatch->initial_quantity = $totalQuantity;
-                            $stockBatch->current_quantity = $totalQuantity;
-                            $stockBatch->expiration_date = $expirationDate ?: now()->addYear();
-                            $stockBatch->cost_price = $unitCost;
-                        } else {
-                            $stockBatch->current_quantity = (float) $stockBatch->current_quantity + $totalQuantity;
-                            if ($expirationDate) {
-                                $stockBatch->expiration_date = $expirationDate;
-                            }
-                            if ($unitCost !== null) {
+                    if (! $stockBatch && $batchNumber) {
+                        $stockBatch = StockBatch::where('product_id', $product->id)
+                            ->where('batch_number', $batchNumber)
+                            ->lockForUpdate()
+                            ->first();
+                    }
+
+                    if ($stockBatch) {
+                        if ($unitCost !== null) {
+                            if ((float) $stockBatch->current_quantity > 0 && $stockBatch->cost_price !== null) {
+                                $currentBatchQty = (float) $stockBatch->current_quantity;
+                                $currentBatchCost = (float) $stockBatch->cost_price;
+                                $stockBatch->cost_price = round(
+                                    (($currentBatchQty * $currentBatchCost) + ($totalQuantity * $unitCost)) / ($currentBatchQty + $totalQuantity),
+                                    2
+                                );
+                            } else {
                                 $stockBatch->cost_price = $unitCost;
                             }
                         }
+                        $stockBatch->initial_quantity = round((float) $stockBatch->initial_quantity + $totalQuantity, 2);
+                        $stockBatch->current_quantity = round((float) $stockBatch->current_quantity + $totalQuantity, 2);
+                        if ($expirationDate) {
+                            $stockBatch->expiration_date = $expirationDate;
+                        }
                         $stockBatch->save();
+                    } elseif ($batchNumber) {
+                        $stockBatch = new StockBatch([
+                            'product_id' => $product->id,
+                            'batch_number' => $batchNumber,
+                            'initial_quantity' => $totalQuantity,
+                            'current_quantity' => $totalQuantity,
+                            'expiration_date' => $expirationDate ?: now()->addYear(),
+                            'cost_price' => $unitCost ?? $product->unit_cost,
+                        ]);
+                        $stockBatch->save();
+                    } elseif ($product->has_batches) {
+                        throw ValidationException::withMessages([
+                            'form.batchNumber' => 'O lote é obrigatório para este produto.',
+                            'batchNumber' => 'O lote é obrigatório para este produto.',
+                        ]);
                     }
+
+                    $movementUnitCost = $unitCost ?? $stockBatch?->cost_price ?? $product->unit_cost;
 
                     $movementsCreated[] = ModelsStockMovement::create([
                         'dentist_request_id' => $data['dentist_request_id'] ?? null,
@@ -131,14 +180,15 @@ class StockMovement
                         'external_identifier' => $data['externalIdentifier'] ?? null,
                         'notes' => $data['notes'] ?? null,
                         'quantity' => $totalQuantity,
-                        'unit_cost' => $unitCost,
+                        'unit_cost' => $movementUnitCost,
                     ]);
                 } elseif ($isOutgoing) {
                     $remainingQuantityToDeduct = $totalQuantity;
 
-                    // Busca os lotes disponíveis. Se o usuário enviou um lote específico, coloca ele em primeiro lugar na fila.
+                    // Busca os lotes disponíveis com bloqueio pessimista
                     $batchQuery = StockBatch::where('product_id', $product->id)
-                        ->where('current_quantity', '>', 0);
+                        ->where('current_quantity', '>', 0)
+                        ->lockForUpdate();
 
                     if (! empty($data['stockBatchId'])) {
                         $batchQuery->orderByRaw('id = ? DESC', [$data['stockBatchId']]);
@@ -146,14 +196,21 @@ class StockMovement
                         $batchQuery->orderByRaw('batch_number = ? DESC', [trim($data['batchNumber'])]);
                     }
 
-                    // Ordena o restante por data de vencimento (FIFO - Primeiro a vencer sai primeiro)
+                    if ($reason === StockMovementsReasons::ServiceConsumption) {
+                        $batchQuery->where(function ($q) {
+                            $q->whereNull('expiration_date')->orWhereDate('expiration_date', '>=', today());
+                        });
+                    }
+
+                    // Ordena por data de vencimento (FEFO - Primeiro a vencer sai primeiro)
                     $batches = $batchQuery->orderBy('expiration_date', 'asc')->get();
 
-                    $totalAvailableInBatches = $batches->sum('current_quantity');
+                    $totalAvailableInBatches = (float) $batches->sum('current_quantity');
 
                     if ($totalAvailableInBatches < $totalQuantity) {
                         throw ValidationException::withMessages([
                             'form.amount' => "Estoque em lotes insuficiente. Disponível em lotes: {$totalAvailableInBatches}.",
+                            'amount' => "Estoque em lotes insuficiente. Disponível em lotes: {$totalAvailableInBatches}.",
                         ]);
                     }
 
@@ -169,6 +226,9 @@ class StockMovement
                         $batch->current_quantity = round($batchAvailable - $deductFromThisBatch, 2);
                         $batch->save();
 
+                        // Custo unitário herdado do lote ou do produto como fallback
+                        $batchUnitCost = $unitCost ?? $batch->cost_price ?? $product->unit_cost;
+
                         // Cria uma movimentação individual para o lote atual
                         $movementsCreated[] = ModelsStockMovement::create([
                             'dentist_request_id' => $data['dentist_request_id'] ?? null,
@@ -180,7 +240,7 @@ class StockMovement
                             'external_identifier' => $data['externalIdentifier'] ?? null,
                             'notes' => $data['notes'] ?? null,
                             'quantity' => $deductFromThisBatch,
-                            'unit_cost' => $unitCost ?? $batch->cost_price,
+                            'unit_cost' => $batchUnitCost,
                         ]);
 
                         $remainingQuantityToDeduct -= $deductFromThisBatch;
@@ -188,6 +248,8 @@ class StockMovement
                 }
             } else {
                 // Produto sem controle de lotes
+                $movementUnitCost = $unitCost ?? $product->unit_cost;
+
                 $movementsCreated[] = ModelsStockMovement::create([
                     'dentist_request_id' => $data['dentist_request_id'] ?? null,
                     'product_id' => $product->id,
@@ -198,12 +260,26 @@ class StockMovement
                     'external_identifier' => $data['externalIdentifier'] ?? null,
                     'notes' => $data['notes'] ?? null,
                     'quantity' => $totalQuantity,
-                    'unit_cost' => $unitCost,
+                    'unit_cost' => $movementUnitCost,
                 ]);
             }
 
-            // Atualiza o estoque geral do produto
+            // Atualiza o estoque geral e custo médio do produto
             if ($isIncoming) {
+                if ($unitCost !== null && $unitCost > 0) {
+                    $currentStockBefore = max(0, (float) $product->current_stock);
+                    $currentUnitCost = $product->unit_cost;
+
+                    if ($currentStockBefore > 0 && $currentUnitCost !== null) {
+                        $product->unit_cost = round(
+                            (($currentStockBefore * $currentUnitCost) + ($totalQuantity * $unitCost)) / ($currentStockBefore + $totalQuantity),
+                            4
+                        );
+                    } else {
+                        $product->unit_cost = $unitCost;
+                    }
+                }
+
                 $product->current_stock = (float) $product->current_stock + $totalQuantity;
             } elseif ($isOutgoing) {
                 $product->current_stock = max(0, (float) $product->current_stock - $totalQuantity);

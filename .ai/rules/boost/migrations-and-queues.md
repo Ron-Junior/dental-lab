@@ -12,6 +12,7 @@
 - O provisionamento tenant usa a fila configurada por `QUEUE_CONNECTION`; qualquer job assíncrono precisa de um worker ativo no ambiente onde é despachado.
 - O Compose local inicia o worker junto com a aplicação, e o script em `deploy/sandbox/scripts/laravel-deploy.sh` inicia o worker no deploy sandbox. Mantenha os dois ambientes alinhados ao alterar o comando, timeout ou conexão da fila.
 - O timeout do worker deve ser menor que `retry_after`, com margem suficiente para impedir que um job ainda em execução seja reservado novamente. Hoje o provisionamento usa timeout de 300 segundos e a fila database usa `retry_after` de 330 segundos.
+- Não passe modelos Eloquent completos para os Jobs. Dê preferência a passar identificadores primitivos (IDs) ou DTOs/objetos pequenos, consultando o modelo no início do `handle()`. Isso previne payload pesado na fila, problemas de serialização e inconsistências de estado entre conexões/schemas.
 - Preserve estado explícito de sucesso e falha nos jobs de provisionamento; não silencie exceções nem apresente uma conclusão bem-sucedida quando a execução falhar.
 
 ## Verificação

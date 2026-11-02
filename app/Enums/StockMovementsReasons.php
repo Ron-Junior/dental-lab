@@ -59,11 +59,16 @@ enum StockMovementsReasons: string
         ];
     }
 
-    public static function adjustiment(): array
+    public static function adjustment(): array
     {
         return [
             self::AdjustmentIn,
             self::AdjustmentOut,
         ];
+    }
+
+    public static function adjustiment(): array
+    {
+        return self::adjustment();
     }
 }

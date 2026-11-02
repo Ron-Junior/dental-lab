@@ -4,13 +4,16 @@ use App\Models\Partner;
 use App\Models\ServiceStep;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?ServiceStep $serviceStep = null;
 
     #[Validate('required|array|min:1')]
@@ -19,7 +22,7 @@ new class extends Component
     protected function rules(): array
     {
         return [
-            'selectedPartners.*.partner_id' => 'required|distinct|exists:partners,id',
+            'selectedPartners.*.partner_id' => ['required', 'distinct', Rule::exists('partners', 'id')->whereNull('deleted_at')],
             'selectedPartners.*.commission' => 'required|numeric',
             'selectedPartners.*.commission_type' => 'required|in:percentage,fixed',
         ];
@@ -28,7 +31,10 @@ new class extends Component
     #[On('step::manage-partners')]
     public function open(int $stepId): void
     {
-        $this->serviceStep = ServiceStep::with('partners')->find($stepId);
+        $step = ServiceStep::with('partners')->findOrFail($stepId);
+        $this->authorize('update', $step);
+
+        $this->serviceStep = $step;
         
         $this->selectedPartners = $this->serviceStep->partners->map(fn($partner) => [
             'partner_id' => $partner->id,
@@ -75,7 +81,8 @@ new class extends Component
 
     public function save(): void
     {
-        $this->authorize('update', $this->serviceStep);
+        $this->authorize('update', $this->serviceStep ?? ServiceStep::class);
+        abort_if(! $this->serviceStep, 404);
         $this->validate();
 
         $syncData = collect($this->selectedPartners)

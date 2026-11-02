@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\Rules;
+use App\Models\Service;
 use App\Models\User;
 
 class ServicePolicy
@@ -21,10 +22,22 @@ class ServicePolicy
         return $user->rule->name == Rules::Owner || $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
     }
 
+    public function update(User $user, Service $service): bool
+    {
+        $user->loadMissing('rule');
+
+        return $user->rule->name == Rules::Owner || $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
+    }
+
     public function delete(User $user): bool
     {
         $user->loadMissing('rule');
 
         return $user->rule->name == Rules::Owner || $user->rule->name == Rules::Lab || $user->rule->name == Rules::LabManager;
+    }
+
+    public function forceDelete(User $user, ?Service $service = null): bool
+    {
+        return false;
     }
 }

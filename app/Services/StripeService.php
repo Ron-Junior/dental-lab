@@ -1,0 +1,495 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\DiscountType;
+use App\Models\Discount;
+use App\Models\Plan;
+use App\Models\Tenant;
+use Illuminate\Support\Facades\Log;
+use Stripe\Product;
+use Stripe\StripeClient;
+use Throwable;
+
+class StripeService
+{
+    protected ?StripeClient $stripe = null;
+
+    public function __construct()
+    {
+        $secret = config('services.stripe.secret');
+        $hasValidSecret = is_string($secret) && trim($secret) !== '' && ! str_contains(strtolower($secret), 'placeholder');
+
+        if ($hasValidSecret) {
+            $this->stripe = new StripeClient($secret);
+        } elseif (! app()->environment(['local', 'testing'])) {
+            Log::critical('Configuração do Stripe (STRIPE_SECRET) ausente ou inválida em ambiente produtivo.', [
+                'environment' => app()->environment(),
+            ]);
+
+            throw new \RuntimeException('Configuração do Stripe (STRIPE_SECRET) ausente ou inválida em ambiente produtivo.');
+        }
+    }
+
+    public function setClient(?StripeClient $stripe): static
+    {
+        $this->stripe = $stripe;
+
+        return $this;
+    }
+
+    /**
+     * Create a Stripe customer for the tenant.
+     */
+    public function createCustomer(Tenant $tenant, string $email, string $name): string
+    {
+        if ($tenant->stripe_customer_id) {
+            return $tenant->stripe_customer_id;
+        }
+
+        if ($this->isMock()) {
+            $mockCustomerId = 'cus_mock_'.bin2hex(random_bytes(6));
+            $tenant->update(['stripe_customer_id' => $mockCustomerId]);
+
+            return $mockCustomerId;
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $customer = $this->stripe->customers->create([
+                'email' => $email,
+                'name' => $name,
+                'metadata' => [
+                    'tenant_id' => $tenant->id,
+                ],
+            ]);
+
+            $tenant->update(['stripe_customer_id' => $customer->id]);
+
+            return $customer->id;
+        } catch (Throwable $e) {
+            Log::error('Erro ao criar cliente no Stripe: '.$e->getMessage(), [
+                'tenant_id' => $tenant->id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Create a SetupIntent for collecting card details during Trial.
+     *
+     * @return array{id: string, client_secret: string}
+     */
+    public function createSetupIntent(Tenant $tenant): array
+    {
+        $customerId = $tenant->stripe_customer_id
+            ?? $this->createCustomer($tenant, $tenant->owner_email ?? 'lab@dental.test', $tenant->name);
+
+        if ($this->isMock()) {
+            return [
+                'id' => 'seti_mock_'.bin2hex(random_bytes(6)),
+                'client_secret' => 'seti_mock_secret_'.bin2hex(random_bytes(10)),
+            ];
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $setupIntent = $this->stripe->setupIntents->create([
+                'customer' => $customerId,
+                'automatic_payment_methods' => [
+                    'enabled' => true,
+                    'allow_redirects' => 'never',
+                ],
+                'metadata' => [
+                    'tenant_id' => $tenant->id,
+                ],
+            ]);
+
+            return [
+                'id' => $setupIntent->id,
+                'client_secret' => $setupIntent->client_secret,
+            ];
+        } catch (Throwable $e) {
+            Log::error('Erro ao criar SetupIntent no Stripe: '.$e->getMessage(), [
+                'tenant_id' => $tenant->id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Attach a payment method, set it as default, and save card brand/last4.
+     *
+     * @return array{brand: string, last4: string}
+     */
+    public function attachPaymentMethod(Tenant $tenant, string $paymentMethodId): array
+    {
+        if (! $this->isMock() && str_starts_with($paymentMethodId, 'pm_mock_')) {
+            throw new \RuntimeException('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+        }
+
+        if (! $this->isMock()) {
+            $this->ensureConfigured();
+        }
+
+        $customerId = $tenant->stripe_customer_id
+            ?? $this->createCustomer($tenant, $tenant->owner_email ?? 'lab@dental.test', $tenant->name);
+
+        if ($this->isMock()) {
+            $brand = 'visa';
+            $last4 = '4242';
+
+            $tenant->update([
+                'card_brand' => $brand,
+                'card_last_four' => $last4,
+            ]);
+
+            return [
+                'brand' => $brand,
+                'last4' => $last4,
+            ];
+        }
+
+        try {
+            $paymentMethod = $this->stripe->paymentMethods->retrieve($paymentMethodId);
+
+            if ($paymentMethod->customer !== $customerId) {
+                $paymentMethod->attach(['customer' => $customerId]);
+            }
+
+            $this->stripe->customers->update($customerId, [
+                'invoice_settings' => [
+                    'default_payment_method' => $paymentMethodId,
+                ],
+            ]);
+
+            $brand = (string) ($paymentMethod->card->brand ?? 'card');
+            $last4 = (string) ($paymentMethod->card->last4 ?? '****');
+
+            $tenant->update([
+                'card_brand' => $brand,
+                'card_last_four' => $last4,
+            ]);
+
+            return [
+                'brand' => $brand,
+                'last4' => $last4,
+            ];
+        } catch (Throwable $e) {
+            Log::error('Erro ao vincular PaymentMethod no Stripe: '.$e->getMessage(), [
+                'tenant_id' => $tenant->id,
+                'payment_method_id' => $paymentMethodId,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Create a recurring Stripe subscription for the tenant and plan, with optional discount coupon.
+     *
+     * @return array{id: string, status: string, latest_invoice_id: ?string}
+     */
+    public function createSubscription(Tenant $tenant, Plan $plan, ?Discount $discount = null): array
+    {
+        $customerId = $tenant->stripe_customer_id
+            ?? $this->createCustomer($tenant, $tenant->owner_email ?? 'lab@dental.test', $tenant->name);
+
+        if ($this->isMock()) {
+            $mockSubId = 'sub_mock_'.bin2hex(random_bytes(8));
+
+            return [
+                'id' => $mockSubId,
+                'status' => 'active',
+                'latest_invoice_id' => 'in_mock_'.bin2hex(random_bytes(6)),
+            ];
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $priceId = $this->getOrCreatePrice($plan);
+
+            $params = [
+                'customer' => $customerId,
+                'items' => [
+                    ['price' => $priceId],
+                ],
+                'payment_behavior' => 'error_if_incomplete',
+                'metadata' => [
+                    'tenant_id' => $tenant->id,
+                    'plan_id' => $plan->id,
+                ],
+                'expand' => ['latest_invoice.payment_intent'],
+            ];
+
+            if ($discount !== null && ! $discount->is_expired) {
+                $couponId = $this->createCouponForDiscount($discount);
+                $params['discounts'] = [
+                    ['coupon' => $couponId],
+                ];
+            }
+
+            $subscription = $this->stripe->subscriptions->create($params);
+
+            return [
+                'id' => $subscription->id,
+                'status' => (string) $subscription->status,
+                'latest_invoice_id' => is_string($subscription->latest_invoice)
+                    ? $subscription->latest_invoice
+                    : $subscription->latest_invoice?->id,
+            ];
+        } catch (Throwable $e) {
+            Log::error('Erro ao criar assinatura no Stripe: '.$e->getMessage(), [
+                'tenant_id' => $tenant->id,
+                'plan_id' => $plan->id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Create a one-time (duration: once) Stripe coupon corresponding to the given discount.
+     */
+    public function createCouponForDiscount(Discount $discount): string
+    {
+        if ($this->isMock()) {
+            return 'coup_mock_'.bin2hex(random_bytes(6));
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $params = [
+                'duration' => 'once',
+                'name' => 'Desconto Comercial - Dental Lab',
+                'metadata' => [
+                    'discount_id' => $discount->id,
+                    'tenant_id' => $discount->tenant_id,
+                ],
+            ];
+
+            if ($discount->type === DiscountType::Percentage) {
+                $params['percent_off'] = (int) $discount->value_in_cents;
+            } else {
+                $params['amount_off'] = (int) $discount->value_in_cents;
+                $params['currency'] = 'brl';
+            }
+
+            $coupon = $this->stripe->coupons->create($params);
+
+            return $coupon->id;
+        } catch (Throwable $e) {
+            Log::error('Erro ao criar cupom no Stripe: '.$e->getMessage(), [
+                'discount_id' => $discount->id,
+                'tenant_id' => $discount->tenant_id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Retrieve the existing stripe_price_id or find/create product and price on Stripe idempotently.
+     */
+    public function getOrCreatePrice(Plan $plan): string
+    {
+        if (! empty($plan->stripe_price_id)) {
+            return $plan->stripe_price_id;
+        }
+
+        return $this->createPrice($plan);
+    }
+
+    /**
+     * Resolve (reaproveitando ou criando) o Price do Stripe para o preço atual do plano
+     * e o registra como vigente em `plans.stripe_price_id`. Prices são imutáveis no Stripe,
+     * por isso cada reajuste gera um novo Price.
+     */
+    public function createPrice(Plan $plan): string
+    {
+        if ($this->isMock()) {
+            $mockPriceId = 'price_mock_'.bin2hex(random_bytes(6));
+            $plan->update(['stripe_price_id' => $mockPriceId]);
+
+            return $mockPriceId;
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $interval = $plan->isAnnual() ? 'year' : 'month';
+            $product = $this->findOrCreateProduct($plan);
+
+            // Verificar se já existe um preço ativo compatível para esse produto
+            $matchingPrice = null;
+            $prices = $this->stripe->prices->all([
+                'product' => $product->id,
+                'active' => true,
+                'limit' => 50,
+            ]);
+
+            foreach ($prices->data as $price) {
+                if (
+                    $price->unit_amount === $plan->price_in_cents
+                    && $price->currency === 'brl'
+                    && isset($price->recurring)
+                    && $price->recurring->interval === $interval
+                ) {
+                    $matchingPrice = $price;
+                    break;
+                }
+            }
+
+            if ($matchingPrice === null) {
+                $matchingPrice = $this->stripe->prices->create([
+                    'product' => $product->id,
+                    'unit_amount' => $plan->price_in_cents,
+                    'currency' => 'brl',
+                    'recurring' => [
+                        'interval' => $interval,
+                    ],
+                    'metadata' => [
+                        'plan_id' => $plan->id,
+                        'plan_name' => $plan->name,
+                    ],
+                ]);
+            }
+
+            $plan->update(['stripe_price_id' => $matchingPrice->id]);
+
+            return $matchingPrice->id;
+        } catch (Throwable $e) {
+            Log::error('Erro ao sincronizar produto/preço no Stripe: '.$e->getMessage(), [
+                'plan_id' => $plan->id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Atualiza o nome do produto do plano no Stripe.
+     */
+    public function updateProductName(Plan $plan): void
+    {
+        if ($this->isMock()) {
+            return;
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $product = $this->findOrCreateProduct($plan);
+
+            $this->stripe->products->update($product->id, [
+                'name' => 'Plano '.$plan->name,
+                'metadata' => [
+                    'plan_id' => $plan->id,
+                    'plan_name' => $plan->name,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Erro ao atualizar nome do produto no Stripe: '.$e->getMessage(), [
+                'plan_id' => $plan->id,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Troca o Price do item da assinatura sem proração; o novo valor entra na próxima fatura.
+     */
+    public function swapSubscriptionPrice(string $stripeSubscriptionId, string $newPriceId): void
+    {
+        if ($this->isMock()) {
+            return;
+        }
+
+        $this->ensureConfigured();
+
+        try {
+            $subscription = $this->stripe->subscriptions->retrieve($stripeSubscriptionId);
+            $itemId = $subscription->items->data[0]->id;
+
+            $this->stripe->subscriptions->update($stripeSubscriptionId, [
+                'items' => [
+                    ['id' => $itemId, 'price' => $newPriceId],
+                ],
+                'proration_behavior' => 'none',
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Erro ao trocar preço da assinatura no Stripe: '.$e->getMessage(), [
+                'stripe_subscription_id' => $stripeSubscriptionId,
+                'price_id' => $newPriceId,
+            ]);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Localiza o produto do plano (por metadata `plan_id` ou nome) ou o cria.
+     */
+    private function findOrCreateProduct(Plan $plan): Product
+    {
+        $expectedName = 'Plano '.$plan->name;
+
+        $products = $this->stripe->products->all(['active' => true, 'limit' => 100]);
+
+        foreach ($products->data as $product) {
+            if (($product->metadata['plan_id'] ?? null) === $plan->id) {
+                return $product;
+            }
+        }
+
+        foreach ($products->data as $product) {
+            if ($product->name === $expectedName || $product->name === $plan->name) {
+                return $product;
+            }
+        }
+
+        return $this->stripe->products->create([
+            'name' => $expectedName,
+            'metadata' => [
+                'plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+            ],
+        ]);
+    }
+
+    /**
+     * Check if mock mode is active.
+     */
+    public function isMockMode(): bool
+    {
+        return $this->isMock();
+    }
+
+    /**
+     * Check if mock mode is active.
+     */
+    protected function isMock(): bool
+    {
+        return app()->environment(['local', 'testing'])
+            && ($this->stripe === null || app()->environment('testing'));
+    }
+
+    /**
+     * Ensure that the Stripe client is properly configured when outside mock mode.
+     *
+     * @throws \RuntimeException
+     */
+    protected function ensureConfigured(): void
+    {
+        if (! $this->isMock() && $this->stripe === null) {
+            throw new \RuntimeException('Cliente Stripe não configurado.');
+        }
+    }
+}

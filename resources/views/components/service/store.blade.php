@@ -1,12 +1,15 @@
 <?php
 
 use App\Models\Service;
+use App\Models\ServiceServiceStep;
 use App\Models\ServiceStep;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
@@ -44,11 +47,11 @@ new class extends Component
                 'string',
                 'min:3',
                 'max:255',
-                Rule::unique('services', 'name')->ignore($this->serviceId),
+                Rule::unique('services', 'name')->whereNull('deleted_at')->ignore($this->serviceId),
             ],
             'steps.*.service_step_id' => [
                 'required',
-                'exists:service_steps,id',
+                Rule::exists('service_steps', 'id')->whereNull('deleted_at'),
             ],
             'steps.*.order' => [
                 'required',
@@ -61,9 +64,10 @@ new class extends Component
     #[On('service::edit')]
     public function edit($id): void
     {
-        $this->serviceId = $id;
-        $service = Service::with(['serviceSteps' => fn($q) => $q->orderBy('service_service_step.order')])->find($id);
+        $service = Service::with(['serviceSteps' => fn($q) => $q->orderBy('service_service_step.order')])->findOrFail($id);
+        $this->authorize('update', $service);
 
+        $this->serviceId = (int) $id;
         $this->name = $service->name;
         $this->description = $service->description;
         $this->price = number_format($service->price, 2, ',', '.');
@@ -86,28 +90,62 @@ new class extends Component
 
     public function store(): void
     {
-        $this->authorize('create', Service::class);
+        $service = null;
+
+        if ($this->serviceId) {
+            $service = Service::findOrFail($this->serviceId);
+            $this->authorize('update', $service);
+        } else {
+            $this->authorize('create', Service::class);
+        }
+
         $this->validate();
 
         $actionText = $this->serviceId ? 'atualizado' : 'criado';
 
-        DB::transaction(function () {
-            $service = $this->serviceId
-                ? Service::whereId($this->serviceId)->first()
-                : Service::create([
-                    'name' => $this->name,
-                    'description' => $this->description,
-                    'price' => str($this->price)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat(),
-                ]);
-
+        DB::transaction(function () use ($service) {
             $syncData = collect($this->steps)
                 ->pluck('service_step_id')
                 ->filter()
                 ->values()
-                ->mapWithKeys(fn($id, $index) => [
-                    $id => ['order' => $index + 1]
+                ->mapWithKeys(fn ($id, $index) => [
+                    (int) $id => ['order' => $index + 1],
                 ])
                 ->toArray();
+
+            $attributes = [
+                'name' => $this->name,
+                'description' => $this->description,
+                'price' => currency_to_float($this->price),
+            ];
+
+            if ($service) {
+                $stepWithDemands = ServiceServiceStep::query()
+                    ->with('serviceStep')
+                    ->where('service_id', $service->id)
+                    ->whereNotIn('service_step_id', array_keys($syncData))
+                    ->whereHas('partnerDemands')
+                    ->first();
+
+                if ($stepWithDemands) {
+                    $stepName = $stepWithDemands->serviceStep?->name ?? '';
+                    $message = "Não é possível remover a etapa '{$stepName}', pois ela já possui histórico de demandas executadas em ordens de serviço. Desative-a ou mantenha a etapa no serviço";
+
+                    Flux::toast(
+                        variant: 'danger',
+                        heading: 'Operação não permitida',
+                        text: $message
+                    );
+
+                    throw ValidationException::withMessages([
+                        'steps' => $message,
+                    ]);
+                }
+
+                $service->update($attributes);
+            } else {
+                $service = Service::create($attributes);
+            }
 
             $service->serviceSteps()->sync($syncData);
         });

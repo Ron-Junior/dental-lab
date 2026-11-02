@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('partner_demands', function (Blueprint $table) {
             $table->id();
             $table->foreignId('request_service_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('service_service_step_id')->constrained('service_service_step')->cascadeOnDelete();
-            $table->foreignId('partner_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->foreignId('service_service_step_id')->constrained('service_service_step')->restrictOnDelete();
+            $table->foreignId('partner_id')->nullable()->constrained()->restrictOnDelete();
             $table->tinyInteger('order');
             $table->integer('partner_commission')->nullable();
             $table->string('partner_commission_type')->nullable();

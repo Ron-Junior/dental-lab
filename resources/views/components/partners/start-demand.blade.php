@@ -2,13 +2,17 @@
 
 use App\Enums\CommissionTypes;
 use App\Models\PartnerDemand;
+use App\Models\Product;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?PartnerDemand $partnerDemand = null;
 
     public ?float $partnerCommissionValue = null;
@@ -18,24 +22,30 @@ new class extends Component
     #[On('start-demand::open')]
     public function openModal(int $partnerDemandId): void
     {
-        $partnerDemand = PartnerDemand::with(['partner.user', 'serviceServiceStep.serviceStep.partners'])->find($partnerDemandId);
+        $partnerDemand = PartnerDemand::with(['partner.user', 'serviceServiceStep.serviceStep.partners'])->findOrFail($partnerDemandId);
+        $this->authorize('start', $partnerDemand);
 
-        if (!$partnerDemand) {
-            Flux::toast(heading: 'Demanda não encontrada!', variant: 'error', text: "A demanda solicitada não foi encontrada.");
+        $stepPartner = $partnerDemand->serviceServiceStep
+            ?->serviceStep
+            ?->partners
+            ?->firstWhere('id', $partnerDemand->partner_id);
+
+        if (! $stepPartner || ! $stepPartner->pivot) {
+            $this->partnerDemand = null;
+            $this->partnerCommissionValue = null;
+            $this->partnerCommissionType = null;
+            Flux::toast(
+                heading: 'Parceiro desvinculado da etapa!',
+                variant: 'error',
+                text: 'O parceiro atribuído não possui mais vínculo ativo com esta etapa no catálogo. Reatribua a demanda antes de iniciá-la.'
+            );
+
             return;
         }
 
         $this->partnerDemand = $partnerDemand;
-
-        $partnerDemandCommission = $partnerDemand->serviceServiceStep
-            ->serviceStep
-            ->partners
-            ->where('id', $this->partnerDemand->partner_id)
-            ->first()
-            ->pivot;
-
-        $this->partnerCommissionValue = $partnerDemandCommission->commission;
-        $this->partnerCommissionType = $partnerDemandCommission->commission_type;
+        $this->partnerCommissionValue = (float) $stepPartner->pivot->commission;
+        $this->partnerCommissionType = $stepPartner->pivot->commission_type;
 
         Flux::modal('start-demand-modal')->show();
     }
@@ -43,20 +53,27 @@ new class extends Component
     #[Computed()]
     public function commission(): string
     {
-        if ($this->partnerCommissionType === CommissionTypes::Percentage->value) {
-            return $this->partnerCommissionValue . '%';
-        } else {
-            return 'R$ ' .number_format( $this->partnerCommissionValue, 2, ',', '.');
+        if ($this->partnerCommissionValue === null) {
+            return '';
         }
+
+        if ($this->partnerCommissionType === CommissionTypes::Percentage->value) {
+            return number_format($this->partnerCommissionValue, 2, ',', '.') . '%';
+        }
+
+        return 'R$ ' . number_format($this->partnerCommissionValue, 2, ',', '.');
     }
 
     public function closeModal(): void
     {
         $this->partnerDemand = null;
+        $this->partnerCommissionValue = null;
+        $this->partnerCommissionType = null;
     }
 
     public function startDemand()
     {
+        abort_if(! $this->partnerDemand, 404);
         $this->authorize('start', $this->partnerDemand);
 
         $this->partnerDemand->partner_commission = $this->partnerCommissionValue;
@@ -64,7 +81,9 @@ new class extends Component
         $this->partnerDemand->started_at = now();
         $this->partnerDemand->save();
 
-        $this->dispatch('stock::out', $this->partnerDemand->request_service_id);
+        if (Auth::user()?->can('movementStock', Product::class)) {
+            $this->dispatch('stock::out', $this->partnerDemand->request_service_id);
+        }
         $this->dispatch('demand::refresh');
         
         $this->closeModal();

@@ -13,11 +13,12 @@ return new class extends Migration
     {
         Schema::create('partners', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->restrictOnDelete();
             $table->string('phone');
             $table->boolean('is_active')->default(false);
             $table->date('started_date')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('service_step_partner', function (Blueprint $table) {

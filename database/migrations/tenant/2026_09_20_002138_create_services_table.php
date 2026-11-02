@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->integer('price');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

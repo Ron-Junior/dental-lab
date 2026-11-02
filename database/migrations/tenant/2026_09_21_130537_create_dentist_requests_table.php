@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('dentist_requests', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(Dentist::class)->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(Dentist::class)->constrained()->restrictOnDelete();
             $table->string('code', 55)->unique();
             $table->date('completed_at')->nullable();
             $table->timestamps();

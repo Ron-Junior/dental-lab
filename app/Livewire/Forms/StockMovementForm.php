@@ -59,11 +59,28 @@ class StockMovementForm extends Form
         return $type ? $type->getReasons() : [];
     }
 
-    public function rules(): array
+    public function isIncoming(): bool
     {
         $type = $this->getTypeEnum();
-        $isIncoming = $type === StockMovementsTypes::In;
-        $isOutgoing = $type === StockMovementsTypes::Out;
+        $reason = $this->getReasonEnum();
+
+        return $type === StockMovementsTypes::In
+            || ($type === StockMovementsTypes::Adjustment && $reason && in_array($reason, StockMovementsReasons::in(), true));
+    }
+
+    public function isOutgoing(): bool
+    {
+        $type = $this->getTypeEnum();
+        $reason = $this->getReasonEnum();
+
+        return $type === StockMovementsTypes::Out
+            || ($type === StockMovementsTypes::Adjustment && $reason && in_array($reason, StockMovementsReasons::out(), true));
+    }
+
+    public function rules(): array
+    {
+        $isIncoming = $this->isIncoming();
+        $isOutgoing = $this->isOutgoing();
 
         $rules = [
             'productId' => 'required|exists:products,id',
@@ -78,8 +95,14 @@ class StockMovementForm extends Form
         if ($isIncoming) {
             $rules['cost'] = 'nullable|string';
             if ($this->hasBatches) {
-                $rules['batchNumber'] = 'required|string|max:50';
-                $rules['expirationDate'] = 'required|date';
+                if (! empty($this->stockBatchId)) {
+                    $rules['stockBatchId'] = 'required|exists:stock_batches,id';
+                    $rules['batchNumber'] = 'nullable|string|max:50';
+                    $rules['expirationDate'] = 'nullable|date';
+                } else {
+                    $rules['batchNumber'] = 'required|string|max:50';
+                    $rules['expirationDate'] = 'required|date';
+                }
             }
         } elseif ($isOutgoing && $this->hasBatches) {
             $rules['stockBatchId'] = 'required|exists:stock_batches,id';
@@ -105,7 +128,7 @@ class StockMovementForm extends Form
         ];
     }
 
-    public function save(): ModelsStockMovement
+    public function save(): array|ModelsStockMovement
     {
         $this->validate();
 

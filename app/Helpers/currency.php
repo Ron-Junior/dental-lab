@@ -10,8 +10,15 @@ if (! function_exists('currency_from_int')) {
 }
 
 if (! function_exists('currency_to_int')) {
-    function currency_to_int(float|string $value): int
+    function currency_to_int(float|string|null $value): int
     {
         return Currency::toInt($value);
+    }
+}
+
+if (! function_exists('currency_to_float')) {
+    function currency_to_float(float|string|null $value): float
+    {
+        return Currency::toFloat($value);
     }
 }

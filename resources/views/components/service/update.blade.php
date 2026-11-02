@@ -1,14 +1,16 @@
 <?php
 
+use App\Models\PartnerDemand;
 use App\Models\RequestService;
 use App\Models\Service;
 use Flux\Flux;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Number;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
@@ -16,14 +18,23 @@ new class extends Component
     #[Locked]
     public ?int $requestServiceId = null;
 
-    #[Validate('required|integer|exists:services,id')]
     public ?int $serviceId = null;
 
-    #[Validate('required', 'Preço da Unidade', onUpdate: false)]
     public ?string $unitPrice = null;
 
-    #[Validate('required|integer|min:1|max:1000000')]
     public ?int $quantity = null;
+
+    protected $validationAttributes = [
+        'unitPrice' => 'Preço da Unidade',
+    ];
+
+    protected function rules(): array
+    {
+        return [
+            'serviceId' => ['required', 'integer', Rule::exists('services', 'id')->whereNull('deleted_at')],
+            'quantity' => ['required', 'integer', 'min:1', 'max:1000000'],
+        ];
+    }
 
     #[On('service::update')]
     public function open(int $requestServiceId): void
@@ -45,14 +56,21 @@ new class extends Component
         return Service::all();
     }
 
-    public function updatedServiceId(string $value): void
+    public function updatedServiceId(int|string|null $value): void
     {
-        if (!$value) {
+        if (! $value) {
             $this->unitPrice = null;
+
             return;
         }
 
         $service = Service::find($value);
+
+        if (! $service) {
+            $this->unitPrice = null;
+
+            return;
+        }
 
         $this->unitPrice = number_format($service->price, 2, ',', '.');
     }
@@ -64,12 +82,47 @@ new class extends Component
         $requestService = RequestService::findOrFail($this->requestServiceId);
         $this->authorize('update', $requestService);
 
-        $requestService->unit_price = str($this->unitPrice)->replaceFirst('.', '')->replaceLast(',', '.')->toFloat();
-        $requestService->quantity = $this->quantity;
-        $requestService->service_id = $this->serviceId;
+        $hasStartedDemands = $requestService->partnerDemands()
+            ->where(fn ($query) => $query->whereNotNull('started_at')->orWhereNotNull('ended_at'))
+            ->exists();
 
-        $requestService->save();
-   
+        if ($requestService->completed_at !== null || $hasStartedDemands) {
+            throw ValidationException::withMessages([
+                'serviceId' => 'Não é possível editar este serviço pois as etapas já foram iniciadas pelos técnicos parceiros.',
+            ]);
+        }
+
+        DB::transaction(function () use ($requestService) {
+            $serviceChanged = (int) $requestService->service_id !== (int) $this->serviceId;
+            $newService = null;
+
+            if ($serviceChanged) {
+                $requestService->partnerDemands()->delete();
+
+                $newService = Service::with([
+                    'serviceSteps' => fn ($query) => $query->orderBy('service_service_step.order'),
+                ])->findOrFail($this->serviceId);
+
+                $requestService->partnerDemands()->saveMany(
+                    $newService->serviceSteps->map(fn ($step) => new PartnerDemand([
+                        'request_service_id' => $requestService->id,
+                        'service_service_step_id' => $step->pivot->id,
+                        'order' => $step->pivot->order,
+                    ]))
+                );
+            }
+
+            $officialUnitPrice = $serviceChanged
+                ? $newService->price
+                : ($requestService->unit_price ?? Service::whereKey($this->serviceId)->value('price'));
+
+            $requestService->update([
+                'unit_price' => $officialUnitPrice,
+                'quantity' => $this->quantity,
+                'service_id' => $this->serviceId,
+            ]);
+        });
+
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Serviço atualizado com sucesso!');
         Flux::modal('edit-service-modal')->close();
 

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('request_service_id')->constrained()->onDelete('cascade');
 
-            $table->foreignId('product_id')->constrained();
+            $table->foreignId('product_id')->constrained()->restrictOnDelete();
             $table->foreignId('stock_batch_id')->nullable()->constrained();
 
             $table->decimal('quantity_used', 10, 2);

@@ -8,7 +8,7 @@ use App\Models\User;
 
 class RequestServicePolicy
 {
-    public function updateStatus(User $user): bool
+    public function updateStatus(User $user, ?RequestService $requestService = null): bool
     {
         return $this->canManageServices($user);
     }
@@ -22,7 +22,7 @@ class RequestServicePolicy
     {
         $user->loadMissing('rule');
 
-        return in_array($user->rule->name, [
+        return in_array($user->rule?->name, [
             Rules::Owner,
             Rules::Lab,
             Rules::LabManager,

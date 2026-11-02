@@ -4,8 +4,8 @@ namespace App\Actions;
 
 use App\Mail\InviteNotification;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class SendInvitation
 {
@@ -14,19 +14,25 @@ class SendInvitation
         $expirationTime = now()->addHours(48);
         $user->invitationToken()->delete();
 
-        $token = Hash::make(uniqid());
+        $token = Str::random(64);
         $user->invitationToken()->create([
             'token' => $token,
             'expires_at' => $expirationTime,
         ]);
 
+        $routeParams = [
+            'email' => $user->email,
+            'token' => $token,
+        ];
+
+        if (function_exists('tenant') && tenant()) {
+            $routeParams['tenant'] = tenant()->getTenantKey();
+        }
+
         $urlConvite = URL::temporarySignedRoute(
             'complete-signup.show',
             $expirationTime,
-            [
-                'email' => $user->email,
-                'token' => $token,
-            ]
+            $routeParams
         );
 
         $user->notify(new InviteNotification($user->email, $urlConvite));

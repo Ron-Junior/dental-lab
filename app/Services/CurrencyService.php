@@ -15,13 +15,25 @@ class CurrencyService
         return $floatValue;
     }
 
-    public function toInt(float|string $value): int
+    public function toInt(float|string|null $value): int
     {
-        if (is_string($value)) {
-            $value = str_replace(['R$', ' ', '.'], '', $value);
-            $value = str_replace(',', '.', $value);
+        return (int) round($this->toFloat($value) * 100);
+    }
+
+    public function toFloat(float|string|null $value): float
+    {
+        if (blank($value)) {
+            return 0.0;
         }
 
-        return (int) round((float) $value * 100);
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        // Remove tudo que não for dígito numérico ou vírgula decimal
+        $clean = preg_replace('/[^\d,]/', '', (string) $value);
+        $clean = str_replace(',', '.', $clean);
+
+        return (float) $clean;
     }
 }

@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('request_services', function (Blueprint $table) {
             $table->id();
             $table->foreignId('dentist_request_id')->constrained()->onDelete('cascade');
-            $table->foreignId('service_id')->constrained()->onDelete('cascade');
+            $table->foreignId('service_id')->constrained()->restrictOnDelete();
             $table->integer('unit_price')->nullable();
-            $table->tinyInteger('quantity')->nullable();
+            $table->unsignedInteger('quantity')->default(1);
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
         });

@@ -2,6 +2,7 @@
 
 use App\Models\Product;
 use Flux\Flux;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -12,14 +13,21 @@ new class extends Component
     #[On('product::delete')]
     public function confirmDelete(int $productId): void
     {
-        $this->product = Product::find($productId);
+        $product = Product::findOrFail($productId);
+        $this->authorize('delete', $product);
+
+        $this->product = $product;
 
         Flux::modal('delete-product-modal')->show();
     }
 
     public function delete(): void
     {
-        Product::whereId($this->product->id)->delete();
+        abort_if(! $this->product, 404);
+
+        $this->authorize('delete', $this->product);
+
+        $this->product->delete();
 
         $this->dispatch('products::refresh');
         Flux::toast(variant: 'success', heading: 'Sucesso!', text: 'Produto deletado com sucesso!');

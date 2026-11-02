@@ -3,33 +3,54 @@
 use App\Actions\SendInvitation;
 use App\Enums\Rules;
 use App\Models\Dentist;
-use App\Models\Rule;
+use App\Models\Rule as RuleModel;
 use App\Models\User;
 use Flux\Flux;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule as ValidationRule;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?int $dentistId = null;
 
-    #[Validate('required|string|min:3|max:255')]
     public ?string $name = null;
 
-    #[Validate('required|string|min:11|max:15')]
     public ?string $phone = null;
 
-    #[Validate('required|email|max:255|unique:users,email')]
     public ?string $email = null;
+
+    protected function rules(): array
+    {
+        $editingUserId = null;
+        if ($this->dentistId) {
+            $dentist = Dentist::find($this->dentistId);
+            $editingUserId = $dentist?->user_id;
+        }
+
+        return [
+            'name' => ['required', 'string', 'min:3', 'max:255'],
+            'phone' => ['required', 'string', 'min:11', 'max:15'],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                ValidationRule::unique('users', 'email')->whereNull('deleted_at')->ignore($editingUserId),
+            ],
+        ];
+    }
 
     #[On('dentist::edit')]
     public function edit($id): void
     {
-        $this->dentistId = $id;
-        $dentist = Dentist::find($id);
+        $dentist = Dentist::with('user')->findOrFail((int) $id);
+        $this->authorize('update', $dentist);
 
+        $this->dentistId = (int) $id;
         $this->name = $dentist->user->name;
         $this->email = $dentist->user->email;
         $this->phone = $dentist->phone;
@@ -37,43 +58,85 @@ new class extends Component
         Flux::modal('store-dentist-modal')->show();
     }
 
+    public function closeModal(): void
+    {
+        $this->reset();
+        $this->resetValidation();
+        Flux::modals()->close();
+    }
+
     public function save(): void
     {
+        if ($this->dentistId) {
+            $dentist = Dentist::with('user')->findOrFail($this->dentistId);
+            $this->authorize('update', $dentist);
+        } else {
+            $this->authorize('create', Dentist::class);
+        }
+
         $this->validate();
 
-        DB::transaction(function () {
-            $rule = Rule::where('name', Rules::Dentist->value)->first();
-            $user = User::updateOrCreate(
-                ['email' => $this->email],
-                [
-                'name' => $this->name,
-                'rule_id' => $rule->id,
-            ]);
+        $isEditing = $this->dentistId !== null;
 
-            $this->dentistId 
-                ? Dentist::whereId($this->dentistId)->update(['phone' => $this->phone])
-                : Dentist::create(['user_id' => $user->id, 'phone' => $this->phone]);
-            
-            if ($user->wasRecentlyCreated) {
+        DB::transaction(function () {
+            if ($this->dentistId) {
+                $dentist = Dentist::with('user')->findOrFail($this->dentistId);
+                $user = $dentist->user;
+                $previousEmail = $user->email;
+
+                $user->update([
+                    'name' => $this->name,
+                    'email' => $this->email,
+                ]);
+
+                $dentist->update([
+                    'phone' => $this->phone,
+                ]);
+
+                if (
+                    strcasecmp($previousEmail, $this->email) !== 0 &&
+                    $user->email_verified_at === null &&
+                    $user->password === null
+                ) {
+                    SendInvitation::handle($user->fresh());
+                }
+            } else {
+                $rule = RuleModel::firstOrCreate(['name' => Rules::Dentist->value]);
+                $user = User::create([
+                    'name' => $this->name,
+                    'email' => $this->email,
+                    'rule_id' => $rule->id,
+                ]);
+
+                Dentist::create([
+                    'user_id' => $user->id,
+                    'phone' => $this->phone,
+                ]);
+
                 SendInvitation::handle($user);
             }
         });
 
         Flux::modals()->close();
-        Flux::toast(variant: 'success', heading: 'Sucesso!', text: str('Dentista :action com sucesso!')->replace(':action', $this->dentistId ? 'atualizado' : 'criado'));
+        Flux::toast(
+            variant: 'success',
+            heading: 'Sucesso!',
+            text: str('Dentista :action com sucesso!')->replace(':action', $isEditing ? 'atualizado' : 'criado')
+        );
 
         $this->reset();
+        $this->resetValidation();
         $this->dispatch('dentist::refresh');
     }
 };
 ?>
 
 <div>
-    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" name="store-dentist-modal" flyout variant="floating" >
+    <flux:modal class="backdrop:backdrop-blur-sm md:w-lg" name="store-dentist-modal" flyout variant="floating" @close="closeModal">
         <div class="space-y-6">
             <div>
-                <flux:heading size="lg">Novo Dentista</flux:heading>
-                <flux:subheading>Adicione um novo dentista em sua rede.</flux:subheading>
+                <flux:heading size="lg">{{ $dentistId ? 'Editar Dentista' : 'Novo Dentista' }}</flux:heading>
+                <flux:subheading>{{ $dentistId ? 'Atualize as informações do dentista.' : 'Adicione um novo dentista em sua rede.' }}</flux:subheading>
             </div>
             <form class="space-y-4" wire:submit="save">
                 <flux:input
@@ -103,7 +166,7 @@ new class extends Component
                         placeholder="Digite o email do dentista"
                     />
                 </flux:field>
-                
+
                 <div class="flex justify-end gap-2">
                     <flux:modal.close>
                         <flux:button variant="ghost">Cancelar</flux:button>

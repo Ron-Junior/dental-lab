@@ -4,9 +4,11 @@ Estas regras complementam o `AGENTS.md` e as skills do Laravel Boost com decisõ
 
 | Caminhos | Regra |
 | --- | --- |
+| `app/Models/**` | [Modelos Eloquent](boost/models.md) |
 | `app/Models/**`, `app/Jobs/**`, `app/Http/Controllers/Tenant*.php`, `app/Http/Requests/StoreTenant*.php`, `routes/**`, `config/tenancy.php`, `database/migrations/**`, `tests/**` | [Multitenancy](boost/multitenancy.md) |
 | `database/migrations/**`, `database/seeders/**`, `app/Jobs/**`, `config/queue.php`, `docker-compose.yml`, `deploy/**` | [Migrações e filas](boost/migrations-and-queues.md) |
 | `resources/views/**`, `app/Livewire/**`, `app/View/Components/**` | [Interface Livewire e Volt](boost/livewire-ui.md) |
 | `tests/**`, `phpunit.xml` | [Testes](boost/testing.md) |
+| `docs/**`, `app/**`, `routes/**`, `database/**`, `resources/views/**` (ao planejar feature nova ou modificação) | [Documentação](boost/documentation.md) |
 
 Se uma mudança tocar várias áreas, aplique todas as regras correspondentes. Em caso de divergência, preserve primeiro o comportamento e os padrões já existentes; confirme a decisão no código e nos testes próximos.

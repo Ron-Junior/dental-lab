@@ -3,6 +3,9 @@ services:
     image: node:22-alpine
     container_name: laravel_dev
     working_dir: /var/www
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "80:10000"
       - "5173:5173"
@@ -65,6 +68,9 @@ services:
     container_name: laravel_queue_worker
     restart: unless-stopped
     working_dir: /var/www
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - .:/var/www
     entrypoint: >

@@ -2,7 +2,6 @@
 
 use App\Providers\AppServiceProvider;
 use App\Providers\TenancyServiceProvider;
-use App\Providers\TelescopeServiceProvider;
 use App\Providers\VoltServiceProvider;
 
 return [

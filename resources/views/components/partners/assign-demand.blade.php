@@ -3,22 +3,39 @@
 use App\Models\Partner;
 use App\Models\PartnerDemand;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Locked]
     public ?PartnerDemand $partnerDemand = null;
 
-    #[Validate('required|exists:partners,id')]
     public ?int $partnerId = null;
+
+    protected function rules(): array
+    {
+        $allowedPartnerIds = $this->partnerDemand?->serviceServiceStep?->serviceStep?->partners?->pluck('id')->toArray() ?? [];
+
+        return [
+            'partnerId' => [
+                'required',
+                Rule::exists('partners', 'id')->whereNull('deleted_at'),
+                Rule::in($allowedPartnerIds),
+            ],
+        ];
+    }
 
     #[On('assign-demand::open')]
     public function openModal(int $partnerDemandId): void
     {
-        $this->partnerDemand = PartnerDemand::with('serviceServiceStep.serviceStep.partners:id')->find($partnerDemandId);
+        $partnerDemand = PartnerDemand::with('serviceServiceStep.serviceStep.partners.user')->findOrFail($partnerDemandId);
+        $this->authorize('assign', $partnerDemand);
+
+        $this->partnerDemand = $partnerDemand;
 
         Flux::modal('assign-demand-modal')->show();
     }
@@ -50,6 +67,9 @@ new class extends Component
 
     public function assignDemand()
     {
+        $this->authorize('assign', $this->partnerDemand ?? PartnerDemand::class);
+        abort_if(! $this->partnerDemand, 404);
+
         $this->validate();
 
         $this->partnerDemand->partner_id = $this->partnerId;

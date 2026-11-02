@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\Dentist;
+use App\Models\InvitationToken;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -12,6 +15,9 @@ new class extends Component
     #[On('dentist::delete')]
     public function confirmDelete(int $dentistId): void
     {
+        $dentist = Dentist::findOrFail($dentistId);
+        $this->authorize('delete', $dentist);
+
         $this->dentistId = $dentistId;
 
         Flux::modal('delete-dentist-modal')->show();
@@ -19,7 +25,22 @@ new class extends Component
 
     public function delete(): void
     {
-        Dentist::whereId($this->dentistId)->delete();
+        abort_if(! $this->dentistId, 404);
+
+        $dentist = Dentist::findOrFail($this->dentistId);
+        $this->authorize('delete', $dentist);
+
+        DB::transaction(function () use ($dentist) {
+            $userId = $dentist->user_id;
+            $dentist->delete();
+            $dentist->user?->delete();
+
+            if ($userId) {
+                DB::table('sessions')->where('user_id', $userId)->delete();
+                InvitationToken::where('user_id', $userId)->delete();
+            }
+        });
+
         $this->dentistId = null;
         $this->dispatch('dentist::refresh');
 

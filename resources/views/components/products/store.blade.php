@@ -5,35 +5,55 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use Flux\Flux;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
-use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 new class extends Component
 {
-    #[Validate('required|string|min:3|max:255')]
     public ?string $name = null;
 
-    #[Validate('required|exists:product_categories,id')]
     public ?int $categoryId = null;
 
-    #[Validate(['required', new Enum(UnitMeasure::class)])]
     public ?string $unit_of_measure = null;
 
-    #[Validate('required|numeric|min:0')]
     public ?float $minimumStock = 0.00;
 
-    #[Validate('required|boolean')]
     public ?bool $hasBatches = false;
 
+    #[Locked]
     public ?Product $product = null;
+
+    protected function rules(): array
+    {
+        return [
+            'name' => [
+                'required',
+                'string',
+                'min:3',
+                'max:255',
+                Rule::unique('products', 'name')->whereNull('deleted_at')->ignore($this->product?->id),
+            ],
+            'categoryId' => [
+                'required',
+                Rule::exists('product_categories', 'id')->whereNull('deleted_at'),
+            ],
+            'unit_of_measure' => ['required', new Enum(UnitMeasure::class)],
+            'minimumStock' => ['required', 'numeric', 'min:0'],
+            'hasBatches' => ['required', 'boolean'],
+        ];
+    }
 
     #[On('product::edit')]
     public function edit(?int $productId = null): void
     {
-        $this->product = Product::find($productId);
+        $product = Product::findOrFail($productId);
+        $this->authorize('update', $product);
+
+        $this->product = $product;
         $this->name = $this->product->name;
         $this->minimumStock = $this->product->min_stock;
         $this->unit_of_measure = $this->product->unit_of_measure->value;
@@ -59,6 +79,12 @@ new class extends Component
 
     public function save(): void
     {
+        if ($this->product) {
+            $this->authorize('update', $this->product);
+        } else {
+            $this->authorize('create', Product::class);
+        }
+
         $this->validate();
         
         $this->product 

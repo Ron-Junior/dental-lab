@@ -17,6 +17,8 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Stancl\Tenancy\Jobs\CreateDatabase;
 use Throwable;
 
@@ -33,69 +35,134 @@ class ProvisionTenant implements ShouldQueue
 
     /**
      * @param  string  $tenantId  Central tenant identifier.
-     * @param  array $userData  User data to create the owner user for the tenant.
-     * @return void
+     * @param  array{name?: string, email?: string}  $userData  User data containing email and optional name to create the owner user for the tenant.
      */
-    public function __construct(public string $tenantId, public array $userData) {}
+    public function __construct(
+        public string $tenantId,
+        public array $userData = [],
+    ) {}
 
     public function handle(): void
     {
-        Log::info('Provisionando tenant', [
-            'tenantId' => $this->tenantId,
-            'userData' => $this->userData,
-        ]);
-
         $tenant = Tenant::query()->findOrFail($this->tenantId);
 
-        if ($tenant->status === TenantStatus::Active) {
+        // Se o laboratório já estiver verificado, não resetar tokens nem reenviar e-mail de boas-vindas
+        if ($tenant->isVerified()) {
+            Log::info('Tenant já verificado. Pulando envio de convite e reset de token.', [
+                'tenantId' => $tenant->id,
+            ]);
+
             return;
         }
 
+        $userEmail = ! empty($this->userData['email']) ? $this->userData['email'] : $tenant->owner_email;
+
+        if (empty($userEmail)) {
+            throw new \InvalidArgumentException("O e-mail do usuário administrador é obrigatório para provisionar o tenant [{$this->tenantId}].");
+        }
+
+        Log::info('Provisionando tenant', [
+            'tenantId' => $tenant->id,
+            'userEmail' => $userEmail,
+        ]);
+
+        // Gerar e configurar o nome do banco/schema do tenant se necessário
         $databaseName = $tenant->database()->getName();
+        if (empty($databaseName)) {
+            $prefix = config('tenancy.database.prefix', 'tenant_');
+            $databaseName = $prefix.$tenant->id;
+            $tenant->setAttribute('tenancy_db_name', $databaseName);
+            $tenant->save();
+        }
+
+        // Criar o schema no PostgreSQL usando stancl/tenancy se não existir
         if (! $tenant->database()->manager()->databaseExists($databaseName)) {
+            Log::info('Criando banco/schema para o tenant', [
+                'tenantId' => $tenant->id,
+                'databaseName' => $databaseName,
+            ]);
             CreateDatabase::dispatchSync($tenant);
         }
 
-        Log::info('Provisionando tenant - migrate', [
+        Log::info('Provisionando tenant - executando migrations tenant', [
+            'tenantId' => $tenant->id,
             'databaseName' => $databaseName,
         ]);
 
+        // Rodar e validar migrações específicas do tenant
         $this->runTenantCommand('tenants:migrate', [
             '--tenants' => [$tenant->id],
         ]);
+
+        // Rodar seeds do tenant
         $this->runTenantCommand('tenants:seed', [
             '--tenants' => [$tenant->id],
             '--class' => TenantProvisioningSeeder::class,
             '--force' => true,
         ]);
 
-        $tenant->run(function (): void {
+        // Dados do usuário
+        $userName = $this->userData['name'] ?? $tenant->name;
 
-            Log::info('Provisionando tenant - user');
-            
+        $firstAccessUrl = $tenant->run(function () use ($userName, $userEmail, $tenant): ?string {
+            Log::info('Provisionando tenant - criando usuário no schema do tenant', [
+                'email' => $userEmail,
+            ]);
+
             $labRule = Rule::query()
                 ->where('name', Rules::Lab->value)
                 ->firstOrFail();
 
-            User::query()->firstOrCreate(
-                ['email' => $this->userData['email']],
+            $user = User::query()->firstOrCreate(
+                ['email' => $userEmail],
                 [
-                    'name' => $this->userData['name'],
-                    'email' => $this->userData['email'],
-                    'password' => $this->userData['password'],
+                    'name' => $userName,
+                    'email' => $userEmail,
+                    'password' => Str::random(32),
                     'rule_id' => $labRule->id,
                 ],
+            );
+
+            // Se o usuário proprietário já concluiu o primeiro acesso, não alterar tokens de convite
+            if ($user->email_verified_at !== null) {
+                return null;
+            }
+
+            // Gerar token seguro de primeiro acesso
+            $user->invitationToken()->delete();
+            $token = Str::random(64);
+            $expiration = now()->addHours(48);
+
+            $user->invitationToken()->create([
+                'token' => $token,
+                'expires_at' => $expiration,
+            ]);
+
+            return URL::temporarySignedRoute(
+                'complete-signup.show',
+                $expiration,
+                [
+                    'tenant' => $tenant->id,
+                    'email' => $user->email,
+                    'token' => $token,
+                ]
             );
         });
 
         $tenant->status = TenantStatus::Active;
         $tenant->save();
 
-        Notification::route('mail', $tenant->owner_email)
-            ->notify(new TenantWelcomeNotification(
-                $tenant->name,
-                route('login', ['tenant' => $tenant->id]),
-            ));
+        if ($firstAccessUrl !== null) {
+            Notification::route('mail', $userEmail)
+                ->notify(new TenantWelcomeNotification(
+                    $tenant->name,
+                    $firstAccessUrl,
+                ));
+        }
+
+        Log::info('Provisionamento do tenant concluído com sucesso', [
+            'tenantId' => $tenant->id,
+        ]);
     }
 
     public function failed(?Throwable $exception): void
@@ -120,7 +187,13 @@ class ProvisionTenant implements ShouldQueue
         $exitCode = Artisan::call($command, $arguments);
 
         if ($exitCode !== 0) {
-            throw new \RuntimeException(trim(Artisan::output()) ?: "Tenant command [{$command}] failed.");
+            $output = trim(Artisan::output());
+            Log::error("Comando [{$command}] falhou na execução para o tenant", [
+                'exitCode' => $exitCode,
+                'output' => $output,
+            ]);
+
+            throw new \RuntimeException($output ?: "Tenant command [{$command}] failed.");
         }
     }
 }
