@@ -95,6 +95,8 @@ class CheckoutDiscountRecalculationTest extends TestCase
             'current_period_end' => now()->addMonth(),
         ]);
 
+        Tenant::authorizeOnboardingSession($tenant->id);
+
         return $tenant;
     }
 

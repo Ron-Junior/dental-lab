@@ -70,14 +70,14 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
 
 ## 5. Integração com Stripe e Assinaturas Recorrentes
 
-1. **Tokenização Segura (Stripe Elements) e Restrição Estrita do Modo Simulado ([spec](../specs/active/2026-11-stripe-mock-mode-environment-restriction.md)):**
+1. **Tokenização Segura (Stripe Elements) e Restrição Estrita do Modo Simulado ([spec](../specs/archived/2026-11-stripe-mock-mode-environment-restriction.md)):**
    - Dados de cartão nunca tocam o banco de dados em texto plano.
    - O checkout utiliza `SetupIntent` para validar e tokenizar o cartão no navegador via Stripe Elements de forma segura.
    - **Restrição de Mock Mode a `local` e `testing` (*Fail-Closed* em Produção/Staging):** O modo de simulação (`StripeService::isMock()` e `$isMockMode` em `checkout.blade.php` e `subscription-billing.blade.php`) é restrito **exclusivamente** a `app()->environment(['local', 'testing'])`. Fora desses ambientes (`production`, `staging`, etc.), caso `services.stripe.key` (`STRIPE_KEY`) ou `services.stripe.secret` (`STRIPE_SECRET`) estejam vazios ou contenham `'placeholder'`, o sistema **jamais** ativa o modo mock: registra `Log::critical` e lança `\RuntimeException` imediata, bloqueando qualquer aprovação gratuita de assinatura ou uso de identificadores simulados (`pm_mock_*`).
 2. **Método de Pagamento Padrão:**
    - O `PaymentMethod` retornado pelo `SetupIntent` é anexado ao cliente no Stripe (`stripe_customer_id`) e registrado como método padrão de faturamento (`invoice_settings.default_payment_method`).
    - A bandeira (`card_brand`) e os últimos 4 dígitos (`card_last_four`) são persistidos no tenant central para exibição na UI (visível exclusivamente para administradores do laboratório em `/perfil`).
-   - A geração de `SetupIntent` no perfil (`subscription-billing.blade.php`) e a execução de `updateCard()` / `regularizeSubscription()` são protegidas por autorização server-side restrita à administração do tenant ([spec](../specs/archived/2026-11-profile-subscription-billing-authorization.md)), com `$clientSecret`, `$stripeKey` e `$isMockMode` blindados via `#[Locked]` tanto em `subscription-billing.blade.php` quanto em `checkout.blade.php` ([spec](../specs/active/2026-11-stripe-mock-mode-environment-restriction.md)).
+   - A geração de `SetupIntent` no perfil (`subscription-billing.blade.php`) e a execução de `updateCard()` / `regularizeSubscription()` são protegidas por autorização server-side restrita à administração do tenant ([spec](../specs/archived/2026-11-profile-subscription-billing-authorization.md)), com `$clientSecret`, `$stripeKey` e `$isMockMode` blindados via `#[Locked]` tanto em `subscription-billing.blade.php` quanto em `checkout.blade.php` ([spec](../specs/archived/2026-11-stripe-mock-mode-environment-restriction.md)).
 3. **Criação da Assinatura Recorrente no Stripe:**
    - No checkout público (laboratórios pagantes), o sistema cria a assinatura recorrente via Stripe Subscriptions API (`$stripe->subscriptions->create`).
    - O plano escolhido é vinculado à assinatura através de `stripe_price_id`.

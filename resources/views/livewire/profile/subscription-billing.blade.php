@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Services\StripeService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
@@ -30,7 +31,18 @@ new class extends Component
         }
 
         $this->stripeKey = (string) config('services.stripe.key');
-        $this->isMockMode = empty($this->stripeKey) || str_contains($this->stripeKey, 'placeholder') || app()->environment('testing');
+        $isAllowedMockEnv = app()->environment(['local', 'testing']);
+        $hasValidStripeKey = ! empty($this->stripeKey) && ! str_contains(strtolower($this->stripeKey), 'placeholder');
+
+        if (! $isAllowedMockEnv && ! $hasValidStripeKey) {
+            Log::critical('Checkout Stripe bloqueado: STRIPE_KEY ausente ou inválida fora de ambiente local/testing.', [
+                'environment' => app()->environment(),
+            ]);
+
+            throw new \RuntimeException('Configuração de pagamento (STRIPE_KEY) ausente ou inválida para este ambiente.');
+        }
+
+        $this->isMockMode = $isAllowedMockEnv && (! $hasValidStripeKey || app()->environment('testing') || $stripeService->isMockMode());
 
         $tenant = $this->centralTenant();
         if ($tenant) {
@@ -108,6 +120,14 @@ new class extends Component
     public function updateCard(string $paymentMethodId, StripeService $stripeService): void
     {
         abort_unless($this->isAuthorized, 403);
+
+        if (! app()->environment(['local', 'testing']) && str_starts_with($paymentMethodId, 'pm_mock_')) {
+            throw new \RuntimeException('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+        }
+
+        if (! $this->isMockMode && str_starts_with($paymentMethodId, 'pm_mock_')) {
+            throw new \RuntimeException('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+        }
 
         $tenant = $this->centralTenant;
         if (! $tenant) {

@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Services\ApplyDiscountService;
 use App\Services\StripeService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -26,10 +27,13 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
 
     public string $selectedPlanId = '';
 
+    #[Locked]
     public string $clientSecret = '';
 
+    #[Locked]
     public string $stripeKey = '';
 
+    #[Locked]
     public bool $isMockMode = false;
 
     public function mount(
@@ -88,7 +92,18 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         }
 
         $this->stripeKey = (string) config('services.stripe.key');
-        $this->isMockMode = empty($this->stripeKey) || str_contains($this->stripeKey, 'placeholder') || app()->environment('testing');
+        $isAllowedMockEnv = app()->environment(['local', 'testing']);
+        $hasValidStripeKey = ! empty($this->stripeKey) && ! str_contains(strtolower($this->stripeKey), 'placeholder');
+
+        if (! $isAllowedMockEnv && ! $hasValidStripeKey) {
+            Log::critical('Checkout Stripe bloqueado: STRIPE_KEY ausente ou inválida fora de ambiente local/testing.', [
+                'environment' => app()->environment(),
+            ]);
+
+            throw new \RuntimeException('Configuração de pagamento (STRIPE_KEY) ausente ou inválida para este ambiente.');
+        }
+
+        $this->isMockMode = $isAllowedMockEnv && (! $hasValidStripeKey || app()->environment('testing') || $stripeService->isMockMode());
 
         $intent = $stripeService->createSetupIntent($this->tenant);
         $this->clientSecret = $intent['client_secret'];
@@ -189,6 +204,14 @@ new #[Layout('layouts.guest', ['maxWidth' => 'max-w-5xl', 'noCard' => true])] cl
         StripeService $stripeService,
         ApplyDiscountService $applyDiscountService,
     ): void {
+        if (! app()->environment(['local', 'testing']) && str_starts_with($paymentMethodId, 'pm_mock_')) {
+            throw new \RuntimeException('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+        }
+
+        if (! $this->isMockMode && str_starts_with($paymentMethodId, 'pm_mock_')) {
+            throw new \RuntimeException('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+        }
+
         $plan = $this->selectedPlan;
         if (! $plan) {
             return;

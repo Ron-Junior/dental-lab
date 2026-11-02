@@ -230,4 +230,88 @@ class StripeServiceTest extends TestCase
             $this->assertStringStartsWith('price_', $plan->stripe_price_id);
         }
     }
+
+    public function test_instantiating_stripe_service_in_production_without_valid_secret_throws_runtime_exception(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+        config(['services.stripe.secret' => '']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Configuração do Stripe (STRIPE_SECRET) ausente ou inválida em ambiente produtivo.');
+
+        new StripeService;
+    }
+
+    public function test_instantiating_stripe_service_in_production_with_placeholder_secret_throws_runtime_exception(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+        config(['services.stripe.secret' => 'sk_test_placeholder_key']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Configuração do Stripe (STRIPE_SECRET) ausente ou inválida em ambiente produtivo.');
+
+        new StripeService;
+    }
+
+    public function test_stripe_service_in_production_with_valid_key_has_mock_mode_disabled(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+        config(['services.stripe.secret' => 'sk_test_real_stripe_secret_12345']);
+
+        $service = new StripeService;
+
+        $this->assertFalse($service->isMockMode());
+    }
+
+    public function test_attach_payment_method_rejects_mock_payment_method_when_not_in_mock_mode(): void
+    {
+        $this->app->detectEnvironment(fn () => 'production');
+        config(['services.stripe.secret' => 'sk_test_real_stripe_secret_12345']);
+
+        $tenant = Tenant::query()->create([
+            'id' => 'test-mock-rejection',
+            'name' => 'Laboratório Rejeição Mock',
+            'stripe_customer_id' => 'cus_prod_test',
+        ]);
+
+        $service = new StripeService;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+
+        $service->attachPaymentMethod($tenant, 'pm_mock_test_card');
+    }
+
+    public function test_operations_fail_closed_if_stripe_client_is_unconfigured_outside_mock_mode(): void
+    {
+        $tenant = Tenant::query()->create([
+            'id' => 'test-tenant-fail-closed',
+            'name' => 'Laboratório Fail Closed',
+            'stripe_customer_id' => 'cus_fail_closed',
+        ]);
+
+        $service = new class extends StripeService
+        {
+            protected function isMock(): bool
+            {
+                return false;
+            }
+        };
+        $service->setClient(null);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cliente Stripe não configurado.');
+
+        $service->attachPaymentMethod($tenant, 'pm_real_card_123');
+    }
+
+    public function test_mock_mode_is_allowed_in_local_and_testing_environments(): void
+    {
+        $this->app->detectEnvironment(fn () => 'local');
+        config(['services.stripe.secret' => 'placeholder_key']);
+
+        $service = new StripeService;
+
+        $this->assertTrue($service->isMockMode());
+    }
 }

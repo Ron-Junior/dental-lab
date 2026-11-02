@@ -18,9 +18,16 @@ class StripeService
     public function __construct()
     {
         $secret = config('services.stripe.secret');
+        $hasValidSecret = is_string($secret) && trim($secret) !== '' && ! str_contains(strtolower($secret), 'placeholder');
 
-        if (! empty($secret) && ! str_contains($secret, 'placeholder')) {
+        if ($hasValidSecret) {
             $this->stripe = new StripeClient($secret);
+        } elseif (! app()->environment(['local', 'testing'])) {
+            Log::critical('Configuração do Stripe (STRIPE_SECRET) ausente ou inválida em ambiente produtivo.', [
+                'environment' => app()->environment(),
+            ]);
+
+            throw new \RuntimeException('Configuração do Stripe (STRIPE_SECRET) ausente ou inválida em ambiente produtivo.');
         }
     }
 
@@ -46,6 +53,8 @@ class StripeService
 
             return $mockCustomerId;
         }
+
+        $this->ensureConfigured();
 
         try {
             $customer = $this->stripe->customers->create([
@@ -85,6 +94,8 @@ class StripeService
             ];
         }
 
+        $this->ensureConfigured();
+
         try {
             $setupIntent = $this->stripe->setupIntents->create([
                 'customer' => $customerId,
@@ -117,6 +128,14 @@ class StripeService
      */
     public function attachPaymentMethod(Tenant $tenant, string $paymentMethodId): array
     {
+        if (! $this->isMock() && str_starts_with($paymentMethodId, 'pm_mock_')) {
+            throw new \RuntimeException('Método de pagamento simulado não é permitido fora de ambiente de testes.');
+        }
+
+        if (! $this->isMock()) {
+            $this->ensureConfigured();
+        }
+
         $customerId = $tenant->stripe_customer_id
             ?? $this->createCustomer($tenant, $tenant->owner_email ?? 'lab@dental.test', $tenant->name);
 
@@ -190,6 +209,8 @@ class StripeService
             ];
         }
 
+        $this->ensureConfigured();
+
         try {
             $priceId = $this->getOrCreatePrice($plan);
 
@@ -240,6 +261,8 @@ class StripeService
         if ($this->isMock()) {
             return 'coup_mock_'.bin2hex(random_bytes(6));
         }
+
+        $this->ensureConfigured();
 
         try {
             $params = [
@@ -296,6 +319,8 @@ class StripeService
 
             return $mockPriceId;
         }
+
+        $this->ensureConfigured();
 
         try {
             $interval = $plan->isAnnual() ? 'year' : 'month';
@@ -357,6 +382,8 @@ class StripeService
             return;
         }
 
+        $this->ensureConfigured();
+
         try {
             $product = $this->findOrCreateProduct($plan);
 
@@ -384,6 +411,8 @@ class StripeService
         if ($this->isMock()) {
             return;
         }
+
+        $this->ensureConfigured();
 
         try {
             $subscription = $this->stripe->subscriptions->retrieve($stripeSubscriptionId);
@@ -438,8 +467,29 @@ class StripeService
     /**
      * Check if mock mode is active.
      */
+    public function isMockMode(): bool
+    {
+        return $this->isMock();
+    }
+
+    /**
+     * Check if mock mode is active.
+     */
     protected function isMock(): bool
     {
-        return $this->stripe === null || app()->environment('testing');
+        return app()->environment(['local', 'testing'])
+            && ($this->stripe === null || app()->environment('testing'));
+    }
+
+    /**
+     * Ensure that the Stripe client is properly configured when outside mock mode.
+     *
+     * @throws \RuntimeException
+     */
+    protected function ensureConfigured(): void
+    {
+        if (! $this->isMock() && $this->stripe === null) {
+            throw new \RuntimeException('Cliente Stripe não configurado.');
+        }
     }
 }
