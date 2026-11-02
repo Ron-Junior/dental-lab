@@ -15,7 +15,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
@@ -131,7 +130,7 @@ class ProvisionTenant implements ShouldQueue
 
             // Gerar token seguro de primeiro acesso
             $user->invitationToken()->delete();
-            $token = Hash::make(uniqid());
+            $token = Str::random(64);
             $expiration = now()->addHours(48);
 
             $user->invitationToken()->create([

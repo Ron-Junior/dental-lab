@@ -5,10 +5,10 @@ namespace App\Actions;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\TenantWelcomeNotification;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class ResendFirstAccessLink
@@ -34,7 +34,7 @@ class ResendFirstAccessLink
 
             // Invalida tokens anteriores e cria um novo válido por 48 horas
             $user->invitationToken()->delete();
-            $token = Hash::make(uniqid());
+            $token = Str::random(64);
             $expiration = now()->addHours(48);
 
             $user->invitationToken()->create([

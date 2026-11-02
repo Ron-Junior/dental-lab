@@ -50,30 +50,52 @@ class ProvisionTenantTest extends TestCase
 
             Notification::assertSentOnDemand(
                 TenantWelcomeNotification::class,
-                fn (TenantWelcomeNotification $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === 'ana@example.com'
-                    && $notification->loginUrl === route('login', ['tenant' => 'provisioned-lab']),
+                function (TenantWelcomeNotification $notification, array $channels, object $notifiable) use ($tenant): bool {
+                    $token = $tenant->run(fn () => User::where('email', 'ana@example.com')->first()->invitationToken->token);
+
+                    return $notifiable->routes['mail'] === 'ana@example.com'
+                        && str_contains($notification->loginUrl, 'completar-cadastro')
+                        && str_contains($notification->loginUrl, 'token='.$token);
+                }
             );
+
+            $tokenData = $tenant->run(function () {
+                $user = User::where('email', 'ana@example.com')->first();
+                $invitation = $user->invitationToken;
+
+                return [
+                    'token' => $invitation->token,
+                    'isFuture' => $invitation->expires_at->isFuture(),
+                ];
+            });
+
+            $this->assertSame(64, strlen($tokenData['token']));
+            $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $tokenData['token']);
+            $this->assertFalse(str_starts_with($tokenData['token'], '$2y$'));
+            $this->assertTrue($tokenData['isFuture']);
         } finally {
             $tenant->delete();
         }
     }
 
-    public function test_provisioning_fails_when_password_is_missing(): void
+    public function test_provisioning_skips_when_tenant_already_verified(): void
     {
-        $tenant = Tenant::query()->create([
-            'id' => 'no-password-lab',
-            'name' => 'Sem Senha Lab',
-            'status' => TenantStatus::Provisioning,
-        ]);
+        Notification::fake();
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("A senha do usuário administrador ('password') é obrigatória");
+        $tenant = Tenant::query()->create([
+            'id' => 'verified-lab',
+            'name' => 'Laboratório Já Verificado',
+            'status' => TenantStatus::Active,
+            'verified_at' => now(),
+        ]);
 
         try {
             (new ProvisionTenant($tenant->id, [
-                'name' => 'Ana Silva',
-                'email' => 'ana@example.com',
+                'name' => 'Carlos Silva',
+                'email' => 'carlos@example.com',
             ]))->handle();
+
+            Notification::assertNothingSent();
         } finally {
             $tenant->delete();
         }
@@ -88,12 +110,11 @@ class ProvisionTenantTest extends TestCase
         ]);
 
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage("O e-mail do usuário administrador ('email') é obrigatório");
+        $this->expectExceptionMessage('O e-mail do usuário administrador é obrigatório para provisionar o tenant [no-email-lab].');
 
         try {
             (new ProvisionTenant($tenant->id, [
                 'name' => 'Ana Silva',
-                'password' => 'safe-password',
             ]))->handle();
         } finally {
             $tenant->delete();

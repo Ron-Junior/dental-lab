@@ -4,8 +4,8 @@ namespace App\Actions;
 
 use App\Mail\InviteNotification;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class SendInvitation
 {
@@ -14,7 +14,7 @@ class SendInvitation
         $expirationTime = now()->addHours(48);
         $user->invitationToken()->delete();
 
-        $token = Hash::make(uniqid());
+        $token = Str::random(64);
         $user->invitationToken()->create([
             'token' => $token,
             'expires_at' => $expirationTime,

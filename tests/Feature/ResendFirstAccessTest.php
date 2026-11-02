@@ -66,7 +66,21 @@ class ResendFirstAccessTest extends TestCase
         // A new valid token must exist
         $newToken = $this->ownerUser->invitationToken()->first();
         $this->assertNotNull($newToken);
+        $this->assertSame(64, strlen($newToken->token));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $newToken->token);
+        $this->assertFalse(str_starts_with($newToken->token, '$2y$'));
+        $this->assertStringContainsString('token='.$newToken->token, $newUrl);
         $this->assertTrue($newToken->expires_at->isFuture());
+
+        // A second execution replaces the token with a new distinct 64-character token
+        $secondUrl = $action->handle($this->testTenant);
+        $secondToken = $this->ownerUser->invitationToken()->first();
+        $this->assertNotNull($secondToken);
+        $this->assertSame(64, strlen($secondToken->token));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $secondToken->token);
+        $this->assertFalse(str_starts_with($secondToken->token, '$2y$'));
+        $this->assertNotSame($newToken->token, $secondToken->token);
+        $this->assertStringContainsString('token='.$secondToken->token, $secondUrl);
 
         // Tenant metadata must NOT contain first_access_url
         $this->testTenant->refresh();

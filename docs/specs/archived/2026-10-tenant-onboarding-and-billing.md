@@ -75,7 +75,7 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
    - Cria o schema PostgreSQL do laboratório (`CreateDatabase`).
    - Executa migrações (`tenants:migrate`) e seeds (`TenantProvisioningSeeder`).
    - Cria o usuário administrador com o `owner_email` e senha temporária aleatória segura (`Str::random(32)`).
-   - Gera token de primeiro acesso (`InvitationToken`) e URL assinada temporária (48h) para a rota `/completar-cadastro` no subdomínio do laboratório.
+   - Gera token de primeiro acesso (`InvitationToken`) criptograficamente seguro via CSPRNG (`Str::random(64)`, conforme [2026-10-invitation-token-cryptographic-entropy](2026-10-invitation-token-cryptographic-entropy.md)) e URL assinada temporária (48h) para a rota `/completar-cadastro` no subdomínio do laboratório.
    - Altera o status do tenant para `active`.
    - Envia e-mail de boas-vindas com o link de primeiro acesso (`TenantWelcomeNotification`).
 2. **Tela de Boas-Vindas (`/bem-vindo/{tenant}`):**
@@ -111,8 +111,8 @@ Atualmente, o fluxo de entrada de um laboratório realiza a coleta de senha dire
 
 1. **Ação Centralizada (`ResendFirstAccessLink`):**
    - Valida se o laboratório não foi verificado (`!$tenant->isVerified()`). Se já verificado, lança exceção e bloqueia o reenvio.
-   - Executa no banco isolado do tenant: invalida tokens anteriores do usuário dono (`$user->invitationToken()->delete()`), gera novo token e cria nova URL assinada temporária válida por 48 horas (`URL::temporarySignedRoute('complete-signup.show', ...)`).
-   - Reenvia a notificação por e-mail `TenantWelcomeNotification` para o `owner_email` sem persistir a `first_access_url` nos metadados públicos do `Tenant` ([2026-10-onboarding-checkout-and-first-access-url-protection](../active/2026-10-onboarding-checkout-and-first-access-url-protection.md)).
+   - Executa no banco isolado do tenant: invalida tokens anteriores do usuário dono (`$user->invitationToken()->delete()`), gera novo token CSPRNG (`Str::random(64)`) e cria nova URL assinada temporária válida por 48 horas (`URL::temporarySignedRoute('complete-signup.show', ...)`).
+   - Reenvia a notificação por e-mail `TenantWelcomeNotification` para o `owner_email` sem persistir a `first_access_url` nos metadados públicos do `Tenant` ([2026-10-onboarding-checkout-and-first-access-url-protection](../archived/2026-10-onboarding-checkout-and-first-access-url-protection.md)).
 2. **Ponto de Entrada 1: Tela de Primeiro Acesso (`/completar-cadastro`):**
    - Se o token da URL estiver expirado (`expires_at < now()`) ou inexistente, a tela não exibe o formulário de senha e mostra card amigável avisando da expiração com botão reativo para **"Reenviar novo link para meu e-mail"**.
 3. **Ponto de Entrada 2: Tela de Login do Laboratório (`/login`):**

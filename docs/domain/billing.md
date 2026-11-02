@@ -109,6 +109,8 @@ Valor devido = soma de `amount_in_cents` dos pagamentos pendentes vencidos. Dias
   - Tanto no `mount()` quanto no `completeRegistration()`, o sistema resolve primeiramente o `User` ativo pelo `$this->email` e valida `InvitationToken::where('token', $this->token)->where('user_id', $user->id)->whereNull('used_at')->where('expires_at', '>', now())->first()`, garantindo correspondência estrita entre o token, o `user_id` e a validade temporal antes de permitir a definição de senha.
   - A trava `tenant()->isVerified()` e a marcação `tenant()->markAsVerified()` (`verified_at = now()`) aplicam-se **estritamente ao proprietário/administrador inicial do laboratório (`owner_email` / `Rules::Lab` / `Rules::Owner`)**.
   - Convites enviados para **Parceiros (`LabPartner`) e Dentistas (`Dentist`)** via `SendInvitation` utilizam seus próprios `InvitationToken` individuais: permanecem funcionais mesmo após o laboratório já estar verificado pelo dono (`verified_at !== null`) e nunca marcam `tenants.verified_at` caso sejam aceitos antes do primeiro acesso do proprietário.
+- **Geração Criptograficamente Segura de Tokens de Convite ([spec](../specs/archived/2026-10-invitation-token-cryptographic-entropy.md)):**
+  - Todos os tokens persistidos em `invitation_tokens` (`ProvisionTenant`, `ResendFirstAccessLink` e `SendInvitation`) são gerados via CSPRNG com `Str::random(64)` (64 caracteres alfanuméricos URL-safe, ~381 bits de entropia), sendo vedado o uso de funções baseadas em timestamp como `uniqid()` ou `Hash::make(uniqid())`.
 - Ao definir a senha com sucesso, o sistema marca `$user->markEmailAsVerified()` e invalida o `InvitationToken`, impedindo qualquer reutilização futura do link.
 
 ---

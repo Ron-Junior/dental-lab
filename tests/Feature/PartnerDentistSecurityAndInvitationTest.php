@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\SendInvitation;
 use App\Enums\Rules;
 use App\Enums\TenantStatus;
 use App\Mail\InviteNotification;
@@ -146,6 +147,9 @@ class PartnerDentistSecurityAndInvitationTest extends TestCase
 
         $newToken = $user->invitationToken()->first();
         $this->assertNotNull($newToken);
+        $this->assertSame(64, strlen($newToken->token));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $newToken->token);
+        $this->assertFalse(str_starts_with($newToken->token, '$2y$'));
         $this->assertTrue($newToken->expires_at->isFuture());
 
         Notification::assertSentTo($user, InviteNotification::class);
@@ -183,6 +187,9 @@ class PartnerDentistSecurityAndInvitationTest extends TestCase
 
         $newToken = $user->invitationToken()->first();
         $this->assertNotNull($newToken);
+        $this->assertSame(64, strlen($newToken->token));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $newToken->token);
+        $this->assertFalse(str_starts_with($newToken->token, '$2y$'));
         $this->assertTrue($newToken->expires_at->isFuture());
 
         Notification::assertSentTo($user, InviteNotification::class);
@@ -537,5 +544,39 @@ class PartnerDentistSecurityAndInvitationTest extends TestCase
             'email' => 'ativo@lab.test',
         ])
             ->assertRedirect(route('login'));
+    }
+
+    public function test_send_invitation_generates_cryptographically_secure_token_and_sends_signed_url(): void
+    {
+        Notification::fake();
+
+        $partnerRule = Rule::firstOrCreate(['name' => Rules::LabPartner->value]);
+        $user = User::factory()->create([
+            'name' => 'Convidado CSPRNG',
+            'email' => 'csprng@lab.test',
+            'rule_id' => $partnerRule->id,
+            'password' => null,
+            'email_verified_at' => null,
+        ]);
+
+        SendInvitation::handle($user);
+
+        $invitation = $user->invitationToken()->first();
+        $this->assertNotNull($invitation);
+        $this->assertSame(64, strlen($invitation->token));
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{64}$/', $invitation->token);
+        $this->assertFalse(str_starts_with($invitation->token, '$2y$'));
+        $this->assertTrue($invitation->expires_at->isFuture());
+
+        Notification::assertSentTo(
+            $user,
+            InviteNotification::class,
+            function (InviteNotification $notification) use ($invitation, $user): bool {
+                return $notification->email === $user->email
+                    && str_contains($notification->urlConvite, 'completar-cadastro')
+                    && str_contains($notification->urlConvite, 'token='.$invitation->token)
+                    && str_contains($notification->urlConvite, 'email=csprng%40lab.test');
+            }
+        );
     }
 }
