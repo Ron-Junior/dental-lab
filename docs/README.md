@@ -13,6 +13,7 @@
 ## Especificações (`specs/`)
 - Ativas:
   - [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
+  - [Restrição do Mock Mode de Pagamento (Stripe) a ambientes local/testing](specs/active/2026-11-stripe-mock-mode-environment-restriction.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).
