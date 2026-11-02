@@ -9,18 +9,26 @@ use App\Services\StripeService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
+    #[Locked]
     public string $clientSecret = '';
 
+    #[Locked]
     public string $stripeKey = '';
 
+    #[Locked]
     public bool $isMockMode = false;
 
     public function mount(StripeService $stripeService): void
     {
+        if (! $this->isAuthorized) {
+            return;
+        }
+
         $this->stripeKey = (string) config('services.stripe.key');
         $this->isMockMode = empty($this->stripeKey) || str_contains($this->stripeKey, 'placeholder') || app()->environment('testing');
 
@@ -40,6 +48,10 @@ new class extends Component
     #[Computed]
     public function centralTenant(): ?Tenant
     {
+        if (! $this->isAuthorized) {
+            return null;
+        }
+
         $centralConn = config('tenancy.database.central_connection', 'pgsql');
         $tenantId = tenant('id');
 
@@ -88,11 +100,15 @@ new class extends Component
 
     public function openUpdateCardModal(): void
     {
+        abort_unless($this->isAuthorized, 403);
+
         Flux::modal('update-card-modal')->show();
     }
 
     public function updateCard(string $paymentMethodId, StripeService $stripeService): void
     {
+        abort_unless($this->isAuthorized, 403);
+
         $tenant = $this->centralTenant;
         if (! $tenant) {
             return;
@@ -112,6 +128,8 @@ new class extends Component
 
     public function regularizeSubscription(StripeService $stripeService): void
     {
+        abort_unless($this->isAuthorized, 403);
+
         $tenant = $this->centralTenant;
         if (! $tenant) {
             return;

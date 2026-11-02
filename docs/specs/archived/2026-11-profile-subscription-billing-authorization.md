@@ -1,7 +1,8 @@
 # Especificação: Restrição de Exposição e Alteração do Cartão de Crédito e Assinatura do Laboratório em `/perfil`
 
 - **Identificador:** `2026-11-profile-subscription-billing-authorization`
-- **Status:** Planejado / Em Andamento
+- **Status:** Concluído / Implementado
+- **Data de Conclusão:** 2026-11-01
 - **Data:** Novembro de 2026
 - **Módulos Afetados:**
   - Perfil e Faturamento do Laboratório (`resources/views/profile.blade.php`, `resources/views/livewire/profile/subscription-billing.blade.php`)

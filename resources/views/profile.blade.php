@@ -17,8 +17,10 @@
             <flux:text>Gerencie suas informações pessoais, senha e conta.</flux:text>
         </header>
 
-        <livewire:profile.plan-usage />
-        <livewire:profile.subscription-billing />
+        @can('viewAny', \App\Models\Dentist::class)
+            <livewire:profile.plan-usage />
+            <livewire:profile.subscription-billing />
+        @endcan
 
         <div class="grid gap-6 lg:grid-cols-2">
             <flux:card class="space-y-6">

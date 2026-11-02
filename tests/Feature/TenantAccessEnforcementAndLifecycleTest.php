@@ -335,4 +335,89 @@ class TenantAccessEnforcementAndLifecycleTest extends TestCase
             ->assertOk()
             ->assertSee('O acesso a este laboratório está temporariamente suspenso. Entre em contato com a administração do laboratório.', false);
     }
+
+    public function test_dentists_and_partners_cannot_view_billing_card_or_setup_intent_in_profile(): void
+    {
+        $this->setTenantSubscription(SubscriptionStatus::Active);
+
+        foreach ([Rules::Dentist, Rules::LabPartner] as $rule) {
+            $user = $this->userWithRule($rule);
+
+            $this->actingAs($user)
+                ->get(route('profile'))
+                ->assertOk()
+                ->assertDontSee('profile-subscription-billing-card')
+                ->assertDontSee('profile-plan-usage-card')
+                ->assertDontSee('seti_', false)
+                ->assertDontSee('Assinatura & Faturamento');
+        }
+    }
+
+    public function test_dentists_and_partners_mounting_subscription_billing_component_receive_no_secret(): void
+    {
+        $this->setTenantSubscription(SubscriptionStatus::Active);
+
+        foreach ([Rules::Dentist, Rules::LabPartner] as $rule) {
+            $user = $this->userWithRule($rule);
+            $this->actingAs($user);
+
+            $test = Volt::test('profile.subscription-billing');
+
+            $test->assertSet('clientSecret', '')
+                ->assertDontSee('Assinatura & Faturamento');
+
+            $this->assertNull($test->get('centralTenant'));
+        }
+    }
+
+    public function test_dentists_and_partners_are_forbidden_from_card_and_billing_actions(): void
+    {
+        $this->setTenantSubscription(SubscriptionStatus::Overdue);
+        $this->testTenant->update([
+            'card_brand' => 'visa',
+            'card_last_four' => '4242',
+        ]);
+
+        foreach ([Rules::Dentist, Rules::LabPartner] as $rule) {
+            $user = $this->userWithRule($rule);
+            $this->actingAs($user);
+
+            Volt::test('profile.subscription-billing')
+                ->call('openUpdateCardModal')
+                ->assertForbidden();
+
+            Volt::test('profile.subscription-billing')
+                ->call('updateCard', 'pm_malicious_card')
+                ->assertForbidden();
+
+            Volt::test('profile.subscription-billing')
+                ->call('regularizeSubscription')
+                ->assertForbidden();
+
+            $this->testTenant->refresh();
+            $this->assertSame('4242', $this->testTenant->card_last_four);
+            $this->assertSame('visa', $this->testTenant->card_brand);
+        }
+    }
+
+    public function test_authorized_lab_managers_can_view_billing_card_and_mount_setup_intent(): void
+    {
+        $this->setTenantSubscription(SubscriptionStatus::Active);
+
+        foreach ([Rules::Owner, Rules::Lab, Rules::LabManager] as $rule) {
+            $user = $this->userWithRule($rule);
+
+            $this->actingAs($user)
+                ->get(route('profile'))
+                ->assertOk()
+                ->assertSee('profile-subscription-billing-card')
+                ->assertSee('profile-plan-usage-card')
+                ->assertSee('Assinatura & Faturamento', false);
+
+            $this->actingAs($user);
+            $test = Volt::test('profile.subscription-billing');
+            $test->assertSee('Assinatura & Faturamento', false)
+                ->assertNotSet('clientSecret', '');
+        }
+    }
 }
