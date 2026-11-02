@@ -14,6 +14,7 @@
 - Ativas:
   - [Cancelamento de ordens](specs/active/2026-10-order-cancellation.md).
   - [Restrição do Mock Mode de Pagamento (Stripe) a ambientes local/testing](specs/active/2026-11-stripe-mock-mode-environment-restriction.md).
+  - [Validação server-side do tamanho real de arquivos no S3 (`Storage::size`) para cálculo de cota de armazenamento](specs/active/2026-11-s3-server-side-file-size-quota-validation.md).
 - Concluídas: [índice de arquivadas](specs/archived/README.md).
 
 > Ao planejar uma feature ou modificação, atualize esta pasta conforme [`.ai/rules/boost/documentation.md`](../.ai/rules/boost/documentation.md).
